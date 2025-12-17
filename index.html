@@ -15,6 +15,7 @@
 
   <title>PingMe Private</title>
   <style>
+    /* --- EXISTING STYLES (UNCHANGED) --- */
     :root{
       --bg:#f9fafb;
       --primary-1: #ff5c8a; 
@@ -119,14 +120,12 @@
     }
     .icon-btn:active { background: var(--input-box-bg); }
 
-    /* --- Auth & Forms (Full Screen Mobile Fix) --- */
+    /* --- Auth & Forms --- */
     .auth-container {
         padding: 40px 30px; display: flex; flex-direction: column; justify-content: center; 
         align-items: center; text-align: center; overflow-y: auto;
         width: 100%; max-width: 450px; margin: 0 auto; 
-        min-height: 100vh; /* Fallback */
-        min-height: 100dvh; /* Full mobile screen */
-        box-sizing: border-box;
+        min-height: 100vh; min-height: 100dvh; box-sizing: border-box;
     }
     .auth-input, .profile-input {
         width: 100%; padding: 14px; margin: 8px 0; border-radius: 12px; 
@@ -186,16 +185,9 @@
     }
 
     /* --- New Message Row Layout --- */
-    .msg-row {
-        display: flex;
-        align-items: flex-end; /* Align avatar at bottom */
-        margin-bottom: 6px;
-        width: 100%;
-        position: relative;
-    }
+    .msg-row { display: flex; align-items: flex-end; margin-bottom: 6px; width: 100%; position: relative; }
     .msg-row.you { justify-content: flex-start; }
     .msg-row.me { justify-content: flex-end; }
-
     .msg-content-col { display: flex; flex-direction: column; max-width: 75%; }
     .msg-row.me .msg-content-col { align-items: flex-end; }
     .msg-row.you .msg-content-col { align-items: flex-start; }
@@ -212,7 +204,7 @@
     .msg-avatar img { width: 100%; height: 100%; object-fit: cover; }
     [data-theme="dark"] .msg-avatar { background: #374151; color: #e5e7eb; }
 
-    /* Updated Msg Bubble */
+    /* Msg Bubble */
     .msg {
         display:block; padding:8px 14px; border-radius:18px; 
         position:relative; word-wrap:break-word; font-size: 15px; line-height: 1.5;
@@ -224,7 +216,6 @@
         .msg-content-col { max-width: 60%; }
         .user-list { padding: 20px; }
     }
-    /* Mobile specific adjustments */
     @media (max-width: 768px) {
         .msg-content-col { max-width: 80%; }
         .msg { font-size: 14px; }
@@ -451,7 +442,7 @@
 
   </style>
 
-  <!-- PWA Setup Scripts -->
+  <!-- PWA & NOTIFICATION Setup Scripts -->
   <script>
     // 1. Construct Manifest Data
     const manifestData = {
@@ -482,19 +473,45 @@
     const manifestURL = URL.createObjectURL(blobManifest);
     document.getElementById('my-manifest').setAttribute('href', manifestURL);
 
-    // 3. Register Fake Service Worker for PWA Installability
+    // 3. Register Service Worker with Enhanced Notification Logic
     if ('serviceWorker' in navigator) {
+        // Robust Service Worker Logic
         const swCode = `
             self.addEventListener('install', (e) => self.skipWaiting());
             self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));
+            
+            // Standard fetch handler
             self.addEventListener('fetch', (e) => {
                 e.respondWith(fetch(e.request).catch(() => new Response("Offline")));
+            });
+
+            // NOTIFICATION CLICK HANDLER - THIS OPENS THE APP
+            self.addEventListener('notificationclick', function(event) {
+                event.notification.close();
+                // Focus the app window if open, otherwise open new
+                event.waitUntil(
+                    clients.matchAll({type: 'window', includeUncontrolled: true}).then(function(clientList) {
+                        if (clientList.length > 0) {
+                            let client = clientList[0];
+                            for (let i = 0; i < clientList.length; i++) {
+                                if (clientList[i].focused) {
+                                    return client.focus();
+                                }
+                            }
+                            return client.focus();
+                        }
+                        return clients.openWindow('/');
+                    })
+                );
             });
         `;
         const blobSw = new Blob([swCode], {type: 'text/javascript'});
         const swUrl = URL.createObjectURL(blobSw);
         navigator.serviceWorker.register(swUrl)
-            .then(() => console.log('SW Registered for PWA'))
+            .then((reg) => {
+                console.log('SW Registered');
+                window.swRegistration = reg; // Global ref
+            })
             .catch(err => console.log('SW Fail', err));
     }
   </script>
@@ -856,6 +873,7 @@
     let unsubscribeMsgs = null;
     let unsubscribeRoom = null;
     let unsubscribePartnerStatus = null;
+    let globalNotificationUnsubscribe = null; // New global listener
     let isLoginMode = true;
     let typingTimeout = null;
     let replyTo = null;
@@ -870,10 +888,8 @@
     const installBanner = document.getElementById('install-banner');
     
     window.addEventListener('beforeinstallprompt', (e) => {
-      // Prevent automatic mini-infobar
       e.preventDefault();
       deferredPrompt = e;
-      // Show our custom banner
       installBanner.classList.add('visible');
     });
 
@@ -898,12 +914,6 @@
         document.body.setAttribute('data-theme', theme);
         const toggle = document.getElementById('theme-toggle');
         if(toggle) toggle.checked = (theme === 'dark');
-        
-        if(localStorage.getItem('isLoggedIn') === 'true') {
-             // Keep splash active, logic in auth listener handles removal
-        } else {
-             // Wait for auth listener
-        }
     });
 
     document.getElementById('theme-toggle').addEventListener('change', (e) => {
@@ -920,15 +930,115 @@
             showView('home');
             loadChatList();
             updatePresence('online');
+            
+            // --- NEW: Request Notification Permission on Login ---
+            requestNotificationPermission();
+
+            // --- NEW: Start Global Listener for All Chats ---
+            listenGlobalMessages();
+
             setTimeout(() => splash.classList.add('hidden'), 500);
         } else {
             currentUser = null;
             currentUserData = null;
+            if(globalNotificationUnsubscribe) globalNotificationUnsubscribe();
             localStorage.removeItem('isLoggedIn');
             showView('auth');
             setTimeout(() => splash.classList.add('hidden'), 500);
         }
     });
+
+    // --- NOTIFICATION PERMISSION LOGIC ---
+    function requestNotificationPermission() {
+        if ('Notification' in window) {
+            if (Notification.permission === 'default') {
+                Notification.requestPermission();
+            }
+        }
+    }
+
+    // --- GLOBAL NOTIFICATION LISTENER ---
+    // This listens to ALL chats the user is part of, even if not open
+    function listenGlobalMessages() {
+        if (globalNotificationUnsubscribe) globalNotificationUnsubscribe();
+
+        const q = query(collection(db, CHATS_PATH), where("participants", "array-contains", currentUser.uid));
+        
+        globalNotificationUnsubscribe = onSnapshot(q, (snapshot) => {
+            snapshot.docChanges().forEach((change) => {
+                // Only care if a document is modified (new msg updates lastMessage field)
+                if (change.type === "modified") {
+                    const roomData = change.doc.data();
+                    const lastMsg = roomData.lastMessage;
+                    const roomId = change.doc.id;
+                    
+                    if (!lastMsg) return;
+
+                    // 1. Don't notify my own messages
+                    if (lastMsg.senderId === currentUser.uid) return;
+
+                    // 2. Check time (avoid notifying old messages on page load)
+                    const msgTime = lastMsg.timestamp ? lastMsg.timestamp.seconds * 1000 : 0;
+                    const now = Date.now();
+                    // Message must be younger than 10 seconds to trigger notification
+                    if (now - msgTime > 10000) return;
+
+                    // 3. Determine if we should notify
+                    // Notify if:
+                    // A. Page is hidden (Tab switch / Minimized)
+                    // OR
+                    // B. User is NOT in this specific chat room (e.g., on Home or another chat)
+                    const isAppHidden = document.visibilityState === 'hidden';
+                    const isDifferentRoom = (currentChatId !== roomId);
+                    
+                    if (isAppHidden || isDifferentRoom) {
+                        // Get Sender Info
+                        let senderName = "New Message";
+                        let senderPhoto = null;
+                        
+                        // Try to find sender in participantInfo map
+                        if (roomData.participantInfo && roomData.participantInfo[lastMsg.senderId]) {
+                            senderName = roomData.participantInfo[lastMsg.senderId].displayName;
+                            senderPhoto = roomData.participantInfo[lastMsg.senderId].photoURL;
+                        }
+
+                        let bodyText = (lastMsg.type === 'image') ? '📷 একটি ছবি পাঠিয়েছেন' : lastMsg.text;
+                        
+                        sendLocalNotification(senderName, bodyText, senderPhoto);
+                    }
+                }
+            });
+        });
+    }
+
+    // --- NOTIFICATION TRIGGER LOGIC ---
+    function sendLocalNotification(title, body, icon) {
+        const notifIcon = icon || 'https://i.postimg.cc/RZ5FH16z/Gemini-Generated-Image-rgsqsqrgsqsqrgsq-removebg-preview.png';
+        
+        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+            // Mobile / Modern PWA Approach
+            navigator.serviceWorker.ready.then(registration => {
+                registration.showNotification(title, {
+                    body: body,
+                    icon: notifIcon,
+                    badge: 'https://i.postimg.cc/RZ5FH16z/Gemini-Generated-Image-rgsqsqrgsqsqrgsq-removebg-preview.png',
+                    vibrate: [200, 100, 200],
+                    tag: 'pingme-msg',
+                    renotify: true
+                });
+            });
+        } else if ('Notification' in window && Notification.permission === 'granted') {
+            // Desktop Legacy Approach
+            const n = new Notification(title, {
+                body: body,
+                icon: notifIcon
+            });
+            n.onclick = function() {
+                window.focus();
+                n.close();
+            };
+        }
+    }
 
     function showView(name) {
         Object.values(views).forEach(el => el.classList.remove('active'));
@@ -1148,7 +1258,7 @@
         btn.textContent = "তথ্য সেভ করুন";
     });
     
-    // --- PROFILE PHOTO & PROPAGATION LOGIC ---
+    // --- PROFILE PHOTO LOGIC ---
     const profileFileInput = document.getElementById('profile-file-input');
     document.getElementById('change-photo-btn').addEventListener('click', () => profileFileInput.click());
 
@@ -1164,7 +1274,6 @@
             await updateDoc(doc(db, USERS_PATH, currentUser.uid), { photoURL: croppedDataUrl });
             currentUserData.photoURL = croppedDataUrl;
             
-            // PROPAGATE TO ALL CHATS
             await updateProfileEverywhere(croppedDataUrl);
 
             document.getElementById('profile-img-preview').src = croppedDataUrl;
@@ -1179,14 +1288,12 @@
         profileFileInput.value = '';
     });
 
-    // Helper to update profile URL in all active chats
     async function updateProfileEverywhere(newUrl) {
         const q = query(collection(db, CHATS_PATH), where("participants", "array-contains", currentUser.uid));
         const querySnapshot = await getDocs(q);
         const updates = [];
         querySnapshot.forEach((docSnap) => {
              const roomRef = doc(db, CHATS_PATH, docSnap.id);
-             // Update specific field in the map
              updates.push( updateDoc(roomRef, { [`participantInfo.${currentUser.uid}.photoURL`]: newUrl }) );
         });
         await Promise.all(updates);
@@ -1353,7 +1460,6 @@
         const uids = [currentUser.uid, partnerId].sort();
         currentChatId = uids.join('_');
         
-        // Update Header UI Initial State
         updateChatHeaderUI(partnerData);
         
         showView('chat');
@@ -1373,17 +1479,14 @@
         }
     }
 
-    // --- OPEN FRIEND PROFILE ---
     document.getElementById('chat-user-header').addEventListener('click', async () => {
         if(!currentPartnerId) return;
-        
         const docRef = doc(db, USERS_PATH, currentPartnerId);
         const snap = await getDoc(docRef);
         let data = currentPartnerData;
         if(snap.exists()) data = snap.data();
 
         showView('friendProfile');
-        
         document.getElementById('friend-display-name').textContent = data.displayName;
         document.getElementById('friend-ping-id').textContent = '@' + (data.pingId || 'unknown');
         document.getElementById('friend-bio').textContent = data.bio || 'কোনো তথ্য নেই';
@@ -1402,7 +1505,6 @@
 
     document.getElementById('back-from-friend-profile').addEventListener('click', () => showView('chat'));
 
-
     function listenToRoom(roomId) {
         if(unsubscribeRoom) unsubscribeRoom();
         if(unsubscribePartnerStatus) unsubscribePartnerStatus();
@@ -1410,12 +1512,10 @@
         const roomRef = doc(db, CHATS_PATH, roomId);
         updateDoc(roomRef, { hiddenFor: arrayRemove(currentUser.uid) }).catch(()=>{});
 
-        // REFACTORED: Listen for partner changes (photo/name) in the room doc
         unsubscribeRoom = onSnapshot(roomRef, (snap) => {
             if(!snap.exists()) return;
             const data = snap.data();
             
-            // 1. Typing
             const typingIndicator = document.getElementById('typing-indicator');
             if(data.typing && data.typing[currentPartnerId]) {
                 typingIndicator.classList.add('active');
@@ -1425,14 +1525,11 @@
                 typingIndicator.classList.remove('active');
             }
 
-            // 2. Dynamic Partner Info Update (Reactivity)
             if (data.participantInfo && data.participantInfo[currentPartnerId]) {
                  const newPartnerInfo = data.participantInfo[currentPartnerId];
-                 // If photo changed, update local state and DOM
                  if (newPartnerInfo.photoURL !== currentPartnerData.photoURL) {
                      currentPartnerData = newPartnerInfo;
                      updateChatHeaderUI(currentPartnerData);
-                     // Update all visible message avatars
                      document.querySelectorAll('.msg-avatar img').forEach(img => img.src = currentPartnerData.photoURL);
                  }
             }
@@ -1444,7 +1541,6 @@
         unsubscribePartnerStatus = onSnapshot(doc(db, USERS_PATH, currentPartnerId), (docSnap) => {
             if(docSnap.exists()) {
                 const data = docSnap.data();
-                
                 if(data.status === 'online') {
                     dot.style.display = 'block';
                     dot.className = 'status-dot online';
@@ -1455,7 +1551,6 @@
                     dot.style.display = 'none';
                     statusTxt.style.display = 'block';
                     statusTxt.style.color = 'var(--muted)';
-                    
                     if(data.lastActive) {
                         const timeAgo = formatTimeAgo(data.lastActive.toDate());
                         statusTxt.textContent = timeAgo ? `Active ${timeAgo}` : '';
@@ -1472,11 +1567,8 @@
         if(unsubscribeRoom) unsubscribeRoom();
         if(unsubscribePartnerStatus) unsubscribePartnerStatus();
         cancelReply();
+        currentChatId = null; // Reset current chat
         
-        if(currentChatId) {
-             const ref = doc(db, CHATS_PATH, currentChatId);
-             updateDoc(ref, { [`typing.${currentUser.uid}`]: false }).catch(()=>{});
-        }
         showView('home');
     });
 
@@ -1492,7 +1584,6 @@
     // --- MESSAGES RENDERING ---
     function loadMessages(roomId) {
         const msgsRef = collection(db, CHATS_PATH, roomId, 'messages');
-        
         const msgsContainer = document.getElementById('messages');
         const scrollBtn = document.getElementById('scrollBtn');
 
@@ -1524,7 +1615,6 @@
                 const row = document.createElement('div');
                 row.className = `msg-row ${isMe ? 'me' : 'you'}`;
 
-                // Avatar
                 if (!isMe) {
                     const avatarDiv = document.createElement('div');
                     avatarDiv.className = 'msg-avatar';
@@ -1538,7 +1628,6 @@
                     row.appendChild(avatarDiv);
                 }
 
-                // Msg Col
                 const col = document.createElement('div');
                 col.className = 'msg-content-col';
 
@@ -1594,7 +1683,6 @@
                 div.innerHTML = `${replyHtml}${contentHTML}<div class="meta">${time}<button class="local-love-btn" onclick="toggleLove('${roomId}', '${m.id}')">${heartIcon}</button>${statusHTML}</div>`;
                 
                 attachLongPress(div, m, m.id);
-
                 col.appendChild(div);
 
                 if(m.reactions) {
@@ -1640,16 +1728,13 @@
         const ref = doc(db, CHATS_PATH, roomId, 'messages', msgId);
         const snap = await getDoc(ref);
         if(!snap.exists()) return;
-        
         const data = snap.data();
         const reactions = data.reactions || {};
-        
         if(reactions[currentUser.uid] === emoji) {
             delete reactions[currentUser.uid]; 
         } else {
             reactions[currentUser.uid] = emoji;
         }
-        
         updateDoc(ref, { reactions: reactions });
     }
 
@@ -1659,7 +1744,6 @@
             timer = setTimeout(() => showContextualMenu(el, m, msgId), 500); 
         };
         const end = () => { clearTimeout(timer); };
-        
         el.addEventListener('touchstart', start, {passive: true});
         el.addEventListener('touchend', end); 
         el.addEventListener('touchmove', end);
@@ -1672,27 +1756,20 @@
         if(currentActiveMsgEl) currentActiveMsgEl.classList.remove('long-press-active');
         currentActiveMsgEl = el;
         currentActiveMsgEl.classList.add('long-press-active');
-        
         if(navigator.vibrate) navigator.vibrate(50);
-        
         currentMsgId = msgId;
         currentMsgData = m;
-
         renderInlineReactions(el, msgId);
-
         const isMe = m.senderId === currentUser.uid;
         document.getElementById('optDelete').style.display = isMe ? 'flex' : 'none';
-        
         document.getElementById('optionsSheet').classList.add('active');
     }
 
     function renderInlineReactions(targetEl, msgId) {
         if(currentReactionPopup) currentReactionPopup.remove();
-
         const rect = targetEl.getBoundingClientRect();
         const popup = document.createElement('div');
         popup.className = 'reaction-popover';
-        
         const emojis = ['❤️', '😂', '😮', '😢', '👍', '😡'];
         emojis.forEach(e => {
             const btn = document.createElement('button');
@@ -1705,16 +1782,13 @@
             };
             popup.appendChild(btn);
         });
-
         document.body.appendChild(popup);
         currentReactionPopup = popup;
-
         let top = rect.top - 60;
         let left = rect.left;
         if(top < 10) top = rect.bottom + 10;
         if(left + popup.offsetWidth > window.innerWidth) left = window.innerWidth - popup.offsetWidth - 10;
         if(left < 10) left = 10;
-
         popup.style.top = `${top}px`;
         popup.style.left = `${left}px`;
     }
@@ -1793,7 +1867,6 @@
         scale = 1; pointX = 0; pointY = 0;
         updateTransform();
     }
-    
     lightboxClose.onclick = () => lightbox.classList.remove('active');
     let initialDist = 0;
     
@@ -1841,7 +1914,6 @@
     }
 
     const msgInput = document.getElementById('msg-input');
-    
     msgInput.addEventListener('input', () => {
         if(currentChatId) {
             const ref = doc(db, CHATS_PATH, currentChatId);
@@ -1864,7 +1936,6 @@
     async function sendMessage(textOverride=null, type='text') {
         const text = textOverride || msgInput.value.trim();
         if(!text) return;
-
         if(type === 'text') {
             msgInput.value = '';
             msgInput.style.height = 'auto'; 
@@ -1888,7 +1959,6 @@
         }
 
         await addDoc(msgsRef, payload);
-        
         updateDoc(roomRef, { [`typing.${currentUser.uid}`]: false }).catch(()=>{});
 
         const participantInfo = {
@@ -1918,5 +1988,3 @@
   </script>
 </body>
 </html>
-
-
