@@ -1,0 +1,1709 @@
+<!doctype html>
+<html lang="bn">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>PingMe Private (Updated)</title>
+  <style>
+    :root{
+      --bg:#f9fafb;
+      --primary-1: #ff5c8a; 
+      --primary-2: #ff2d55;
+      --muted:#6b7280;
+      --card-shadow: 0 6px 20px rgba(12,20,40,0.08);
+      --glass-border: rgba(255,255,255,0.3);
+      --msg-bg-you: white;
+      --msg-text-you: #1f2937;
+      --app-bg: linear-gradient(180deg, #fff 0%, #fff0f5 100%);
+      --header-bg: white;
+      --input-bg: white;
+      --input-box-bg: #fff0f7;
+      --border-color: rgba(0,0,0,0.05);
+      font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans Bengali', 'Helvetica Neue', Arial;
+    }
+
+    [data-theme="dark"] {
+      --bg: #111827;
+      --primary-1: #db2777;
+      --primary-2: #be185d;
+      --muted: #9ca3af;
+      --card-shadow: 0 6px 20px rgba(0,0,0,0.4);
+      --glass-border: rgba(255,255,255,0.1);
+      --msg-bg-you: #1f2937;
+      --msg-text-you: #f3f4f6;
+      --app-bg: #111827;
+      --header-bg: #1f2937;
+      --input-bg: #1f2937;
+      --input-box-bg: #374151;
+      --border-color: rgba(255,255,255,0.1);
+      color: #f3f4f6;
+    }
+    
+    html, body {
+        height: 100%; margin: 0; background: var(--app-bg); color: inherit;
+        -webkit-tap-highlight-color: transparent; overflow: hidden; position: fixed; width: 100%;
+        transition: background 0.3s;
+    }
+
+    /* --- View Management --- */
+    .view-section { display: none; flex-direction: column; height: 100%; width: 100%; }
+    .view-section.active { display: flex; animation: fadeIn 0.3s ease; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    /* --- Splash Screen --- */
+    #splash-screen {
+        position: fixed; inset: 0; background: var(--header-bg); z-index: 9999;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        transition: opacity 0.5s ease-out, visibility 0.5s;
+    }
+    #splash-screen.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+    
+    .splash-title {
+        font-size: 32px; font-weight: 800;
+        background: linear-gradient(135deg, var(--primary-1), var(--primary-2));
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        margin-bottom: 30px; letter-spacing: -0.5px;
+    }
+    .spinner { width: 50px; height: 50px; position: relative; }
+    .spinner::before, .spinner::after {
+        content: ''; position: absolute; inset: 0; border-radius: 50%; border: 3px solid transparent;
+    }
+    .spinner::before { border-top-color: var(--primary-2); animation: spin 1s linear infinite; }
+    .spinner::after { border-bottom-color: var(--primary-1); animation: spin 1.5s linear infinite reverse; inset: 6px; }
+    @keyframes spin { 100% { transform: rotate(360deg); } }
+
+    /* --- Layout Wrapper (Updated for Full Screen on PC) --- */
+    .wrap {
+        width: 100%; height: 100%; background: var(--bg);
+        display: flex; flex-direction: column; position: relative;
+        margin: 0; border-radius: 0; box-shadow: none; border: none;
+    }
+    /* On very wide screens, we can center content slightly if needed, 
+       but user requested "Full Size", so we keep it 100% width but constrain message width for readability */
+    
+    /* --- Headers --- */
+    header.app {
+        display: flex; align-items: center; justify-content: space-between; padding: 14px 20px;
+        border-bottom: 1px solid var(--border-color); background: var(--header-bg); 
+        z-index: 10; flex-shrink: 0; min-height: 60px; transition: background 0.3s;
+    }
+    
+    /* Animated Brand Logo */
+    .brand-container { display: flex; align-items: center; gap: 10px; }
+    .brand-logo-img { width: 32px; height: 32px; object-fit: contain; }
+    .brand-text {
+        font-size: 24px; font-weight: 900; letter-spacing: -1px;
+        background: linear-gradient(-45deg, var(--primary-1), var(--primary-2), #ff9a9e, var(--primary-1));
+        background-size: 300%;
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        animation: brandAnim 5s ease infinite;
+    }
+    @keyframes brandAnim { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
+
+    .title { flex:1; overflow: hidden; margin-left: 10px; }
+    .title h1 { margin:0; font-size:16px; font-weight: 700; color: inherit; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    
+    .clickable-header { cursor: pointer; transition: opacity 0.2s; }
+    .clickable-header:active { opacity: 0.7; }
+
+    .icon-btn { 
+        background: transparent; border: none; color: var(--muted); cursor: pointer; padding: 8px; 
+        border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: background 0.2s;
+    }
+    .icon-btn:active { background: var(--input-box-bg); }
+
+    /* --- Auth & Forms --- */
+    .auth-container {
+        padding: 40px 30px; display: flex; flex-direction: column; justify-content: center; 
+        align-items: center; height: 100%; text-align: center; overflow-y: auto;
+        max-width: 450px; margin: 0 auto; /* Center auth on PC */
+    }
+    .auth-input, .profile-input {
+        width: 100%; padding: 14px; margin: 8px 0; border-radius: 12px; 
+        border: 1px solid var(--border-color); background: var(--input-box-bg); 
+        color: inherit; outline: none; font-size: 15px; box-sizing: border-box;
+    }
+    .auth-input:focus, .profile-input:focus { border-color: var(--primary-1); }
+    .btn-primary { 
+        background: linear-gradient(135deg, var(--primary-1), var(--primary-2)); color: white; 
+        padding: 14px; border-radius: 12px; border: 0; font-weight: 600; cursor: pointer; 
+        font-size: 16px; width: 100%; margin-top: 15px; box-shadow: 0 4px 15px rgba(255, 45, 85, 0.3);
+        transition: transform 0.1s;
+    }
+    .btn-primary:active { transform: scale(0.98); }
+    .auth-footer { margin-top: 20px; font-size: 13px; color: var(--muted); cursor: pointer; text-decoration: underline; }
+    .forgot-pass { margin-top: 10px; font-size: 12px; color: var(--primary-2); cursor: pointer; font-weight: 500; }
+
+    /* --- User/Chat List Styles --- */
+    .user-list { flex: 1; overflow-y: auto; padding: 10px 16px; max-width: 800px; margin: 0 auto; width: 100%; box-sizing: border-box; }
+    .user-card {
+        display: flex; align-items: center; gap: 12px; padding: 12px; 
+        background: var(--header-bg); margin-bottom: 8px; border-radius: 16px; 
+        cursor: pointer; border: 1px solid var(--border-color); transition: transform 0.1s;
+    }
+    .user-card:active { transform: scale(0.98); background: var(--input-box-bg); }
+    .avatar { 
+        width: 45px; height: 45px; border-radius: 50%; background: #e5e7eb; color: #374151;
+        display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 18px;
+        flex-shrink: 0; overflow: hidden; position: relative;
+    }
+    .avatar img { width: 100%; height: 100%; object-fit: cover; }
+    [data-theme="dark"] .avatar { background: #374151; color: #e5e7eb; }
+    .user-info { flex: 1; min-width: 0; }
+    .user-info h3 { margin: 0; font-size: 15px; font-weight: 600; }
+    .user-info p { margin: 2px 0 0; font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    
+    .status-dot { width: 10px; height: 10px; border-radius: 50%; background: #ccc; border: 2px solid var(--header-bg); display: block; }
+    .status-dot.online { 
+        background: #22c55e; 
+        box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+        animation: pulse-green 2s infinite;
+    }
+    @keyframes pulse-green {
+        0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+        70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(34, 197, 94, 0); }
+        100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+    }
+
+    /* --- Chat Area --- */
+    main.chat { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--bg); position: relative; }
+    .messages { flex: 1; overflow-y: auto; padding: 10px 16px; display: flex; flex-direction: column; gap: 4px; scroll-behavior: smooth; }
+    /* Constrain message width on large screens for readability */
+    .msg {
+        display:block; max-width:80%; padding:8px 14px; border-radius:18px; 
+        position:relative; word-wrap:break-word; font-size: 15px; line-height: 1.5;
+        box-shadow: 0 1px 1px rgba(0,0,0,0.03); margin-bottom: 2px;
+        cursor: pointer; user-select: none; transition: transform 0.1s, background-color 0.2s;
+    }
+    @media (min-width: 768px) {
+        .msg { max-width: 60%; }
+        .user-list { padding: 20px; }
+    }
+
+    .msg:active { transform: scale(0.98); }
+    .msg.long-press-active { transform: scale(1.02); z-index: 10; box-shadow: 0 8px 20px rgba(0,0,0,0.15); }
+    
+    .msg.me { align-self: flex-end; background: linear-gradient(135deg, var(--primary-1), var(--primary-2)); color: white; border-bottom-right-radius: 4px; }
+    .msg.you { align-self: flex-start; background: var(--msg-bg-you); color: var(--msg-text-you); border: 1px solid var(--border-color); border-bottom-left-radius: 4px; }
+    
+    .msg .meta { font-size: 9px; display:flex; gap:4px; align-items:center; justify-content: flex-end; margin-top: 2px; opacity: 0.8; }
+    .status-icon { width: 14px; height: 14px; display: flex; align-items: center; justify-content: center; }
+    .status-icon svg { width: 100%; height: 100%; }
+    .status-icon.seen-avatar { border-radius: 50%; overflow: hidden; border: 1px solid white; width: 14px; height: 14px; }
+    .status-icon.seen-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+    .msg img.chat-img { max-width: 100%; border-radius: 8px; margin-top: 4px; display: block; cursor: pointer; }
+    
+    .typing-indicator {
+        display: none; align-self: flex-start; background: var(--msg-bg-you); 
+        padding: 10px 16px; border-radius: 18px; border-bottom-left-radius: 4px;
+        margin-left: 16px; margin-bottom: 10px; border: 1px solid var(--border-color);
+        width: fit-content;
+    }
+    .typing-indicator.active { display: block; animation: slideIn 0.3s; }
+    .dots { display: flex; gap: 4px; }
+    .dot { width: 6px; height: 6px; background: var(--muted); border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both; }
+    .dot:nth-child(1) { animation-delay: -0.32s; }
+    .dot:nth-child(2) { animation-delay: -0.16s; }
+    @keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
+    @keyframes slideIn { from{ opacity:0; transform:translateY(10px); } to{ opacity:1; transform:translateY(0); } }
+
+    footer.input {
+        display: flex; flex-direction: column; background: var(--header-bg); border-top: 1px solid var(--border-color);
+        box-shadow: 0 -1px 3px rgba(0,0,0,0.02); z-index: 20; padding: 0;
+    }
+    .input-main { display: flex; gap: 8px; padding: 10px 12px; align-items: flex-end; max-width: 1000px; margin: 0 auto; width: 100%; box-sizing: border-box; }
+    .input-container {
+        flex: 1; background: var(--input-box-bg); border-radius: 24px; border: 1px solid var(--border-color);
+        padding: 8px 12px; display: flex; align-items: center; gap: 8px; transition: border-color 0.2s;
+    }
+    .input-container:focus-within { border-color: var(--primary-1); }
+    .input-container textarea {
+        flex: 1; border: none; background: transparent; padding: 4px 0; resize: none; 
+        font-size: 15px; outline: none; color: inherit; max-height: 100px; min-height: 24px;
+        line-height: 24px;
+    }
+    .send-btn {
+        background: linear-gradient(90deg,var(--primary-1),var(--primary-2)); border:none; color:white;
+        width: 44px; height: 44px; border-radius: 50%; display:flex; align-items:center; justify-content:center;
+        cursor:pointer; flex-shrink: 0; box-shadow: 0 4px 12px rgba(255, 45, 85, 0.3);
+        transition: transform 0.1s;
+    }
+    .send-btn:active { transform: scale(0.90); }
+
+    /* --- Profile & Modals --- */
+    .profile-header { text-align: center; margin-bottom: 20px; }
+    .profile-avatar-large { 
+        width: 100px; height: 100px; border-radius: 50%; background: var(--input-box-bg); 
+        margin: 0 auto 10px; display: flex; align-items: center; justify-content: center; 
+        font-size: 40px; font-weight: bold; color: var(--primary-2); 
+        border: 4px solid var(--header-bg); box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+    .profile-avatar-large img { width: 100%; height: 100%; object-fit: cover; }
+    
+    .label-text { font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 4px; display: block; margin-top: 10px; }
+    .ping-id-badge {
+        background: var(--input-box-bg); color: var(--primary-2); padding: 4px 12px;
+        border-radius: 20px; font-size: 13px; font-weight: 600; display: inline-block; margin-bottom: 10px;
+        border: 1px solid var(--border-color); cursor: pointer; user-select: all;
+    }
+
+    /* Switch Style for Theme */
+    .switch-container {
+        display: flex; align-items: center; justify-content: space-between;
+        background: var(--header-bg); padding: 15px; border-radius: 12px;
+        border: 1px solid var(--border-color); margin-bottom: 10px;
+    }
+    .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider {
+        position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+        background-color: #ccc; transition: .4s; border-radius: 24px;
+    }
+    .slider:before {
+        position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px;
+        background-color: white; transition: .4s; border-radius: 50%;
+    }
+    input:checked + .slider { background-color: var(--primary-2); }
+    input:checked + .slider:before { transform: translateX(20px); }
+
+
+    .fab {
+        position: absolute; bottom: 20px; right: 20px;
+        width: 56px; height: 56px; border-radius: 50%;
+        background: linear-gradient(135deg, var(--primary-1), var(--primary-2));
+        color: white; display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 4px 15px rgba(255, 45, 85, 0.4); cursor: pointer; z-index: 50;
+        border: none; transition: transform 0.1s;
+    }
+    .fab:active { transform: scale(0.90); }
+    .error-msg { color: #ef4444; font-size: 13px; margin-top: 8px; display: none; text-align: center; }
+
+    /* --- Lightbox Viewer (Zoom) --- */
+    #lightbox {
+        position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 10000;
+        display: flex; align-items: center; justify-content: center;
+        opacity: 0; visibility: hidden; transition: 0.3s;
+        touch-action: none;
+    }
+    #lightbox.active { opacity: 1; visibility: visible; }
+    #lightbox img {
+        max-width: 100%; max-height: 100%; transition: transform 0.1s; transform-origin: center;
+    }
+    #lightbox-close {
+        position: absolute; top: 20px; right: 20px; color: white; background: rgba(255,255,255,0.2);
+        border: none; border-radius: 50%; width: 40px; height: 40px; cursor: pointer; font-size: 20px;
+        display: flex; align-items: center; justify-content: center; z-index: 10001;
+    }
+
+    /* --- Extra Features --- */
+    .reply-preview {
+        display: none; background: var(--input-box-bg); padding: 8px 12px; font-size: 12px;
+        border-bottom: 1px solid var(--border-color); color: var(--muted);
+        justify-content: space-between; align-items: center; animation: slideUp 0.2s;
+    }
+    .reply-preview.active { display: flex; }
+    .reply-block {
+        border-left: 3px solid var(--primary-2); background: rgba(0,0,0,0.05);
+        padding: 4px 8px; border-radius: 4px; margin-bottom: 6px; font-size: 12px;
+        display: flex; flex-direction: column; cursor: pointer; opacity: 0.9;
+    }
+    .msg.me .reply-block { background: rgba(0,0,0,0.1); border-left-color: white; }
+    
+    .action-sheet-overlay {
+        position:fixed; inset:0; background:rgba(0,0,0,0.3); backdrop-filter:blur(2px);
+        display:none; align-items:flex-end; justify-content:center; z-index: 2000;
+    }
+    .action-sheet-overlay.active { display: flex; }
+    .action-sheet { 
+        width: 100%; max-width: 420px; background: var(--header-bg); 
+        border-top-left-radius: 20px; border-top-right-radius: 20px; 
+        padding: 20px 16px 30px; animation: slideUp 0.2s; 
+        display: flex; flex-direction: column; gap: 8px; color: inherit; 
+    }
+    @keyframes slideUp { from {transform: translateY(100%);} to {transform: translateY(0);} }
+    .sheet-btn { 
+        width: 100%; padding: 14px; border: none; background: var(--input-box-bg); 
+        border-radius: 12px; font-size: 16px; font-weight: 600; color: var(--primary-2); 
+        cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .sheet-btn.danger { color: #ef4444; background: #fee2e2; }
+
+    .toast-msg {
+        position: fixed; top: 80px; left: 50%; transform: translateX(-50%) translateY(-20px);
+        background: rgba(0,0,0,0.8); color: white; padding: 10px 20px; border-radius: 30px;
+        font-size: 14px; opacity: 0; pointer-events: none; z-index: 2000;
+        transition: all 0.3s; white-space: nowrap;
+    }
+    .toast-msg.active { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    .scroll-bottom-btn {
+        position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%);
+        background: var(--primary-2); color: white; padding: 8px 16px; border-radius: 20px;
+        font-size: 12px; font-weight: 600; cursor: pointer;
+        box-shadow: 0 4px 15px rgba(255, 45, 85, 0.4); transition: all 0.3s; 
+        z-index: 50; display: flex; align-items: center; gap: 6px;
+    }
+    .scroll-bottom-btn.hidden { opacity: 0; pointer-events: none; transform: translate(-50%, 20px); }
+
+    .reactions-row { display: flex; gap: 4px; margin-top: -6px; margin-bottom: 4px; z-index: 2; position: relative; }
+    .msg.me + .reactions-row { align-self: flex-end; justify-content: flex-end; padding-right: 10px; }
+    .msg.you + .reactions-row { align-self: flex-start; padding-left: 10px; }
+    .reaction-pill {
+        background: var(--input-box-bg); border: 1px solid var(--border-color); padding: 2px 6px;
+        border-radius: 10px; font-size: 10px; display: flex; align-items: center; gap: 2px;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.05); color: var(--muted);
+    }
+    
+    .local-love-btn {
+        background: none; border: none; padding: 0; margin-left: 4px; cursor: pointer;
+        display: inline-flex; align-items: center; justify-content: center;
+        color: inherit; opacity: 0.6; transition: all 0.2s;
+    }
+    .local-love-btn.active { color: #ff2d55; opacity: 1; transform: scale(1.2); }
+    .msg.me .local-love-btn.active { color: white; }
+
+    .reaction-popover {
+        position: fixed; z-index: 10005; background: var(--header-bg);
+        border: 1px solid var(--border-color); border-radius: 50px;
+        padding: 6px 10px; display: flex; gap: 8px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+        animation: scaleIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    @keyframes scaleIn { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    .pop-emoji { font-size: 20px; background: transparent; border: none; cursor: pointer; padding: 2px; transition: transform 0.2s; }
+    .pop-emoji:active { transform: scale(1.3); }
+    
+    .msg a { color: var(--primary-2); text-decoration: underline; }
+    .msg.me a { color: white; }
+
+  </style>
+</head>
+<body>
+
+  <!-- SPLASH SCREEN -->
+  <div id="splash-screen">
+    <div class="splash-title">PingMe</div>
+    <div class="spinner"></div>
+    <div style="margin-top:20px; color:#6b7280; font-size:14px;">Private & Secure Chat</div>
+  </div>
+
+  <!-- LIGHTBOX -->
+  <div id="lightbox">
+      <button id="lightbox-close">&times;</button>
+      <img id="lightbox-img" src="" alt="Full View">
+  </div>
+
+  <!-- TOAST MESSAGE -->
+  <div class="toast-msg" id="toastMsg">Action Successful</div>
+
+  <!-- ACTION SHEET -->
+  <div class="action-sheet-overlay" id="optionsSheet">
+    <div class="action-sheet">
+        <button class="sheet-btn" id="optReply">↩ রিপ্লাই (Reply)</button>
+        <button class="sheet-btn" id="optCopy">📋 কপি করুন (Copy)</button>
+        <button class="sheet-btn danger" id="optDelete">🗑️ ডিলেট (Delete)</button>
+        <button class="sheet-btn" id="optCancel">বন্ধ করুন</button>
+    </div>
+  </div>
+
+  <div class="wrap">
+      
+      <!-- 1. AUTH SCREEN -->
+      <div id="view-auth" class="view-section active">
+          <div class="auth-container">
+              <div class="logo-container" style="width:100px; height:100px; margin-bottom:15px;">
+                  <img src="https://i.postimg.cc/RZ5FH16z/Gemini-Generated-Image-rgsqsqrgsqsqrgsq-removebg-preview.png" class="logo-img" alt="Logo">
+              </div>
+              <!-- Animated Branding -->
+              <div class="brand-text" style="font-size:32px; margin-bottom:5px;">PingMe</div>
+              <p style="margin:0 0 30px 0; color:var(--muted)">Secure Login System</p>
+
+              <div id="signup-fields" style="display:none; width:100%;">
+                  <input id="auth-name" class="auth-input" placeholder="আপনার পুরো নাম" />
+              </div>
+              <input id="auth-email" class="auth-input" placeholder="ইমেইল অ্যাড্রেস" type="email" />
+              <input id="auth-pass" class="auth-input" placeholder="পাসওয়ার্ড (কমপক্ষে ৬ সংখ্যা)" type="password" />
+              
+              <div id="auth-error" class="error-msg">ত্রুটি বার্তা এখানে দেখাবে</div>
+
+              <button id="auth-btn" class="btn-primary">লগইন</button>
+              <!-- Forgot Password Button -->
+              <div id="forgot-pass-btn" class="forgot-pass">পাসওয়ার্ড ভুলে গেছেন?</div>
+              <div id="auth-toggle" class="auth-footer">অ্যাকাউন্ট নেই? সাইন আপ করুন</div>
+          </div>
+      </div>
+
+      <!-- 2. HOME SCREEN (Chat List) -->
+      <div id="view-home" class="view-section">
+          <header class="app">
+             <!-- Left: Animated Brand Logo -->
+             <div class="brand-container">
+                 <img src="https://i.postimg.cc/RZ5FH16z/Gemini-Generated-Image-rgsqsqrgsqsqrgsq-removebg-preview.png" class="brand-logo-img" alt="Logo">
+                 <div class="brand-text">PingMe</div>
+             </div>
+             
+             <!-- Right: Only Profile Avatar -->
+             <button class="icon-btn" id="profile-btn">
+                <div class="avatar" style="width:32px;height:32px;font-size:14px; border: 2px solid var(--primary-1);">
+                    <img id="header-avatar-img" src="" style="display:none;">
+                    <span id="header-avatar-text">U</span>
+                </div>
+             </button>
+          </header>
+          
+          <div class="user-list" id="chat-list-container">
+              <div style="text-align:center; padding:40px 20px; color:var(--muted)">
+                  লোড হচ্ছে...
+              </div>
+          </div>
+
+          <button class="fab" id="find-friend-fab">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+          </button>
+      </div>
+
+      <!-- 3. FIND FRIEND SCREEN -->
+      <div id="view-find" class="view-section">
+          <header class="app">
+              <button class="icon-btn" id="back-from-find">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" /></svg>
+              </button>
+              <div class="title"><h1>বন্ধু খুঁজুন</h1></div>
+          </header>
+          <div style="padding: 20px; max-width: 800px; margin: 0 auto; width: 100%; box-sizing: border-box;">
+              <div style="background:var(--input-box-bg); padding:15px; border-radius:16px; margin-bottom:20px;">
+                  <h3 style="margin:0 0 10px 0; font-size:14px; color:var(--muted);">Ping ID দিয়ে খুঁজুন</h3>
+                  <div style="display:flex; gap:10px;">
+                      <input id="search-ping-id" class="profile-input" style="margin:0;" placeholder="যেমন: pm_AbCd12" />
+                      <button id="search-btn" class="btn-primary" style="width:auto; margin:0; padding:0 20px;">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                      </button>
+                  </div>
+              </div>
+              <div id="search-results"></div>
+          </div>
+      </div>
+
+      <!-- 4. CHAT SCREEN -->
+      <div id="view-chat" class="view-section">
+          <header class="app">
+              <button class="icon-btn" id="chat-back-btn" style="margin-right:5px;">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" /></svg>
+              </button>
+              
+              <div id="chat-user-header" style="display:flex; flex:1; align-items:center; cursor:pointer;" class="clickable-header">
+                  <div class="avatar" style="width:36px; height:36px; font-size:14px; margin-right:8px;">
+                       <img id="chat-header-img" src="" style="display:none;">
+                       <span id="chat-header-initial">?</span>
+                  </div>
+                  <div class="title">
+                      <h1 id="chat-header-name">User</h1>
+                      <div style="display:flex; align-items:center; gap:5px;">
+                          <div id="chat-status-dot" class="status-dot" style="display:none;"></div>
+                          <p id="chat-header-status" style="font-size:11px; margin:0; display:none;">Online</p>
+                      </div>
+                  </div>
+              </div>
+              
+              <button class="icon-btn" id="delete-chat-btn" style="color:#ef4444;" title="চ্যাট ডিলিট করুন">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+              </button>
+          </header>
+          
+          <main class="chat">
+              <div class="messages" id="messages" style="max-width: 1000px; margin: 0 auto; width: 100%;"></div>
+              <div id="typing-indicator" class="typing-indicator" style="max-width: 1000px; margin: 0 auto;">
+                  <div class="dots">
+                      <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+                  </div>
+              </div>
+              <div id="scrollBtn" class="scroll-bottom-btn hidden">
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                নতুন মেসেজ
+              </div>
+          </main>
+
+          <footer class="input">
+            <div class="reply-preview" id="replyPreview" style="max-width: 1000px; margin: 0 auto; width: 100%;">
+                <div>
+                    <span style="font-weight:700" id="replyToName">Name</span> কে রিপ্লাই দিচ্ছেন
+                </div>
+                <button id="cancelReply" style="border:none;background:transparent;color:var(--muted);font-size:18px;">&times;</button>
+            </div>
+
+            <div class="input-main">
+                <input type="file" id="img-input" accept="image/*" hidden />
+                <button class="icon-btn" id="img-btn">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                </button>
+                <div class="input-container">
+                    <textarea id="msg-input" rows="1" placeholder="মেসেজ লিখুন..."></textarea>
+                </div>
+                <button class="send-btn" id="send-btn">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
+                </button>
+            </div>
+          </footer>
+      </div>
+
+      <!-- 5. MY PROFILE VIEW -->
+      <div id="view-profile" class="view-section" style="background:var(--bg); overflow-y:auto;">
+          <header class="app">
+              <button class="icon-btn" id="back-from-profile">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" /></svg>
+              </button>
+              <div class="title"><h1>আমার প্রোফাইল</h1></div>
+              <!-- Logout moved inside body, but also kept here as secondary or remove if wanted. Keeping icon for quick access -->
+              <button class="icon-btn" id="logout-btn" style="color:#ef4444;">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+              </button>
+          </header>
+          
+          <div style="padding:20px; max-width: 800px; margin: 0 auto; width: 100%; box-sizing: border-box;">
+              <div class="profile-header">
+                  <div class="profile-avatar-large">
+                      <img id="profile-img-preview" src="" style="display:none;">
+                      <span id="profile-initial-preview">U</span>
+                  </div>
+                  <!-- Name Displayed Here -->
+                  <h2 id="current-user-display-name" style="margin: 10px 0 5px; color: var(--primary-2);">Loading...</h2>
+                  
+                  <input type="file" id="profile-file-input" hidden accept="image/*">
+                  <button id="change-photo-btn" style="background:none; border:none; color:var(--muted); font-size:13px; font-weight:600; cursor:pointer;">ছবি পরিবর্তন করুন</button>
+                  <div style="margin-top:10px;">
+                      <span id="my-ping-id" class="ping-id-badge">Loading ID...</span>
+                  </div>
+              </div>
+
+              <!-- Theme Switcher -->
+              <div class="switch-container">
+                  <span style="font-weight:600;">নাইট মোড (Dark Mode)</span>
+                  <label class="switch">
+                      <input type="checkbox" id="theme-toggle">
+                      <span class="slider"></span>
+                  </label>
+              </div>
+
+              <div style="background:var(--header-bg); padding:20px; border-radius:16px; border:1px solid var(--border-color);">
+                  <label class="label-text">ডিসপ্লে নেম</label>
+                  <input id="edit-name" class="profile-input" />
+
+                  <label class="label-text">বায়ো (Bio)</label>
+                  <input id="edit-bio" class="profile-input" placeholder="আপনার সম্পর্কে লিখুন..." />
+
+                  <label class="label-text">ইমেইল (অপরিবর্তনযোগ্য)</label>
+                  <input id="edit-email" class="profile-input" disabled style="opacity:0.7;" />
+
+                  <label class="label-text">ফোন নম্বর</label>
+                  <input id="edit-phone" class="profile-input" type="tel" />
+
+                  <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                      <div>
+                          <label class="label-text">জন্মতারিখ</label>
+                          <input id="edit-dob" class="profile-input" type="date" />
+                      </div>
+                      <div>
+                          <label class="label-text">লিঙ্গ</label>
+                          <select id="edit-gender" class="profile-input" style="height:50px;">
+                              <option value="not_specified">বলতে চাই না</option>
+                              <option value="male">পুরুষ</option>
+                              <option value="female">মহিলা</option>
+                              <option value="other">অন্যান্য</option>
+                          </select>
+                      </div>
+                  </div>
+
+                  <label class="label-text">বৈবাহিক অবস্থা</label>
+                  <select id="edit-marital" class="profile-input" style="height:50px;">
+                      <option value="not_specified">বলতে চাই না</option>
+                      <option value="single">সিঙ্গেল</option>
+                      <option value="married">বিবাহিত</option>
+                  </select>
+                  
+                  <button id="save-profile-btn" class="btn-primary">তথ্য সেভ করুন</button>
+              </div>
+          </div>
+      </div>
+
+      <!-- 6. FRIEND PROFILE VIEW (READ ONLY) -->
+      <div id="view-friend-profile" class="view-section" style="background:var(--bg); overflow-y:auto;">
+        <header class="app">
+            <button class="icon-btn" id="back-from-friend-profile">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" /></svg>
+            </button>
+            <div class="title"><h1>বন্ধুর প্রোফাইল</h1></div>
+        </header>
+        
+        <div style="padding:20px; max-width: 800px; margin: 0 auto; width: 100%; box-sizing: border-box;">
+            <div class="profile-header">
+                <div class="profile-avatar-large">
+                    <img id="friend-img-preview" src="" style="display:none;">
+                    <span id="friend-initial-preview">U</span>
+                </div>
+                <h2 id="friend-display-name" style="margin:10px 0 5px;font-size:18px;">Name</h2>
+                <div style="margin-top:5px;">
+                    <span id="friend-ping-id" class="ping-id-badge">@id</span>
+                </div>
+            </div>
+
+            <div style="background:var(--header-bg); padding:20px; border-radius:16px; border:1px solid var(--border-color);">
+                <label class="label-text">বায়ো (Bio)</label>
+                <div id="friend-bio" class="profile-input" style="background:transparent; border:none; padding-left:0;">-</div>
+                <hr style="border:0; border-top:1px solid var(--border-color); margin:10px 0;">
+
+                <label class="label-text">ইমেইল</label>
+                <div id="friend-email" class="profile-input" style="background:transparent; border:none; padding-left:0;">-</div>
+                <hr style="border:0; border-top:1px solid var(--border-color); margin:10px 0;">
+                
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                    <div>
+                        <label class="label-text">লিঙ্গ</label>
+                        <div id="friend-gender" class="profile-input" style="background:transparent; border:none; padding-left:0;">-</div>
+                    </div>
+                    <div>
+                        <label class="label-text">অবস্থা</label>
+                        <div id="friend-marital" class="profile-input" style="background:transparent; border:none; padding-left:0;">-</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, updateProfile, sendEmailVerification, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, query, collection, where, onSnapshot, serverTimestamp, increment, orderBy, limit, addDoc, arrayUnion, arrayRemove, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    // --- FIREBASE CONFIG ---
+    const firebaseConfig = {
+      apiKey: "AIzaSyADEk13HgPmPjiy2VD6RDYU_Z2pPJFM9gQ",
+      authDomain: "pingme-7fad3.firebaseapp.com",
+      databaseURL: "https://pingme-7fad3-default-rtdb.firebaseio.com",
+      projectId: "pingme-7fad3",
+      storageBucket: "pingme-7fad3.firebasestorage.app",
+      messagingSenderId: "8513825883",
+      appId: "1:8513825883:web:b8676bbdb4818c3d4ae37e",
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const appId = firebaseConfig.projectId;
+
+    // --- PATHS ---
+    const USERS_PATH = `artifacts/${appId}/public/data/users`;
+    const CHATS_PATH = `artifacts/${appId}/public/data/chat_rooms`;
+
+    // --- DOM ELEMENTS ---
+    const splash = document.getElementById('splash-screen');
+    const views = {
+        auth: document.getElementById('view-auth'),
+        home: document.getElementById('view-home'),
+        find: document.getElementById('view-find'),
+        chat: document.getElementById('view-chat'),
+        profile: document.getElementById('view-profile'),
+        friendProfile: document.getElementById('view-friend-profile')
+    };
+
+    // --- STATE ---
+    let currentUser = null;
+    let currentUserData = null;
+    let currentChatId = null;
+    let currentPartnerId = null;
+    let currentPartnerData = null;
+    let unsubscribeChats = null;
+    let unsubscribeMsgs = null;
+    let unsubscribeRoom = null;
+    let unsubscribePartnerStatus = null;
+    let isLoginMode = true;
+    let typingTimeout = null;
+    
+    // NEW STATES
+    let replyTo = null;
+    let currentMsgId = null;
+    let currentMsgData = null;
+    let currentActiveMsgEl = null;
+    let currentReactionPopup = null;
+    let isUserNearBottom = true;
+
+    // --- INIT ---
+    window.addEventListener('load', () => {
+        const theme = localStorage.getItem('theme') || 'light';
+        document.body.setAttribute('data-theme', theme);
+        const toggle = document.getElementById('theme-toggle');
+        if(toggle) toggle.checked = (theme === 'dark');
+    });
+
+    // Theme Toggle Logic
+    document.getElementById('theme-toggle').addEventListener('change', (e) => {
+        const next = e.target.checked ? 'dark' : 'light';
+        document.body.setAttribute('data-theme', next);
+        localStorage.setItem('theme', next);
+    });
+
+    onAuthStateChanged(auth, async (user) => {
+        setTimeout(() => splash.classList.add('hidden'), 500);
+        if (user) {
+            currentUser = user;
+            await loadUserProfile(user.uid);
+            showView('home');
+            loadChatList();
+            updatePresence('online');
+        } else {
+            currentUser = null;
+            currentUserData = null;
+            showView('auth');
+        }
+    });
+
+    function showView(name) {
+        Object.values(views).forEach(el => el.classList.remove('active'));
+        if(views[name]) views[name].classList.add('active');
+    }
+
+    // --- TOAST NOTIFICATION ---
+    function showToast(text) {
+        const toast = document.getElementById('toastMsg');
+        toast.textContent = text;
+        toast.classList.add('active');
+        setTimeout(() => toast.classList.remove('active'), 2000);
+    }
+
+    // --- PRESENCE SYSTEM ---
+    function updatePresence(status) {
+        if(!currentUser) return;
+        const ref = doc(db, USERS_PATH, currentUser.uid);
+        updateDoc(ref, { status: status, lastActive: serverTimestamp() }).catch(()=>{});
+    }
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+            updatePresence('online');
+        } else {
+            updatePresence('offline');
+        }
+    });
+    window.addEventListener('beforeunload', () => updatePresence('offline'));
+
+    function formatTimeAgo(date) {
+        if(!date) return '';
+        const seconds = Math.floor((new Date() - date) / 1000);
+        let interval = seconds / 31536000;
+        if (interval > 1) return Math.floor(interval) + "y ago";
+        interval = seconds / 2592000;
+        if (interval > 1) return Math.floor(interval) + "mo ago";
+        interval = seconds / 86400;
+        if (interval > 1) return Math.floor(interval) + "d ago";
+        interval = seconds / 3600;
+        if (interval > 1) return Math.floor(interval) + "h ago";
+        interval = seconds / 60;
+        if (interval > 1) return Math.floor(interval) + "m ago";
+        return "Active just now";
+    }
+
+    function generatePingId() {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        let result = 'pm_';
+        for (let i = 0; i < 6; i++) result += chars.charAt(Math.floor(Math.random() * chars.length));
+        return result;
+    }
+
+    // --- AUTH LOGIC ---
+    const authToggle = document.getElementById('auth-toggle');
+    const authBtn = document.getElementById('auth-btn');
+    const signupFields = document.getElementById('signup-fields');
+    const authError = document.getElementById('auth-error');
+    const forgotBtn = document.getElementById('forgot-pass-btn');
+
+    authToggle.addEventListener('click', () => {
+        isLoginMode = !isLoginMode;
+        signupFields.style.display = isLoginMode ? 'none' : 'block';
+        authBtn.textContent = isLoginMode ? 'লগইন' : 'সাইন আপ';
+        authToggle.textContent = isLoginMode ? 'অ্যাকাউন্ট নেই? সাইন আপ করুন' : 'অ্যাকাউন্ট আছে? লগইন করুন';
+        authError.style.display = 'none';
+        forgotBtn.style.display = isLoginMode ? 'block' : 'none';
+    });
+
+    // Forgot Password Logic
+    forgotBtn.addEventListener('click', async () => {
+        const email = document.getElementById('auth-email').value.trim();
+        if(!email) {
+            showError("রিসেট লিংক পেতে দয়া করে ইমেইল অ্যাড্রেসটি লিখুন");
+            return;
+        }
+        try {
+            await sendPasswordResetEmail(auth, email);
+            showToast("পাসওয়ার্ড রিসেট লিংক ইমেইলে পাঠানো হয়েছে!");
+        } catch(err) {
+            showError(err.message);
+        }
+    });
+
+    authBtn.addEventListener('click', async () => {
+        const email = document.getElementById('auth-email').value.trim();
+        const pass = document.getElementById('auth-pass').value.trim();
+        const name = document.getElementById('auth-name').value.trim();
+
+        if(!email || !pass) return showError("ইমেইল এবং পাসওয়ার্ড আবশ্যক");
+        if(!isLoginMode && !name) return showError("আপনার নাম আবশ্যক");
+
+        authBtn.disabled = true; authBtn.textContent = "অপেক্ষা করুন...";
+        authError.style.display = 'none';
+
+        try {
+            if(isLoginMode) {
+                await signInWithEmailAndPassword(auth, email, pass);
+            } else {
+                const cred = await createUserWithEmailAndPassword(auth, email, pass);
+                const newUser = {
+                    uid: cred.user.uid,
+                    displayName: name,
+                    email: email,
+                    pingId: generatePingId(),
+                    photoURL: null,
+                    bio: '',
+                    phone: '',
+                    gender: 'not_specified',
+                    maritalStatus: 'not_specified',
+                    createdAt: serverTimestamp(),
+                    status: 'online'
+                };
+                await setDoc(doc(db, USERS_PATH, cred.user.uid), newUser);
+                await updateProfile(cred.user, { displayName: name });
+            }
+        } catch (err) {
+            showError(err.message);
+            authBtn.disabled = false; authBtn.textContent = isLoginMode ? 'লগইন' : 'সাইন আপ';
+        }
+    });
+
+    function showError(msg) { authError.textContent = msg; authError.style.display = 'block'; }
+
+    // --- PROFILE SYSTEM ---
+    async function loadUserProfile(uid) {
+        const docRef = doc(db, USERS_PATH, uid);
+        const snap = await getDoc(docRef);
+        if (snap.exists()) {
+            currentUserData = snap.data();
+            updateHeaderUI();
+        } else {
+            currentUserData = {
+                uid: uid,
+                displayName: currentUser.displayName,
+                email: currentUser.email,
+                pingId: generatePingId(),
+                photoURL: currentUser.photoURL
+            };
+            await setDoc(docRef, currentUserData);
+        }
+    }
+
+    function updateHeaderUI() {
+        // Updated: Only update Profile View elements and avatar
+        const displayNameEl = document.getElementById('current-user-display-name');
+        if(displayNameEl) displayNameEl.textContent = currentUserData.displayName;
+        
+        const initial = (currentUserData.displayName || 'U').charAt(0).toUpperCase();
+        
+        const avatarImg = document.getElementById('header-avatar-img');
+        const avatarText = document.getElementById('header-avatar-text');
+        
+        if(currentUserData.photoURL) {
+            avatarImg.src = currentUserData.photoURL;
+            avatarImg.style.display = 'block';
+            avatarText.style.display = 'none';
+        } else {
+            avatarImg.style.display = 'none';
+            avatarText.style.display = 'block';
+            avatarText.textContent = initial;
+        }
+    }
+
+    document.getElementById('profile-btn').addEventListener('click', () => {
+        if(!currentUserData) return;
+        showView('profile');
+        
+        document.getElementById('my-ping-id').textContent = '@' + currentUserData.pingId;
+        document.getElementById('edit-name').value = currentUserData.displayName || '';
+        document.getElementById('edit-bio').value = currentUserData.bio || '';
+        document.getElementById('edit-email').value = currentUserData.email || '';
+        document.getElementById('edit-phone').value = currentUserData.phone || '';
+        document.getElementById('edit-dob').value = currentUserData.birthdate || '';
+        document.getElementById('edit-gender').value = currentUserData.gender || 'not_specified';
+        document.getElementById('edit-marital').value = currentUserData.maritalStatus || 'not_specified';
+        
+        const previewImg = document.getElementById('profile-img-preview');
+        const previewTxt = document.getElementById('profile-initial-preview');
+        
+        if(currentUserData.photoURL) {
+            previewImg.src = currentUserData.photoURL;
+            previewImg.style.display = 'block';
+            previewTxt.style.display = 'none';
+        } else {
+            previewImg.style.display = 'none';
+            previewTxt.style.display = 'block';
+            previewTxt.textContent = (currentUserData.displayName||'U').charAt(0).toUpperCase();
+        }
+    });
+
+    document.getElementById('back-from-profile').addEventListener('click', () => showView('home'));
+    document.getElementById('logout-btn').addEventListener('click', () => {
+        updatePresence('offline');
+        signOut(auth);
+    });
+
+    document.getElementById('save-profile-btn').addEventListener('click', async () => {
+        const btn = document.getElementById('save-profile-btn');
+        btn.textContent = "সেভ হচ্ছে...";
+        try {
+            const updates = {
+                displayName: document.getElementById('edit-name').value,
+                bio: document.getElementById('edit-bio').value,
+                phone: document.getElementById('edit-phone').value,
+                birthdate: document.getElementById('edit-dob').value,
+                gender: document.getElementById('edit-gender').value,
+                maritalStatus: document.getElementById('edit-marital').value
+            };
+            await updateDoc(doc(db, USERS_PATH, currentUser.uid), updates);
+            currentUserData = { ...currentUserData, ...updates };
+            updateHeaderUI();
+            showToast("প্রোফাইল আপডেট হয়েছে!");
+        } catch(e) {
+            alert("এরর: " + e.message);
+        }
+        btn.textContent = "তথ্য সেভ করুন";
+    });
+    
+    // --- PROFILE PHOTO ---
+    const profileFileInput = document.getElementById('profile-file-input');
+    document.getElementById('change-photo-btn').addEventListener('click', () => profileFileInput.click());
+
+    profileFileInput.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if(!file) return;
+
+        const btn = document.getElementById('change-photo-btn');
+        btn.textContent = "প্রসেসিং হচ্ছে...";
+        
+        try {
+            const croppedDataUrl = await processProfileImage(file);
+            await updateDoc(doc(db, USERS_PATH, currentUser.uid), { photoURL: croppedDataUrl });
+            currentUserData.photoURL = croppedDataUrl;
+            
+            document.getElementById('profile-img-preview').src = croppedDataUrl;
+            document.getElementById('profile-img-preview').style.display = 'block';
+            document.getElementById('profile-initial-preview').style.display = 'none';
+            updateHeaderUI();
+            showToast("ছবি আপডেট হয়েছে!");
+        } catch(err) {
+            alert("ছবি আপডেটে সমস্যা: " + err.message);
+        }
+        btn.textContent = "ছবি পরিবর্তন করুন";
+        profileFileInput.value = '';
+    });
+
+    function processProfileImage(file) {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    const size = 300;
+                    canvas.width = size;
+                    canvas.height = size;
+                    
+                    let sWidth, sHeight, sx, sy;
+                    if(img.width > img.height) {
+                        sHeight = img.height;
+                        sWidth = img.height;
+                        sx = (img.width - img.height) / 2;
+                        sy = 0;
+                    } else {
+                        sWidth = img.width;
+                        sHeight = img.width;
+                        sx = 0;
+                        sy = (img.height - img.width) / 2;
+                    }
+                    
+                    ctx.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, size, size);
+                    resolve(canvas.toDataURL('image/jpeg', 0.8));
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    // --- HOME & CHAT LIST (FIXED) ---
+    function loadChatList() {
+        if(unsubscribeChats) unsubscribeChats();
+        const listContainer = document.getElementById('chat-list-container');
+        
+        // FIX: Removed complex 'where' clause, fetching collection and filtering in JS
+        const ref = collection(db, CHATS_PATH);
+        
+        unsubscribeChats = onSnapshot(ref, (snapshot) => {
+            listContainer.innerHTML = '';
+            let hasChats = false;
+
+            const allRooms = [];
+            snapshot.forEach(docSnap => {
+                const room = docSnap.data();
+                if(room.participants && room.participants.includes(currentUser.uid)) {
+                     if (room.hiddenFor && room.hiddenFor.includes(currentUser.uid)) return;
+                     allRooms.push({ id: docSnap.id, ...room });
+                }
+            });
+
+            // Sort rooms by updated time descending in JS
+            allRooms.sort((a, b) => (b.updatedAt?.seconds || 0) - (a.updatedAt?.seconds || 0));
+
+            allRooms.forEach(room => {
+                hasChats = true;
+                const roomId = room.id;
+                const partnerId = room.participants.find(uid => uid !== currentUser.uid);
+                const partnerInfo = room.participantInfo?.[partnerId] || { displayName: 'Unknown', photoURL: null };
+                const lastMsg = room.lastMessage?.text || 'No messages';
+                
+                let time = '';
+                if(room.lastMessage?.timestamp) {
+                    time = new Date(room.lastMessage.timestamp.seconds * 1000).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+                }
+
+                const div = document.createElement('div');
+                div.className = 'user-card';
+                div.innerHTML = `
+                    <div class="avatar">
+                        ${partnerInfo.photoURL ? `<img src="${partnerInfo.photoURL}">` : partnerInfo.displayName.charAt(0).toUpperCase()}
+                        <div class="status-dot" id="dot-${roomId}" style="display:none;"></div>
+                    </div>
+                    <div class="user-info">
+                        <div style="display:flex; justify-content:space-between;">
+                            <h3>${partnerInfo.displayName}</h3>
+                            <span style="font-size:10px; color:var(--muted);">${time}</span>
+                        </div>
+                        <p>${lastMsg}</p>
+                    </div>
+                `;
+                div.onclick = () => openChat(partnerId, partnerInfo);
+                listContainer.appendChild(div);
+
+                getDoc(doc(db, USERS_PATH, partnerId)).then(uSnap => {
+                    if(uSnap.exists() && uSnap.data().status === 'online') {
+                        const d = document.getElementById(`dot-${roomId}`);
+                        if(d) d.style.display = 'block';
+                        d.classList.add('online');
+                    }
+                });
+            });
+
+            if(!hasChats) {
+                 listContainer.innerHTML = '<div style="text-align:center; padding:40px 20px; color:var(--muted)">কোনো চ্যাট নেই।<br>নিচের <b>+</b> বাটনে ক্লিক করে বন্ধুদের খুঁজুন।</div>';
+            }
+        }, (error) => {
+            console.error("Chat list error:", error);
+            listContainer.innerHTML = '<div style="text-align:center;color:red">চ্যাট লোড করতে সমস্যা হচ্ছে।</div>';
+        });
+    }
+
+    document.getElementById('find-friend-fab').addEventListener('click', () => showView('find'));
+    document.getElementById('back-from-find').addEventListener('click', () => showView('home'));
+    
+    document.getElementById('search-btn').addEventListener('click', async () => {
+        const pingId = document.getElementById('search-ping-id').value.trim();
+        const resultsDiv = document.getElementById('search-results');
+        resultsDiv.innerHTML = '<div style="text-align:center;">খুঁজছি...</div>';
+        
+        if(!pingId) return;
+
+        // Note: Simple 'where' is usually okay, but if it fails, one might need to fetch all users.
+        // Assuming simple equality index exists or is not needed for small collections.
+        // For absolute robustness in this env, we could fetch all users, but that's bad for scalability.
+        // Trying query first.
+        try {
+            const q = query(collection(db, USERS_PATH), where("pingId", "==", pingId));
+            const snap = await getDocs(q);
+            
+            resultsDiv.innerHTML = '';
+            if(snap.empty) {
+                resultsDiv.innerHTML = '<div style="text-align:center; color:red;">কাউকে পাওয়া যায়নি। Ping ID সঠিক কিনা যাচাই করুন।</div>';
+                return;
+            }
+
+            snap.forEach(docSnap => {
+                const user = docSnap.data();
+                if(user.uid === currentUser.uid) {
+                    resultsDiv.innerHTML = '<div style="text-align:center;">এটি আপনার নিজের ID!</div>';
+                    return;
+                }
+
+                const div = document.createElement('div');
+                div.className = 'user-card';
+                div.style.background = 'var(--input-box-bg)';
+                div.innerHTML = `
+                    <div class="avatar">
+                        ${user.photoURL ? `<img src="${user.photoURL}">` : (user.displayName||'U').charAt(0).toUpperCase()}
+                    </div>
+                    <div class="user-info">
+                        <h3>${user.displayName}</h3>
+                        <p>@${user.pingId}</p>
+                    </div>
+                    <button style="background:var(--primary-2); color:white; border:none; padding:6px 12px; border-radius:8px; font-size:12px;">মেসেজ</button>
+                `;
+                div.onclick = () => {
+                    openChat(user.uid, user);
+                };
+                resultsDiv.appendChild(div);
+            });
+        } catch(e) {
+            resultsDiv.innerHTML = '<div style="text-align:center; color:red;">এরর: ' + e.message + '</div>';
+        }
+    });
+
+    // --- CHAT LOGIC ---
+    async function openChat(partnerId, partnerData) {
+        currentPartnerId = partnerId;
+        currentPartnerData = partnerData;
+        const uids = [currentUser.uid, partnerId].sort();
+        currentChatId = uids.join('_');
+        
+        document.getElementById('chat-header-name').textContent = partnerData.displayName;
+        const img = document.getElementById('chat-header-img');
+        const txt = document.getElementById('chat-header-initial');
+        
+        if(partnerData.photoURL) {
+            img.src = partnerData.photoURL; img.style.display='block'; txt.style.display='none';
+        } else {
+            img.style.display='none'; txt.style.display='block'; txt.textContent = (partnerData.displayName||'U').charAt(0).toUpperCase();
+        }
+        
+        showView('chat');
+        listenToRoom(currentChatId);
+        loadMessages(currentChatId);
+    }
+
+    // --- NEW: OPEN FRIEND PROFILE ---
+    document.getElementById('chat-user-header').addEventListener('click', async () => {
+        if(!currentPartnerId) return;
+        
+        // Fetch fresh data
+        const docRef = doc(db, USERS_PATH, currentPartnerId);
+        const snap = await getDoc(docRef);
+        let data = currentPartnerData;
+        if(snap.exists()) data = snap.data();
+
+        showView('friendProfile');
+        
+        document.getElementById('friend-display-name').textContent = data.displayName;
+        document.getElementById('friend-ping-id').textContent = '@' + (data.pingId || 'unknown');
+        document.getElementById('friend-bio').textContent = data.bio || 'কোনো তথ্য নেই';
+        document.getElementById('friend-email').textContent = data.email || 'গোপন';
+        document.getElementById('friend-gender').textContent = data.gender || '-';
+        document.getElementById('friend-marital').textContent = data.maritalStatus || '-';
+
+        const img = document.getElementById('friend-img-preview');
+        const txt = document.getElementById('friend-initial-preview');
+        if(data.photoURL) {
+            img.src = data.photoURL; img.style.display='block'; txt.style.display='none';
+        } else {
+            img.style.display='none'; txt.style.display='block'; txt.textContent = (data.displayName||'U').charAt(0).toUpperCase();
+        }
+    });
+
+    document.getElementById('back-from-friend-profile').addEventListener('click', () => showView('chat'));
+
+
+    function listenToRoom(roomId) {
+        if(unsubscribeRoom) unsubscribeRoom();
+        if(unsubscribePartnerStatus) unsubscribePartnerStatus();
+
+        const roomRef = doc(db, CHATS_PATH, roomId);
+        updateDoc(roomRef, { hiddenFor: arrayRemove(currentUser.uid) }).catch(()=>{});
+
+        unsubscribeRoom = onSnapshot(roomRef, (snap) => {
+            if(!snap.exists()) return;
+            const data = snap.data();
+            
+            const typingIndicator = document.getElementById('typing-indicator');
+            if(data.typing && data.typing[currentPartnerId]) {
+                typingIndicator.classList.add('active');
+                const c = document.getElementById('messages');
+                c.scrollTop = c.scrollHeight;
+            } else {
+                typingIndicator.classList.remove('active');
+            }
+        });
+
+        const dot = document.getElementById('chat-status-dot');
+        const statusTxt = document.getElementById('chat-header-status');
+
+        unsubscribePartnerStatus = onSnapshot(doc(db, USERS_PATH, currentPartnerId), (docSnap) => {
+            if(docSnap.exists()) {
+                const data = docSnap.data();
+                
+                if(data.status === 'online') {
+                    dot.style.display = 'block';
+                    dot.className = 'status-dot online';
+                    statusTxt.style.display = 'block';
+                    statusTxt.style.color = 'var(--primary-2)';
+                    statusTxt.textContent = 'Active now';
+                } else {
+                    dot.style.display = 'none';
+                    statusTxt.style.display = 'block';
+                    statusTxt.style.color = 'var(--muted)';
+                    
+                    if(data.lastActive) {
+                        const timeAgo = formatTimeAgo(data.lastActive.toDate());
+                        statusTxt.textContent = timeAgo ? `Active ${timeAgo}` : '';
+                    } else {
+                        statusTxt.style.display = 'none';
+                    }
+                }
+            }
+        });
+    }
+
+    document.getElementById('chat-back-btn').addEventListener('click', () => {
+        if(unsubscribeMsgs) unsubscribeMsgs();
+        if(unsubscribeRoom) unsubscribeRoom();
+        if(unsubscribePartnerStatus) unsubscribePartnerStatus();
+        cancelReply();
+        
+        if(currentChatId) {
+             const ref = doc(db, CHATS_PATH, currentChatId);
+             updateDoc(ref, { [`typing.${currentUser.uid}`]: false }).catch(()=>{});
+        }
+        showView('home');
+    });
+
+    document.getElementById('delete-chat-btn').addEventListener('click', async (e) => {
+        e.stopPropagation(); // Prevent opening profile
+        if(confirm("আপনি কি এই চ্যাট মুছে ফেলতে চান?")) {
+            const roomRef = doc(db, CHATS_PATH, currentChatId);
+            await updateDoc(roomRef, { hiddenFor: arrayUnion(currentUser.uid) });
+            document.getElementById('chat-back-btn').click();
+        }
+    });
+
+    // --- MESSAGES RENDERING (FIXED) ---
+    function loadMessages(roomId) {
+        const msgsRef = collection(db, CHATS_PATH, roomId, 'messages');
+        
+        const msgsContainer = document.getElementById('messages');
+        const scrollBtn = document.getElementById('scrollBtn');
+
+        msgsContainer.addEventListener('scroll', () => {
+            const dist = msgsContainer.scrollHeight - msgsContainer.scrollTop - msgsContainer.clientHeight;
+            isUserNearBottom = dist < 150;
+            if(dist > 200) scrollBtn.classList.remove('hidden');
+            else scrollBtn.classList.add('hidden');
+        });
+        scrollBtn.addEventListener('click', () => {
+            msgsContainer.scrollTop = msgsContainer.scrollHeight;
+        });
+
+        unsubscribeMsgs = onSnapshot(msgsRef, (snapshot) => {
+            msgsContainer.innerHTML = '';
+            const unseenIds = [];
+
+            // Convert docs to array and sort in memory
+            const msgs = [];
+            snapshot.forEach(docSnap => {
+                msgs.push({ id: docSnap.id, ...docSnap.data() });
+            });
+            msgs.sort((a, b) => (a.timestamp?.seconds || 0) - (b.timestamp?.seconds || 0));
+
+            msgs.forEach(m => {
+                if(m.deletedFor && m.deletedFor.includes(currentUser.uid)) return;
+
+                const isMe = m.senderId === currentUser.uid;
+                if (!isMe && m.status !== 'seen') unseenIds.push(m.id);
+
+                const div = document.createElement('div');
+                div.className = `msg ${isMe ? 'me' : 'you'}`;
+                
+                // 1. Reply Block
+                let replyHtml = '';
+                if(m.replyTo) {
+                    replyHtml = `
+                    <div class="reply-block" onclick="scrollToMsg('${m.replyTo.id}')">
+                        <span style="font-weight:700">${m.replyTo.name}</span>
+                        <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${m.replyTo.text}</span>
+                    </div>`;
+                }
+
+                // 2. Content
+                // FIX: Added safe check (m.text || '') to prevent 'replace' error
+                let contentHTML = m.text || ''; 
+                if(m.type === 'image') {
+                    const imgId = `img-${m.id}`;
+                    contentHTML = `<img src="${contentHTML}" id="${imgId}" class="chat-img">`;
+                    setTimeout(() => {
+                        const imgEl = document.getElementById(imgId);
+                        if(imgEl) {
+                            imgEl.onclick = (e) => {
+                                e.stopPropagation();
+                                openLightbox(m.text);
+                            };
+                        }
+                    }, 0);
+                } else {
+                     // FIX: Ensure contentHTML is string
+                     const urlRegex = /(https?:\/\/[^\s]+)/g;
+                     contentHTML = String(contentHTML).replace(urlRegex, '<a href="$1" target="_blank">$1</a>');
+                }
+
+                // 3. Status
+                const time = m.timestamp ? new Date(m.timestamp.seconds * 1000).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '...';
+                
+                let statusHTML = '';
+                if(isMe) {
+                    if(m.status === 'seen') {
+                        const pPic = currentPartnerData?.photoURL || '';
+                        statusHTML = `<div class="status-icon seen-avatar">${pPic ? `<img src="${pPic}">` : `<div style="background:#ddd;width:100%;height:100%;color:#555;font-size:8px;display:flex;align-items:center;justify-content:center;">${(currentPartnerData.displayName||'U')[0]}</div>`}</div>`;
+                    } else if(m.status === 'delivered') {
+                        const dTick = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/><path d="M20 12L9 23l-5-5"/></svg>`; 
+                        statusHTML = `<div class="status-icon">${dTick}</div>`; 
+                    } else {
+                        const tick1 = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg>`;
+                        statusHTML = `<div class="status-icon">${tick1}</div>`;
+                    }
+                }
+
+                const heartIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>`;
+
+                div.id = `msg-${m.id}`;
+                div.innerHTML = `${replyHtml}${contentHTML}<div class="meta">${time}<button class="local-love-btn" onclick="toggleLove('${roomId}', '${m.id}')">${heartIcon}</button>${statusHTML}</div>`;
+                
+                attachLongPress(div, m, m.id);
+
+                msgsContainer.appendChild(div);
+
+                if(m.reactions) {
+                    const rRow = document.createElement('div');
+                    rRow.className = 'reactions-row';
+                    let hasReacts = false;
+                    Object.entries(m.reactions).forEach(([uid, emoji]) => {
+                        hasReacts = true;
+                        const pill = document.createElement('div');
+                        pill.className = 'reaction-pill';
+                        pill.textContent = emoji;
+                        rRow.appendChild(pill);
+                    });
+                    if(hasReacts) msgsContainer.appendChild(rRow);
+                }
+            });
+            
+            if(unseenIds.length > 0) markMessagesSeen(roomId, unseenIds);
+            if(isUserNearBottom) setTimeout(() => { msgsContainer.scrollTop = msgsContainer.scrollHeight; }, 100);
+        }, (error) => {
+            console.error("Msg load error:", error);
+            // Fallback UI or silent fail
+        });
+    }
+    
+    window.scrollToMsg = (id) => {
+        const el = document.getElementById(`msg-${id}`);
+        if(el) {
+            el.scrollIntoView({behavior: 'smooth', block: 'center'});
+            el.style.backgroundColor = 'rgba(255, 230, 0, 0.2)';
+            setTimeout(() => el.style.backgroundColor = '', 2000);
+        }
+    };
+
+    window.toggleLove = (roomId, msgId) => {
+        if(window.event) window.event.stopPropagation();
+        addReaction(roomId, msgId, '❤️');
+    };
+
+    async function addReaction(roomId, msgId, emoji) {
+        const ref = doc(db, CHATS_PATH, roomId, 'messages', msgId);
+        const snap = await getDoc(ref);
+        if(!snap.exists()) return;
+        
+        const data = snap.data();
+        const reactions = data.reactions || {};
+        
+        if(reactions[currentUser.uid] === emoji) {
+            delete reactions[currentUser.uid]; 
+        } else {
+            reactions[currentUser.uid] = emoji;
+        }
+        
+        updateDoc(ref, { reactions: reactions });
+    }
+
+    function attachLongPress(el, m, msgId){
+        let timer;
+        const start = () => { 
+            timer = setTimeout(() => showContextualMenu(el, m, msgId), 500); 
+        };
+        const end = () => { clearTimeout(timer); };
+        
+        el.addEventListener('touchstart', start, {passive: true});
+        el.addEventListener('touchend', end); 
+        el.addEventListener('touchmove', end);
+        el.addEventListener('mousedown', start);
+        el.addEventListener('mouseup', end);
+        el.addEventListener('contextmenu', e => { e.preventDefault(); showContextualMenu(el, m, msgId); });
+    }
+
+    function showContextualMenu(el, m, msgId) {
+        if(currentActiveMsgEl) currentActiveMsgEl.classList.remove('long-press-active');
+        currentActiveMsgEl = el;
+        currentActiveMsgEl.classList.add('long-press-active');
+        
+        if(navigator.vibrate) navigator.vibrate(50);
+        
+        currentMsgId = msgId;
+        currentMsgData = m;
+
+        renderInlineReactions(el, msgId);
+
+        const isMe = m.senderId === currentUser.uid;
+        document.getElementById('optDelete').style.display = isMe ? 'flex' : 'none';
+        
+        document.getElementById('optionsSheet').classList.add('active');
+    }
+
+    function renderInlineReactions(targetEl, msgId) {
+        if(currentReactionPopup) currentReactionPopup.remove();
+
+        const rect = targetEl.getBoundingClientRect();
+        const popup = document.createElement('div');
+        popup.className = 'reaction-popover';
+        
+        const emojis = ['❤️', '😂', '😮', '😢', '👍', '😡'];
+        emojis.forEach(e => {
+            const btn = document.createElement('button');
+            btn.className = 'pop-emoji';
+            btn.textContent = e;
+            btn.onclick = (ev) => {
+                ev.stopPropagation(); 
+                addReaction(currentChatId, msgId, e);
+                hideOptions();
+            };
+            popup.appendChild(btn);
+        });
+
+        document.body.appendChild(popup);
+        currentReactionPopup = popup;
+
+        let top = rect.top - 60;
+        let left = rect.left;
+        if(top < 10) top = rect.bottom + 10;
+        if(left + popup.offsetWidth > window.innerWidth) left = window.innerWidth - popup.offsetWidth - 10;
+        if(left < 10) left = 10;
+
+        popup.style.top = `${top}px`;
+        popup.style.left = `${left}px`;
+    }
+
+    function hideOptions() {
+        document.getElementById('optionsSheet').classList.remove('active');
+        if(currentActiveMsgEl) {
+            currentActiveMsgEl.classList.remove('long-press-active');
+            currentActiveMsgEl = null;
+        }
+        if(currentReactionPopup) {
+            currentReactionPopup.remove();
+            currentReactionPopup = null;
+        }
+        currentMsgId = null; 
+    }
+
+    document.getElementById('optCancel').addEventListener('click', hideOptions);
+    document.querySelector('.action-sheet-overlay').addEventListener('click', (e) => {
+        if(e.target.classList.contains('action-sheet-overlay')) hideOptions();
+    });
+
+    document.getElementById('optCopy').addEventListener('click', async () => {
+        if(currentMsgData && currentMsgData.text) {
+             try {
+                await navigator.clipboard.writeText(currentMsgData.text);
+                showToast("টেক্সট কপি করা হয়েছে");
+            } catch (err) {
+                const ta = document.createElement('textarea');
+                ta.value = currentMsgData.text;
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+                showToast("টেক্সট কপি করা হয়েছে");
+            }
+        }
+        hideOptions();
+    });
+
+    document.getElementById('optDelete').addEventListener('click', () => {
+        if(confirm("মেসেজটি ডিলিট করতে চান?")) {
+            deleteMessage(currentChatId, currentMsgId);
+        }
+        hideOptions();
+    });
+
+    document.getElementById('optReply').addEventListener('click', () => {
+        if(currentMsgData) {
+            replyTo = { 
+                id: currentMsgId, 
+                text: currentMsgData.text, 
+                name: currentMsgData.senderId === currentUser.uid ? 'You' : currentPartnerData.displayName 
+            };
+            document.getElementById('replyToName').textContent = replyTo.name;
+            document.getElementById('replyPreview').classList.add('active');
+            document.getElementById('msg-input').focus();
+        }
+        hideOptions();
+    });
+
+    function cancelReply() {
+        replyTo = null;
+        document.getElementById('replyPreview').classList.remove('active');
+    }
+    document.getElementById('cancelReply').addEventListener('click', cancelReply);
+
+    const lightbox = document.getElementById('lightbox');
+    const lightboxImg = document.getElementById('lightbox-img');
+    const lightboxClose = document.getElementById('lightbox-close');
+    let scale = 1, panning = false, pointX = 0, pointY = 0, startX = 0, startY = 0;
+
+    function openLightbox(src) {
+        lightboxImg.src = src;
+        lightbox.classList.add('active');
+        scale = 1; pointX = 0; pointY = 0;
+        updateTransform();
+    }
+    
+    lightboxClose.onclick = () => lightbox.classList.remove('active');
+    let initialDist = 0;
+    
+    lightbox.addEventListener('touchstart', (e) => {
+        if(e.touches.length === 2) {
+            e.preventDefault();
+            initialDist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
+        } else if(e.touches.length === 1 && scale > 1) {
+            panning = true;
+            startX = e.touches[0].clientX - pointX;
+            startY = e.touches[0].clientY - pointY;
+        }
+    });
+
+    lightbox.addEventListener('touchmove', (e) => {
+        if(e.touches.length === 2) {
+            e.preventDefault();
+            const dist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
+            const delta = dist - initialDist;
+            scale += delta * 0.01;
+            scale = Math.max(1, Math.min(4, scale));
+            initialDist = dist;
+            updateTransform();
+        } else if(e.touches.length === 1 && panning) {
+            e.preventDefault();
+            pointX = e.touches[0].clientX - startX;
+            pointY = e.touches[0].clientY - startY;
+            updateTransform();
+        }
+    });
+
+    lightbox.addEventListener('touchend', () => { panning = false; });
+    function updateTransform() { lightboxImg.style.transform = `translate(${pointX}px, ${pointY}px) scale(${scale})`; }
+
+    async function markMessagesSeen(roomId, ids) {
+        ids.forEach(id => {
+            const ref = doc(db, CHATS_PATH, roomId, 'messages', id);
+            updateDoc(ref, { status: 'seen' }).catch(()=>{});
+        });
+    }
+
+    async function deleteMessage(roomId, msgId) {
+        const ref = doc(db, CHATS_PATH, roomId, 'messages', msgId);
+        await updateDoc(ref, { deletedFor: arrayUnion(currentUser.uid) });
+    }
+
+    const msgInput = document.getElementById('msg-input');
+    
+    msgInput.addEventListener('input', () => {
+        if(currentChatId) {
+            const ref = doc(db, CHATS_PATH, currentChatId);
+            updateDoc(ref, { [`typing.${currentUser.uid}`]: true }).catch(()=>{});
+            if(typingTimeout) clearTimeout(typingTimeout);
+            typingTimeout = setTimeout(() => {
+                updateDoc(ref, { [`typing.${currentUser.uid}`]: false }).catch(()=>{});
+            }, 2000);
+        }
+    });
+
+    document.getElementById('send-btn').addEventListener('click', () => sendMessage());
+    msgInput.addEventListener('keydown', (e) => {
+        if(e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+    
+    async function sendMessage(textOverride=null, type='text') {
+        const text = textOverride || msgInput.value.trim();
+        if(!text) return;
+
+        if(type === 'text') {
+            msgInput.value = '';
+            msgInput.style.height = 'auto'; 
+        }
+
+        const roomRef = doc(db, CHATS_PATH, currentChatId);
+        const msgsRef = collection(db, CHATS_PATH, currentChatId, 'messages');
+        
+        const payload = {
+            senderId: currentUser.uid,
+            text: text,
+            type: type,
+            status: 'sent',
+            deletedFor: [],
+            timestamp: serverTimestamp()
+        };
+
+        if(replyTo && type === 'text') {
+            payload.replyTo = replyTo;
+            cancelReply();
+        }
+
+        await addDoc(msgsRef, payload);
+        
+        updateDoc(roomRef, { [`typing.${currentUser.uid}`]: false }).catch(()=>{});
+
+        const participantInfo = {
+            [currentUser.uid]: { displayName: currentUserData.displayName, photoURL: currentUserData.photoURL },
+            [currentPartnerId]: { displayName: document.getElementById('chat-header-name').textContent, photoURL: document.getElementById('chat-header-img').src || null } 
+        };
+
+        await setDoc(roomRef, {
+            participants: [currentUser.uid, currentPartnerId],
+            participantInfo: participantInfo,
+            lastMessage: payload,
+            updatedAt: serverTimestamp(),
+            hiddenFor: [] 
+        }, { merge: true });
+    }
+
+    const imgInput = document.getElementById('img-input');
+    document.getElementById('img-btn').addEventListener('click', () => imgInput.click());
+    imgInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if(!file) return;
+        const reader = new FileReader();
+        reader.onload = () => sendMessage(reader.result, 'image');
+        reader.readAsDataURL(file);
+    });
+
+  </script>
+</body>
+</html>
