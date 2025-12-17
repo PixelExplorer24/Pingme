@@ -72,14 +72,12 @@
     .spinner::after { border-bottom-color: var(--primary-1); animation: spin 1.5s linear infinite reverse; inset: 6px; }
     @keyframes spin { 100% { transform: rotate(360deg); } }
 
-    /* --- Layout Wrapper (Updated for Full Screen on PC) --- */
+    /* --- Layout Wrapper --- */
     .wrap {
         width: 100%; height: 100%; background: var(--bg);
         display: flex; flex-direction: column; position: relative;
         margin: 0; border-radius: 0; box-shadow: none; border: none;
     }
-    /* On very wide screens, we can center content slightly if needed, 
-       but user requested "Full Size", so we keep it 100% width but constrain message width for readability */
     
     /* --- Headers --- */
     header.app {
@@ -88,7 +86,6 @@
         z-index: 10; flex-shrink: 0; min-height: 60px; transition: background 0.3s;
     }
     
-    /* Animated Brand Logo */
     .brand-container { display: flex; align-items: center; gap: 10px; }
     .brand-logo-img { width: 32px; height: 32px; object-fit: contain; }
     .brand-text {
@@ -112,11 +109,14 @@
     }
     .icon-btn:active { background: var(--input-box-bg); }
 
-    /* --- Auth & Forms --- */
+    /* --- Auth & Forms (Full Screen Mobile Fix) --- */
     .auth-container {
         padding: 40px 30px; display: flex; flex-direction: column; justify-content: center; 
-        align-items: center; height: 100%; text-align: center; overflow-y: auto;
-        max-width: 450px; margin: 0 auto; /* Center auth on PC */
+        align-items: center; text-align: center; overflow-y: auto;
+        width: 100%; max-width: 450px; margin: 0 auto; 
+        min-height: 100vh; /* Fallback */
+        min-height: 100dvh; /* Full mobile screen */
+        box-sizing: border-box;
     }
     .auth-input, .profile-input {
         width: 100%; padding: 14px; margin: 8px 0; border-radius: 12px; 
@@ -165,26 +165,72 @@
         100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
     }
 
-    /* --- Chat Area --- */
-    main.chat { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--bg); position: relative; }
-    .messages { flex: 1; overflow-y: auto; padding: 10px 16px; display: flex; flex-direction: column; gap: 4px; scroll-behavior: smooth; }
-    /* Constrain message width on large screens for readability */
+    /* --- Chat Area & Mobile Response --- */
+    main.chat { 
+        flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--bg); position: relative;
+        width: 100%; max-width: 100vw; overflow-x: hidden; /* Prevent horizontal scroll */
+    }
+    .messages { 
+        flex: 1; overflow-y: auto; padding: 10px 16px; display: flex; flex-direction: column; 
+        gap: 0; /* Gap handled by msg-row margin */
+        scroll-behavior: smooth; 
+        width: 100%; box-sizing: border-box;
+    }
+
+    /* --- New Message Row Layout --- */
+    .msg-row {
+        display: flex;
+        align-items: flex-end; /* Align avatar at bottom */
+        margin-bottom: 6px;
+        width: 100%;
+        position: relative;
+    }
+    .msg-row.you { justify-content: flex-start; }
+    .msg-row.me { justify-content: flex-end; }
+
+    /* Message Column Wrapper (Bubble + Reactions) */
+    .msg-content-col {
+        display: flex; flex-direction: column; max-width: 75%;
+    }
+    .msg-row.me .msg-content-col { align-items: flex-end; }
+    .msg-row.you .msg-content-col { align-items: flex-start; }
+
+    /* Avatar in Chat */
+    .msg-avatar {
+        width: 32px; height: 32px; border-radius: 50%;
+        background: #e5e7eb; color: #374151;
+        display: flex; align-items: center; justify-content: center;
+        font-weight: bold; font-size: 12px; margin-right: 8px;
+        flex-shrink: 0; overflow: hidden; margin-bottom: 2px;
+        border: 1px solid rgba(0,0,0,0.05);
+    }
+    .msg-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    [data-theme="dark"] .msg-avatar { background: #374151; color: #e5e7eb; }
+
+    /* Updated Msg Bubble */
     .msg {
-        display:block; max-width:80%; padding:8px 14px; border-radius:18px; 
+        display:block; padding:8px 14px; border-radius:18px; 
         position:relative; word-wrap:break-word; font-size: 15px; line-height: 1.5;
-        box-shadow: 0 1px 1px rgba(0,0,0,0.03); margin-bottom: 2px;
+        box-shadow: 0 1px 1px rgba(0,0,0,0.03); 
         cursor: pointer; user-select: none; transition: transform 0.1s, background-color 0.2s;
+        max-width: 100%; /* controlled by parent col */
     }
     @media (min-width: 768px) {
-        .msg { max-width: 60%; }
+        .msg-content-col { max-width: 60%; }
         .user-list { padding: 20px; }
+    }
+    /* Mobile specific adjustments */
+    @media (max-width: 768px) {
+        .msg-content-col { max-width: 80%; }
+        .msg { font-size: 14px; }
+        .msg-avatar { width: 28px; height: 28px; font-size: 11px; margin-right: 6px; }
     }
 
     .msg:active { transform: scale(0.98); }
     .msg.long-press-active { transform: scale(1.02); z-index: 10; box-shadow: 0 8px 20px rgba(0,0,0,0.15); }
     
-    .msg.me { align-self: flex-end; background: linear-gradient(135deg, var(--primary-1), var(--primary-2)); color: white; border-bottom-right-radius: 4px; }
-    .msg.you { align-self: flex-start; background: var(--msg-bg-you); color: var(--msg-text-you); border: 1px solid var(--border-color); border-bottom-left-radius: 4px; }
+    .msg.me { background: linear-gradient(135deg, var(--primary-1), var(--primary-2)); color: white; border-bottom-right-radius: 4px; }
+    .msg.you { background: var(--msg-bg-you); color: var(--msg-text-you); border: 1px solid var(--border-color); border-bottom-left-radius: 4px; }
     
     .msg .meta { font-size: 9px; display:flex; gap:4px; align-items:center; justify-content: flex-end; margin-top: 2px; opacity: 0.8; }
     .status-icon { width: 14px; height: 14px; display: flex; align-items: center; justify-content: center; }
@@ -348,8 +394,8 @@
     .scroll-bottom-btn.hidden { opacity: 0; pointer-events: none; transform: translate(-50%, 20px); }
 
     .reactions-row { display: flex; gap: 4px; margin-top: -6px; margin-bottom: 4px; z-index: 2; position: relative; }
-    .msg.me + .reactions-row { align-self: flex-end; justify-content: flex-end; padding-right: 10px; }
-    .msg.you + .reactions-row { align-self: flex-start; padding-left: 10px; }
+    .msg-row.me .reactions-row { align-self: flex-end; justify-content: flex-end; padding-right: 10px; }
+    .msg-row.you .reactions-row { align-self: flex-start; padding-left: 10px; }
     .reaction-pill {
         background: var(--input-box-bg); border: 1px solid var(--border-color); padding: 2px 6px;
         border-radius: 10px; font-size: 10px; display: flex; align-items: center; gap: 2px;
@@ -740,6 +786,13 @@
         document.body.setAttribute('data-theme', theme);
         const toggle = document.getElementById('theme-toggle');
         if(toggle) toggle.checked = (theme === 'dark');
+        
+        // Prevent showing login page if previously logged in
+        if(localStorage.getItem('isLoggedIn') === 'true') {
+             // Keep splash active, logic in auth listener handles removal
+        } else {
+             // If not logged in, auth listener will eventually switch to auth view, but we wait for it
+        }
     });
 
     // Theme Toggle Logic
@@ -750,17 +803,21 @@
     });
 
     onAuthStateChanged(auth, async (user) => {
-        setTimeout(() => splash.classList.add('hidden'), 500);
         if (user) {
+            localStorage.setItem('isLoggedIn', 'true');
             currentUser = user;
             await loadUserProfile(user.uid);
             showView('home');
             loadChatList();
             updatePresence('online');
+            setTimeout(() => splash.classList.add('hidden'), 500);
         } else {
             currentUser = null;
             currentUserData = null;
+            localStorage.removeItem('isLoggedIn');
             showView('auth');
+            // Slight delay to ensure smooth transition
+            setTimeout(() => splash.classList.add('hidden'), 500);
         }
     });
 
@@ -906,7 +963,6 @@
     }
 
     function updateHeaderUI() {
-        // Updated: Only update Profile View elements and avatar
         const displayNameEl = document.getElementById('current-user-display-name');
         if(displayNameEl) displayNameEl.textContent = currentUserData.displayName;
         
@@ -956,6 +1012,7 @@
     document.getElementById('back-from-profile').addEventListener('click', () => showView('home'));
     document.getElementById('logout-btn').addEventListener('click', () => {
         updatePresence('offline');
+        localStorage.removeItem('isLoggedIn');
         signOut(auth);
     });
 
@@ -1043,12 +1100,11 @@
         });
     }
 
-    // --- HOME & CHAT LIST (FIXED) ---
+    // --- HOME & CHAT LIST ---
     function loadChatList() {
         if(unsubscribeChats) unsubscribeChats();
         const listContainer = document.getElementById('chat-list-container');
         
-        // FIX: Removed complex 'where' clause, fetching collection and filtering in JS
         const ref = collection(db, CHATS_PATH);
         
         unsubscribeChats = onSnapshot(ref, (snapshot) => {
@@ -1064,7 +1120,6 @@
                 }
             });
 
-            // Sort rooms by updated time descending in JS
             allRooms.sort((a, b) => (b.updatedAt?.seconds || 0) - (a.updatedAt?.seconds || 0));
 
             allRooms.forEach(room => {
@@ -1125,10 +1180,6 @@
         
         if(!pingId) return;
 
-        // Note: Simple 'where' is usually okay, but if it fails, one might need to fetch all users.
-        // Assuming simple equality index exists or is not needed for small collections.
-        // For absolute robustness in this env, we could fetch all users, but that's bad for scalability.
-        // Trying query first.
         try {
             const q = query(collection(db, USERS_PATH), where("pingId", "==", pingId));
             const snap = await getDocs(q);
@@ -1191,11 +1242,10 @@
         loadMessages(currentChatId);
     }
 
-    // --- NEW: OPEN FRIEND PROFILE ---
+    // --- OPEN FRIEND PROFILE ---
     document.getElementById('chat-user-header').addEventListener('click', async () => {
         if(!currentPartnerId) return;
         
-        // Fetch fresh data
         const docRef = doc(db, USERS_PATH, currentPartnerId);
         const snap = await getDoc(docRef);
         let data = currentPartnerData;
@@ -1286,7 +1336,7 @@
     });
 
     document.getElementById('delete-chat-btn').addEventListener('click', async (e) => {
-        e.stopPropagation(); // Prevent opening profile
+        e.stopPropagation(); 
         if(confirm("আপনি কি এই চ্যাট মুছে ফেলতে চান?")) {
             const roomRef = doc(db, CHATS_PATH, currentChatId);
             await updateDoc(roomRef, { hiddenFor: arrayUnion(currentUser.uid) });
@@ -1294,7 +1344,7 @@
         }
     });
 
-    // --- MESSAGES RENDERING (FIXED) ---
+    // --- MESSAGES RENDERING (UPDATED) ---
     function loadMessages(roomId) {
         const msgsRef = collection(db, CHATS_PATH, roomId, 'messages');
         
@@ -1314,8 +1364,6 @@
         unsubscribeMsgs = onSnapshot(msgsRef, (snapshot) => {
             msgsContainer.innerHTML = '';
             const unseenIds = [];
-
-            // Convert docs to array and sort in memory
             const msgs = [];
             snapshot.forEach(docSnap => {
                 msgs.push({ id: docSnap.id, ...docSnap.data() });
@@ -1328,10 +1376,35 @@
                 const isMe = m.senderId === currentUser.uid;
                 if (!isMe && m.status !== 'seen') unseenIds.push(m.id);
 
+                // --- NEW STRUCTURE: Row Wrapper ---
+                const row = document.createElement('div');
+                row.className = `msg-row ${isMe ? 'me' : 'you'}`;
+
+                // --- AVATAR (Left side if received) ---
+                if (!isMe) {
+                    const avatarDiv = document.createElement('div');
+                    avatarDiv.className = 'msg-avatar';
+                    
+                    // Fallback logic
+                    const pPhoto = currentPartnerData?.photoURL;
+                    const pName = currentPartnerData?.displayName || 'User';
+                    
+                    if (pPhoto) {
+                        avatarDiv.innerHTML = `<img src="${pPhoto}">`;
+                    } else {
+                        avatarDiv.textContent = pName.charAt(0).toUpperCase();
+                    }
+                    row.appendChild(avatarDiv);
+                }
+
+                // --- MESSAGE CONTENT COLUMN (Bubble + Reactions) ---
+                const col = document.createElement('div');
+                col.className = 'msg-content-col';
+
                 const div = document.createElement('div');
                 div.className = `msg ${isMe ? 'me' : 'you'}`;
                 
-                // 1. Reply Block
+                // Reply Block
                 let replyHtml = '';
                 if(m.replyTo) {
                     replyHtml = `
@@ -1341,8 +1414,7 @@
                     </div>`;
                 }
 
-                // 2. Content
-                // FIX: Added safe check (m.text || '') to prevent 'replace' error
+                // Content
                 let contentHTML = m.text || ''; 
                 if(m.type === 'image') {
                     const imgId = `img-${m.id}`;
@@ -1357,12 +1429,11 @@
                         }
                     }, 0);
                 } else {
-                     // FIX: Ensure contentHTML is string
                      const urlRegex = /(https?:\/\/[^\s]+)/g;
                      contentHTML = String(contentHTML).replace(urlRegex, '<a href="$1" target="_blank">$1</a>');
                 }
 
-                // 3. Status
+                // Status & Meta
                 const time = m.timestamp ? new Date(m.timestamp.seconds * 1000).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '...';
                 
                 let statusHTML = '';
@@ -1386,8 +1457,10 @@
                 
                 attachLongPress(div, m, m.id);
 
-                msgsContainer.appendChild(div);
+                // Append Bubble to Column
+                col.appendChild(div);
 
+                // Reactions (Append to Column)
                 if(m.reactions) {
                     const rRow = document.createElement('div');
                     rRow.className = 'reactions-row';
@@ -1399,15 +1472,18 @@
                         pill.textContent = emoji;
                         rRow.appendChild(pill);
                     });
-                    if(hasReacts) msgsContainer.appendChild(rRow);
+                    if(hasReacts) col.appendChild(rRow);
                 }
+
+                // Append Column to Row
+                row.appendChild(col);
+                msgsContainer.appendChild(row);
             });
             
             if(unseenIds.length > 0) markMessagesSeen(roomId, unseenIds);
             if(isUserNearBottom) setTimeout(() => { msgsContainer.scrollTop = msgsContainer.scrollHeight; }, 100);
         }, (error) => {
             console.error("Msg load error:", error);
-            // Fallback UI or silent fail
         });
     }
     
