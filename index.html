@@ -933,7 +933,6 @@
     function showView(name) {
         Object.values(views).forEach(el => el.classList.remove('active'));
         if(views[name]) views[name].classList.add('active');
-        // Show install banner only on home if available
         if(name === 'home' && deferredPrompt) installBanner.classList.add('visible');
         else installBanner.classList.remove('visible');
     }
@@ -1149,7 +1148,7 @@
         btn.textContent = "তথ্য সেভ করুন";
     });
     
-    // --- PROFILE PHOTO ---
+    // --- PROFILE PHOTO & PROPAGATION LOGIC ---
     const profileFileInput = document.getElementById('profile-file-input');
     document.getElementById('change-photo-btn').addEventListener('click', () => profileFileInput.click());
 
@@ -1165,17 +1164,33 @@
             await updateDoc(doc(db, USERS_PATH, currentUser.uid), { photoURL: croppedDataUrl });
             currentUserData.photoURL = croppedDataUrl;
             
+            // PROPAGATE TO ALL CHATS
+            await updateProfileEverywhere(croppedDataUrl);
+
             document.getElementById('profile-img-preview').src = croppedDataUrl;
             document.getElementById('profile-img-preview').style.display = 'block';
             document.getElementById('profile-initial-preview').style.display = 'none';
             updateHeaderUI();
-            showToast("ছবি আপডেট হয়েছে!");
+            showToast("ছবি আপডেট হয়েছে এবং সব জায়গায় সেট করা হয়েছে!");
         } catch(err) {
             alert("ছবি আপডেটে সমস্যা: " + err.message);
         }
         btn.textContent = "ছবি পরিবর্তন করুন";
         profileFileInput.value = '';
     });
+
+    // Helper to update profile URL in all active chats
+    async function updateProfileEverywhere(newUrl) {
+        const q = query(collection(db, CHATS_PATH), where("participants", "array-contains", currentUser.uid));
+        const querySnapshot = await getDocs(q);
+        const updates = [];
+        querySnapshot.forEach((docSnap) => {
+             const roomRef = doc(db, CHATS_PATH, docSnap.id);
+             // Update specific field in the map
+             updates.push( updateDoc(roomRef, { [`participantInfo.${currentUser.uid}.photoURL`]: newUrl }) );
+        });
+        await Promise.all(updates);
+    }
 
     function processProfileImage(file) {
         return new Promise((resolve) => {
@@ -1338,19 +1353,24 @@
         const uids = [currentUser.uid, partnerId].sort();
         currentChatId = uids.join('_');
         
-        document.getElementById('chat-header-name').textContent = partnerData.displayName;
-        const img = document.getElementById('chat-header-img');
-        const txt = document.getElementById('chat-header-initial');
-        
-        if(partnerData.photoURL) {
-            img.src = partnerData.photoURL; img.style.display='block'; txt.style.display='none';
-        } else {
-            img.style.display='none'; txt.style.display='block'; txt.textContent = (partnerData.displayName||'U').charAt(0).toUpperCase();
-        }
+        // Update Header UI Initial State
+        updateChatHeaderUI(partnerData);
         
         showView('chat');
         listenToRoom(currentChatId);
         loadMessages(currentChatId);
+    }
+
+    function updateChatHeaderUI(data) {
+        document.getElementById('chat-header-name').textContent = data.displayName;
+        const img = document.getElementById('chat-header-img');
+        const txt = document.getElementById('chat-header-initial');
+        
+        if(data.photoURL) {
+            img.src = data.photoURL; img.style.display='block'; txt.style.display='none';
+        } else {
+            img.style.display='none'; txt.style.display='block'; txt.textContent = (data.displayName||'U').charAt(0).toUpperCase();
+        }
     }
 
     // --- OPEN FRIEND PROFILE ---
@@ -1390,10 +1410,12 @@
         const roomRef = doc(db, CHATS_PATH, roomId);
         updateDoc(roomRef, { hiddenFor: arrayRemove(currentUser.uid) }).catch(()=>{});
 
+        // REFACTORED: Listen for partner changes (photo/name) in the room doc
         unsubscribeRoom = onSnapshot(roomRef, (snap) => {
             if(!snap.exists()) return;
             const data = snap.data();
             
+            // 1. Typing
             const typingIndicator = document.getElementById('typing-indicator');
             if(data.typing && data.typing[currentPartnerId]) {
                 typingIndicator.classList.add('active');
@@ -1401,6 +1423,18 @@
                 c.scrollTop = c.scrollHeight;
             } else {
                 typingIndicator.classList.remove('active');
+            }
+
+            // 2. Dynamic Partner Info Update (Reactivity)
+            if (data.participantInfo && data.participantInfo[currentPartnerId]) {
+                 const newPartnerInfo = data.participantInfo[currentPartnerId];
+                 // If photo changed, update local state and DOM
+                 if (newPartnerInfo.photoURL !== currentPartnerData.photoURL) {
+                     currentPartnerData = newPartnerInfo;
+                     updateChatHeaderUI(currentPartnerData);
+                     // Update all visible message avatars
+                     document.querySelectorAll('.msg-avatar img').forEach(img => img.src = currentPartnerData.photoURL);
+                 }
             }
         });
 
