@@ -149,8 +149,11 @@
         display: flex; align-items: center; gap: 12px; padding: 12px; 
         background: var(--header-bg); margin-bottom: 8px; border-radius: 16px; 
         cursor: pointer; border: 1px solid var(--border-color); transition: transform 0.1s;
+        -webkit-user-select: none; user-select: none;
     }
     .user-card:active { transform: scale(0.98); background: var(--input-box-bg); }
+    .user-card.long-press-active { transform: scale(0.98); background: var(--input-box-bg); border-color: var(--primary-1); }
+    
     .avatar { 
         width: 45px; height: 45px; border-radius: 50%; background: #e5e7eb; color: #374151;
         display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 18px;
@@ -283,7 +286,12 @@
         border: 4px solid var(--header-bg); box-shadow: 0 4px 15px rgba(0,0,0,0.1);
         overflow: hidden;
     }
-    .profile-avatar-large img { width: 100%; height: 100%; object-fit: cover; }
+    .profile-avatar-large img { 
+        width: 100%; height: 100%; object-fit: cover; 
+        cursor: pointer; /* UPDATED: Shows pointer cursor on hover */
+        transition: transform 0.2s;
+    }
+    .profile-avatar-large img:active { transform: scale(0.96); }
     
     .label-text { font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 4px; display: block; margin-top: 10px; }
     .ping-id-badge {
@@ -441,6 +449,31 @@
     }
     .btn-close-install { background: transparent; border: none; font-size: 20px; color: var(--muted); cursor: pointer; }
 
+    /* --- Search History Styles --- */
+    .history-section { margin-bottom: 20px; display: none; }
+    .history-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .history-title { font-size: 13px; font-weight: 600; color: var(--muted); }
+    .btn-clear-history { background: none; border: none; color: #ef4444; font-size: 12px; cursor: pointer; }
+    
+    .history-list { 
+        display: flex; gap: 15px; overflow-x: auto; padding-bottom: 10px; 
+        scrollbar-width: none; -ms-overflow-style: none; /* Hide scrollbar */
+    }
+    .history-list::-webkit-scrollbar { display: none; }
+    
+    .history-item { 
+        display: flex; flex-direction: column; align-items: center; gap: 5px; 
+        cursor: pointer; min-width: 60px; max-width: 60px;
+    }
+    .history-avatar {
+        width: 50px; height: 50px; border-radius: 50%; background: var(--input-box-bg);
+        display: flex; align-items: center; justify-content: center;
+        border: 2px solid var(--border-color); overflow: hidden;
+        font-size: 20px; color: var(--muted);
+    }
+    .history-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .history-name { font-size: 11px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; color: var(--muted); }
+
   </style>
 
   <!-- PWA & NOTIFICATION Setup Scripts -->
@@ -551,15 +584,25 @@
       </div>
   </div>
 
-  <!-- ACTION SHEET -->
+  <!-- MSG OPTIONS SHEET -->
   <div class="action-sheet-overlay" id="optionsSheet">
     <div class="action-sheet">
         <button class="sheet-btn" id="optReply">↩ রিপ্লাই (Reply)</button>
         <button class="sheet-btn" id="optCopy">📋 কপি করুন (Copy)</button>
-        <!-- NEW: TWO DELETE BUTTONS -->
         <button class="sheet-btn danger" id="optDeleteEveryone" style="display:none;">🗑️ সবার জন্য ডিলেট (Delete for Everyone)</button>
         <button class="sheet-btn danger" id="optDelete">🗑️ আমার জন্য ডিলেট (Delete for Me)</button>
         <button class="sheet-btn" id="optCancel">বন্ধ করুন</button>
+    </div>
+  </div>
+
+  <!-- NEW: FRIEND OPTIONS SHEET -->
+  <div class="action-sheet-overlay" id="friendOptionsSheet">
+    <div class="action-sheet">
+        <h3 style="margin:0 0 10px; font-size:16px; text-align:center; color:var(--primary-2);" id="friend-sheet-name">User Name</h3>
+        <button class="sheet-btn" id="btn-friend-poke">👉 পোক করুন (Poke)</button>
+        <button class="sheet-btn" id="btn-friend-block">🚫 ব্লক করুন (Block)</button>
+        <button class="sheet-btn danger" id="btn-friend-delete">🗑️ চ্যাট ডিলিট করুন (Delete)</button>
+        <button class="sheet-btn" id="btn-friend-cancel">বন্ধ করুন</button>
     </div>
   </div>
 
@@ -571,7 +614,6 @@
               <div class="logo-container" style="width:100px; height:100px; margin-bottom:15px;">
                   <img src="https://i.postimg.cc/RZ5FH16z/Gemini-Generated-Image-rgsqsqrgsqsqrgsq-removebg-preview.png" class="logo-img" alt="Logo">
               </div>
-              <!-- Animated Branding -->
               <div class="brand-text" style="font-size:32px; margin-bottom:5px;">PingMe</div>
               <p style="margin:0 0 30px 0; color:var(--muted)">Secure Login System</p>
 
@@ -584,7 +626,6 @@
               <div id="auth-error" class="error-msg">ত্রুটি বার্তা এখানে দেখাবে</div>
 
               <button id="auth-btn" class="btn-primary">লগইন</button>
-              <!-- Forgot Password Button -->
               <div id="forgot-pass-btn" class="forgot-pass">পাসওয়ার্ড ভুলে গেছেন?</div>
               <div id="auth-toggle" class="auth-footer">অ্যাকাউন্ট নেই? সাইন আপ করুন</div>
           </div>
@@ -593,13 +634,11 @@
       <!-- 2. HOME SCREEN (Chat List) -->
       <div id="view-home" class="view-section">
           <header class="app">
-             <!-- Left: Animated Brand Logo -->
              <div class="brand-container">
                  <img src="https://i.postimg.cc/RZ5FH16z/Gemini-Generated-Image-rgsqsqrgsqsqrgsq-removebg-preview.png" class="brand-logo-img" alt="Logo">
                  <div class="brand-text">PingMe</div>
              </div>
              
-             <!-- Right: Only Profile Avatar -->
              <button class="icon-btn" id="profile-btn">
                 <div class="avatar" style="width:32px;height:32px;font-size:14px; border: 2px solid var(--primary-1);">
                     <img id="header-avatar-img" src="" style="display:none;">
@@ -630,6 +669,18 @@
               <div class="title"><h1>বন্ধু খুঁজুন</h1></div>
           </header>
           <div style="padding: 20px; max-width: 800px; margin: 0 auto; width: 100%; box-sizing: border-box;">
+              
+              <!-- SEARCH HISTORY SECTION -->
+              <div id="search-history-section" class="history-section">
+                  <div class="history-header">
+                      <span class="history-title">সাম্প্রতিক অনুসন্ধান (Recent)</span>
+                      <button id="clear-history-btn" class="btn-clear-history">মুছুন</button>
+                  </div>
+                  <div id="history-list" class="history-list">
+                      <!-- History items will be injected here -->
+                  </div>
+              </div>
+
               <div style="background:var(--input-box-bg); padding:15px; border-radius:16px; margin-bottom:20px;">
                   <h3 style="margin:0 0 10px 0; font-size:14px; color:var(--muted);">Ping ID দিয়ে খুঁজুন</h3>
                   <div style="display:flex; gap:10px;">
@@ -835,15 +886,16 @@
     import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, updateProfile, sendEmailVerification, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
     import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, query, collection, where, onSnapshot, serverTimestamp, increment, orderBy, limit, addDoc, arrayUnion, arrayRemove, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
     
-    // --- FIREBASE CONFIG ---
+    // --- FIREBASE CONFIG (NEW) ---
     const firebaseConfig = {
-      apiKey: "AIzaSyADEk13HgPmPjiy2VD6RDYU_Z2pPJFM9gQ",
-      authDomain: "pingme-7fad3.firebaseapp.com",
-      databaseURL: "https://pingme-7fad3-default-rtdb.firebaseio.com",
-      projectId: "pingme-7fad3",
-      storageBucket: "pingme-7fad3.firebasestorage.app",
-      messagingSenderId: "8513825883",
-      appId: "1:8513825883:web:b8676bbdb4818c3d4ae37e",
+      apiKey: "AIzaSyAOEmgVj-OzfVaZsNOn47WTdaCrb5h8h_s",
+      authDomain: "ping-me-app-475d1.firebaseapp.com",
+      databaseURL: "https://ping-me-app-475d1-default-rtdb.firebaseio.com",
+      projectId: "ping-me-app-475d1",
+      storageBucket: "ping-me-app-475d1.firebasestorage.app",
+      messagingSenderId: "41337345094",
+      appId: "1:41337345094:web:0a6f31fd1dd0a1f6026647",
+      measurementId: "G-2L4F8KQ9YE"
     };
 
     const app = initializeApp(firebaseConfig);
@@ -886,6 +938,11 @@
     let currentReactionPopup = null;
     let isUserNearBottom = true;
     
+    // Friend Action Sheet State
+    let selectedFriendRoomId = null;
+    let selectedFriendId = null;
+    let selectedFriendName = null;
+    
     // --- PWA INSTALL PROMPT LOGIC ---
     let deferredPrompt;
     const installBanner = document.getElementById('install-banner');
@@ -926,7 +983,25 @@
     });
 
     onAuthStateChanged(auth, async (user) => {
+        // Updated: Check if email is verified
         if (user) {
+            // If user exists but not verified, force sign out (unless it's during signup flow, handled separately)
+            // But onAuthStateChanged triggers on page load. If someone has a session but not verified,
+            // we should block them.
+            if (!user.emailVerified) {
+                // We will handle this gracefully. If they are not verified, we treat them as not logged in
+                // OR we sign them out immediately.
+                // However, signing out triggers onAuthStateChanged(null), so we just return.
+                // The Login button logic will prevent them from getting here normally.
+                // But if they have a persistent session from before this update:
+                await signOut(auth);
+                currentUser = null;
+                showView('auth');
+                showError("আপনার ইমেইল ভেরিফাইড নয়। দয়া করে লগইন করে ভেরিফিকেশন চেক করুন।");
+                setTimeout(() => splash.classList.add('hidden'), 500);
+                return;
+            }
+
             localStorage.setItem('isLoggedIn', 'true');
             currentUser = user;
             await loadUserProfile(user.uid);
@@ -1028,6 +1103,11 @@
         if(views[name]) views[name].classList.add('active');
         if(name === 'home' && deferredPrompt) installBanner.classList.add('visible');
         else installBanner.classList.remove('visible');
+        
+        // Load Search History when entering 'find' view
+        if(name === 'find') {
+            loadSearchHistory();
+        }
     }
 
     function showToast(text) {
@@ -1117,8 +1197,15 @@
 
         try {
             if(isLoginMode) {
-                await signInWithEmailAndPassword(auth, email, pass);
+                // LOGIN FLOW WITH VERIFICATION CHECK
+                const userCredential = await signInWithEmailAndPassword(auth, email, pass);
+                if (!userCredential.user.emailVerified) {
+                    await signOut(auth); // Sign out immediately
+                    throw new Error("আপনার ইমেইল ভেরিফাইড নয়। দয়া করে আপনার ইমেইল ইনবক্স চেক করুন এবং ভেরিফিকেশন লিংকে ক্লিক করুন।");
+                }
+                // If verified, onAuthStateChanged will handle the rest
             } else {
+                // SIGN UP FLOW WITH EMAIL VERIFICATION
                 const cred = await createUserWithEmailAndPassword(auth, email, pass);
                 const newUser = {
                     uid: cred.user.uid,
@@ -1135,9 +1222,25 @@
                 };
                 await setDoc(doc(db, USERS_PATH, cred.user.uid), newUser);
                 await updateProfile(cred.user, { displayName: name });
+                
+                // Send Verification Email
+                await sendEmailVerification(cred.user);
+                
+                // Sign out new user to prevent auto-login
+                await signOut(auth);
+                
+                alert("অ্যাকাউন্ট তৈরি সফল হয়েছে! আপনার ইমেইলে একটি ভেরিফিকেশন লিংক পাঠানো হয়েছে। দয়া করে সেটি কনফার্ম করে লগইন করুন।");
+                
+                // Reset UI to Login mode
+                isLoginMode = true;
+                signupFields.style.display = 'none';
+                authBtn.textContent = 'লগইন';
+                authToggle.textContent = 'অ্যাকাউন্ট নেই? সাইন আপ করুন';
+                document.getElementById('auth-pass').value = '';
             }
         } catch (err) {
             showError(err.message);
+        } finally {
             authBtn.disabled = false; authBtn.textContent = isLoginMode ? 'লগইন' : 'সাইন আপ';
         }
     });
@@ -1366,7 +1469,10 @@
                         <p>${lastMsg}</p>
                     </div>
                 `;
-                div.onclick = () => openChat(partnerId, partnerInfo);
+                
+                // NEW: Attach Long Press Handler instead of simple onclick
+                attachFriendLongPress(div, roomId, partnerId, partnerInfo.displayName);
+                
                 listContainer.appendChild(div);
 
                 getDoc(doc(db, USERS_PATH, partnerId)).then(uSnap => {
@@ -1386,6 +1492,156 @@
             listContainer.innerHTML = '<div style="text-align:center;color:red">চ্যাট লোড করতে সমস্যা হচ্ছে।</div>';
         });
     }
+
+    // --- NEW: LONG PRESS LOGIC FOR FRIEND LIST ---
+    function attachFriendLongPress(element, roomId, partnerId, partnerName) {
+        let timer;
+        let isLongPress = false;
+
+        const start = (e) => {
+             isLongPress = false;
+             timer = setTimeout(() => {
+                 isLongPress = true;
+                 if(navigator.vibrate) navigator.vibrate(50);
+                 element.classList.add('long-press-active');
+                 showFriendOptions(roomId, partnerId, partnerName);
+             }, 500); 
+        };
+
+        const end = (e) => {
+            clearTimeout(timer);
+            element.classList.remove('long-press-active');
+        };
+        
+        const clickHandler = (e) => {
+            if(!isLongPress) {
+                // If it wasn't a long press, treat as click
+                const uids = [currentUser.uid, partnerId].sort();
+                const derivedRoomId = uids.join('_');
+                // We need partner data to open chat properly
+                // Fetch basic data from info passed
+                const partnerInfo = { displayName: partnerName }; 
+                // Ideally we'd pass full object but name is key
+                
+                // Re-fetch to be safe or pass full object
+                // Let's rely on cached or fresh fetch inside openChat
+                // For now, reconstruct basic object
+                openChat(partnerId, partnerInfo); 
+            }
+        };
+
+        element.addEventListener('touchstart', start, {passive: true});
+        element.addEventListener('touchend', end);
+        element.addEventListener('touchmove', end);
+        
+        element.addEventListener('mousedown', start);
+        element.addEventListener('mouseup', end);
+        element.addEventListener('mouseleave', end);
+        
+        element.addEventListener('click', clickHandler);
+        element.addEventListener('contextmenu', (e) => {
+             e.preventDefault();
+             // Context menu also triggers long press logic if not handled by timer
+             if(!isLongPress) showFriendOptions(roomId, partnerId, partnerName);
+        });
+    }
+
+    function showFriendOptions(roomId, partnerId, partnerName) {
+        selectedFriendRoomId = roomId;
+        selectedFriendId = partnerId;
+        selectedFriendName = partnerName;
+        
+        document.getElementById('friend-sheet-name').textContent = partnerName;
+        document.getElementById('friendOptionsSheet').classList.add('active');
+    }
+
+    document.getElementById('btn-friend-cancel').addEventListener('click', () => {
+        document.getElementById('friendOptionsSheet').classList.remove('active');
+    });
+    
+    document.getElementById('friendOptionsSheet').addEventListener('click', (e) => {
+        if(e.target.id === 'friendOptionsSheet') {
+            document.getElementById('friendOptionsSheet').classList.remove('active');
+        }
+    });
+
+    // --- FRIEND ACTION HANDLERS ---
+    
+    // 1. DELETE (PERMANENT)
+    document.getElementById('btn-friend-delete').addEventListener('click', async () => {
+        if(confirm(`সতর্কতা: আপনি কি ${selectedFriendName}-এর সাথে চ্যাট এবং সব হিস্ট্রি পার্মানেন্টলি ডিলিট করতে চান? এই অ্যাকশনটি ফিরিয়ে আনা যাবে না।`)) {
+             const btn = document.getElementById('btn-friend-delete');
+             const originalText = btn.textContent;
+             btn.textContent = "ডিলিট হচ্ছে...";
+             
+             try {
+                 // 1. Delete all messages in subcollection
+                 const msgsRef = collection(db, CHATS_PATH, selectedFriendRoomId, 'messages');
+                 const snap = await getDocs(msgsRef);
+                 
+                 const deletePromises = [];
+                 snap.forEach((docSnap) => {
+                     deletePromises.push(deleteDoc(docSnap.ref));
+                 });
+                 await Promise.all(deletePromises);
+
+                 // 2. Delete the room document
+                 const roomRef = doc(db, CHATS_PATH, selectedFriendRoomId);
+                 await deleteDoc(roomRef);
+                 
+                 showToast("চ্যাট এবং হিস্ট্রি সফলভাবে মুছে ফেলা হয়েছে");
+             } catch(e) {
+                 console.error(e);
+                 showToast("এরর: " + e.message);
+             } finally {
+                 btn.textContent = originalText;
+                 document.getElementById('friendOptionsSheet').classList.remove('active');
+             }
+        }
+    });
+
+    // 2. POKE
+    document.getElementById('btn-friend-poke').addEventListener('click', async () => {
+         try {
+             const msgsRef = collection(db, CHATS_PATH, selectedFriendRoomId, 'messages');
+             const roomRef = doc(db, CHATS_PATH, selectedFriendRoomId);
+             
+             const payload = {
+                senderId: currentUser.uid,
+                text: "👉 Poked you!",
+                type: 'text', // Standard text for compatibility
+                status: 'sent',
+                deletedFor: [],
+                timestamp: serverTimestamp()
+             };
+             
+             await addDoc(msgsRef, payload);
+             
+             // Update last message
+             const participantInfo = {}; // We might lose some info if we don't fetch, 
+             // but merge:true keeps existing. simpler to just update lastMessage + time
+             
+             await setDoc(roomRef, {
+                lastMessage: payload,
+                updatedAt: serverTimestamp(),
+                hiddenFor: arrayRemove(selectedFriendId) // Ensure they see it
+             }, { merge: true });
+             
+             showToast("পোক পাঠানো হয়েছে! 👋");
+         } catch(e) {
+             showToast("পোক পাঠানো যায়নি");
+         }
+         document.getElementById('friendOptionsSheet').classList.remove('active');
+    });
+
+    // 3. BLOCK (Simulation)
+    document.getElementById('btn-friend-block').addEventListener('click', () => {
+        // Real blocking requires database rules or specific 'blocked' array in user doc
+        // For this demo, we'll just show a UI feedback
+        showToast("🚫 ইউজারকে ব্লক করা হয়েছে (Simulation)");
+        document.getElementById('friendOptionsSheet').classList.remove('active');
+    });
+
 
     document.getElementById('find-friend-fab').addEventListener('click', () => showView('find'));
     document.getElementById('back-from-find').addEventListener('click', () => showView('home'));
@@ -1428,6 +1684,7 @@
                     <button style="background:var(--primary-2); color:white; border:none; padding:6px 12px; border-radius:8px; font-size:12px;">মেসেজ</button>
                 `;
                 div.onclick = () => {
+                    addToSearchHistory(user); // NEW: Save to history on interaction
                     openChat(user.uid, user);
                 };
                 resultsDiv.appendChild(div);
@@ -1437,9 +1694,89 @@
         }
     });
 
+    // --- SEARCH HISTORY LOGIC ---
+    function loadSearchHistory() {
+        if(!currentUser) return;
+        const key = `pingme_search_history_${currentUser.uid}`;
+        const raw = localStorage.getItem(key);
+        const history = raw ? JSON.parse(raw) : [];
+        
+        const container = document.getElementById('search-history-section');
+        const list = document.getElementById('history-list');
+        list.innerHTML = '';
+
+        if(history.length === 0) {
+            container.style.display = 'none';
+            return;
+        }
+
+        container.style.display = 'block';
+        history.forEach(user => {
+            const div = document.createElement('div');
+            div.className = 'history-item';
+            div.innerHTML = `
+                <div class="history-avatar">
+                    ${user.photoURL ? `<img src="${user.photoURL}">` : (user.displayName||'U').charAt(0).toUpperCase()}
+                </div>
+                <div class="history-name">${user.displayName.split(' ')[0]}</div>
+            `;
+            div.onclick = () => {
+                // Move to top of history and open chat
+                addToSearchHistory(user);
+                openChat(user.uid, user);
+            };
+            list.appendChild(div);
+        });
+    }
+
+    function addToSearchHistory(user) {
+        if(!currentUser) return;
+        const key = `pingme_search_history_${currentUser.uid}`;
+        let history = localStorage.getItem(key) ? JSON.parse(localStorage.getItem(key)) : [];
+        
+        // Remove existing entry for this user to avoid duplicates
+        history = history.filter(u => u.uid !== user.uid);
+        
+        // Add minimal user info to top
+        history.unshift({
+            uid: user.uid,
+            displayName: user.displayName,
+            photoURL: user.photoURL,
+            pingId: user.pingId
+        });
+        
+        // Keep max 10
+        if(history.length > 10) history.pop();
+        
+        localStorage.setItem(key, JSON.stringify(history));
+    }
+
+    document.getElementById('clear-history-btn').addEventListener('click', () => {
+        if(!currentUser) return;
+        if(confirm("সব সার্চ হিস্ট্রি মুছে ফেলতে চান?")) {
+            localStorage.removeItem(`pingme_search_history_${currentUser.uid}`);
+            loadSearchHistory();
+        }
+    });
+
     // --- CHAT LOGIC ---
     async function openChat(partnerId, partnerData) {
         currentPartnerId = partnerId;
+        
+        // If partnerData is incomplete (from long press), try to fetch complete data if possible or rely on header update later
+        // For basic display, displayName is key.
+        
+        // If we came from click/longpress, we might need full object
+        // The existing logic updates header UI based on `partnerData`
+        // We will do a quick fetch if photoURL is missing to ensure UI looks good
+        if(!partnerData.photoURL && !partnerData.fetched) {
+             const uSnap = await getDoc(doc(db, USERS_PATH, partnerId));
+             if(uSnap.exists()) {
+                 partnerData = uSnap.data();
+                 partnerData.fetched = true;
+             }
+        }
+        
         currentPartnerData = partnerData;
         const uids = [currentUser.uid, partnerId].sort();
         currentChatId = uids.join('_');
@@ -1485,6 +1822,11 @@
         } else {
             img.style.display='none'; txt.style.display='block'; txt.textContent = (data.displayName||'U').charAt(0).toUpperCase();
         }
+    });
+
+    // NEW: ADDED LISTENER FOR FRIEND PROFILE IMAGE CLICK
+    document.getElementById('friend-img-preview').addEventListener('click', function() {
+        if(this.src && this.style.display !== 'none') openLightbox(this.src);
     });
 
     document.getElementById('back-from-friend-profile').addEventListener('click', () => showView('chat'));
@@ -1558,10 +1900,24 @@
 
     document.getElementById('delete-chat-btn').addEventListener('click', async (e) => {
         e.stopPropagation(); 
-        if(confirm("আপনি কি এই চ্যাট মুছে ফেলতে চান?")) {
-            const roomRef = doc(db, CHATS_PATH, currentChatId);
-            await updateDoc(roomRef, { hiddenFor: arrayUnion(currentUser.uid) });
-            document.getElementById('chat-back-btn').click();
+        if(confirm("সতর্কতা: আপনি কি এই চ্যাট এবং সব হিস্ট্রি পার্মানেন্টলি ডিলিট করতে চান?")) {
+             try {
+                 // 1. Delete all messages
+                 const msgsRef = collection(db, CHATS_PATH, currentChatId, 'messages');
+                 const snap = await getDocs(msgsRef);
+                 const deletePromises = [];
+                 snap.forEach((docSnap) => deletePromises.push(deleteDoc(docSnap.ref)));
+                 await Promise.all(deletePromises);
+
+                 // 2. Delete room
+                 const roomRef = doc(db, CHATS_PATH, currentChatId);
+                 await deleteDoc(roomRef);
+
+                 showToast("চ্যাট মুছে ফেলা হয়েছে");
+                 document.getElementById('chat-back-btn').click();
+             } catch(e) {
+                 showToast("এরর: " + e.message);
+             }
         }
     });
 
