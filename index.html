@@ -235,6 +235,7 @@
     .status-icon.seen-avatar img { width: 100%; height: 100%; object-fit: cover; }
 
     .msg img.chat-img { max-width: 100%; border-radius: 8px; margin-top: 4px; display: block; cursor: pointer; }
+    .msg.deleted { background: var(--input-box-bg); color: var(--muted); font-style: italic; border: 1px solid var(--border-color); }
     
     .typing-indicator {
         display: none; align-self: flex-start; background: var(--msg-bg-you); 
@@ -555,7 +556,9 @@
     <div class="action-sheet">
         <button class="sheet-btn" id="optReply">↩ রিপ্লাই (Reply)</button>
         <button class="sheet-btn" id="optCopy">📋 কপি করুন (Copy)</button>
-        <button class="sheet-btn danger" id="optDelete">🗑️ ডিলেট (Delete)</button>
+        <!-- NEW: TWO DELETE BUTTONS -->
+        <button class="sheet-btn danger" id="optDeleteEveryone" style="display:none;">🗑️ সবার জন্য ডিলেট (Delete for Everyone)</button>
+        <button class="sheet-btn danger" id="optDelete">🗑️ আমার জন্য ডিলেট (Delete for Me)</button>
         <button class="sheet-btn" id="optCancel">বন্ধ করুন</button>
     </div>
   </div>
@@ -831,7 +834,7 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, updateProfile, sendEmailVerification, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
     import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, query, collection, where, onSnapshot, serverTimestamp, increment, orderBy, limit, addDoc, arrayUnion, arrayRemove, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
+    
     // --- FIREBASE CONFIG ---
     const firebaseConfig = {
       apiKey: "AIzaSyADEk13HgPmPjiy2VD6RDYU_Z2pPJFM9gQ",
@@ -873,7 +876,7 @@
     let unsubscribeMsgs = null;
     let unsubscribeRoom = null;
     let unsubscribePartnerStatus = null;
-    let globalNotificationUnsubscribe = null; // New global listener
+    let globalNotificationUnsubscribe = null;
     let isLoginMode = true;
     let typingTimeout = null;
     let replyTo = null;
@@ -931,10 +934,7 @@
             loadChatList();
             updatePresence('online');
             
-            // --- NEW: Request Notification Permission on Login ---
             requestNotificationPermission();
-
-            // --- NEW: Start Global Listener for All Chats ---
             listenGlobalMessages();
 
             setTimeout(() => splash.classList.add('hidden'), 500);
@@ -948,7 +948,6 @@
         }
     });
 
-    // --- NOTIFICATION PERMISSION LOGIC ---
     function requestNotificationPermission() {
         if ('Notification' in window) {
             if (Notification.permission === 'default') {
@@ -957,8 +956,6 @@
         }
     }
 
-    // --- GLOBAL NOTIFICATION LISTENER ---
-    // This listens to ALL chats the user is part of, even if not open
     function listenGlobalMessages() {
         if (globalNotificationUnsubscribe) globalNotificationUnsubscribe();
 
@@ -966,43 +963,32 @@
         
         globalNotificationUnsubscribe = onSnapshot(q, (snapshot) => {
             snapshot.docChanges().forEach((change) => {
-                // Only care if a document is modified (new msg updates lastMessage field)
                 if (change.type === "modified") {
                     const roomData = change.doc.data();
                     const lastMsg = roomData.lastMessage;
                     const roomId = change.doc.id;
                     
                     if (!lastMsg) return;
-
-                    // 1. Don't notify my own messages
                     if (lastMsg.senderId === currentUser.uid) return;
 
-                    // 2. Check time (avoid notifying old messages on page load)
                     const msgTime = lastMsg.timestamp ? lastMsg.timestamp.seconds * 1000 : 0;
                     const now = Date.now();
-                    // Message must be younger than 10 seconds to trigger notification
                     if (now - msgTime > 10000) return;
 
-                    // 3. Determine if we should notify
-                    // Notify if:
-                    // A. Page is hidden (Tab switch / Minimized)
-                    // OR
-                    // B. User is NOT in this specific chat room (e.g., on Home or another chat)
                     const isAppHidden = document.visibilityState === 'hidden';
                     const isDifferentRoom = (currentChatId !== roomId);
                     
                     if (isAppHidden || isDifferentRoom) {
-                        // Get Sender Info
                         let senderName = "New Message";
                         let senderPhoto = null;
                         
-                        // Try to find sender in participantInfo map
                         if (roomData.participantInfo && roomData.participantInfo[lastMsg.senderId]) {
                             senderName = roomData.participantInfo[lastMsg.senderId].displayName;
                             senderPhoto = roomData.participantInfo[lastMsg.senderId].photoURL;
                         }
 
                         let bodyText = (lastMsg.type === 'image') ? '📷 একটি ছবি পাঠিয়েছেন' : lastMsg.text;
+                        if(lastMsg.type === 'deleted') bodyText = '🚫 একটি মেসেজ ডিলিট করেছেন';
                         
                         sendLocalNotification(senderName, bodyText, senderPhoto);
                     }
@@ -1011,12 +997,10 @@
         });
     }
 
-    // --- NOTIFICATION TRIGGER LOGIC ---
     function sendLocalNotification(title, body, icon) {
         const notifIcon = icon || 'https://i.postimg.cc/RZ5FH16z/Gemini-Generated-Image-rgsqsqrgsqsqrgsq-removebg-preview.png';
         
         if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-            // Mobile / Modern PWA Approach
             navigator.serviceWorker.ready.then(registration => {
                 registration.showNotification(title, {
                     body: body,
@@ -1028,7 +1012,6 @@
                 });
             });
         } else if ('Notification' in window && Notification.permission === 'granted') {
-            // Desktop Legacy Approach
             const n = new Notification(title, {
                 body: body,
                 icon: notifIcon
@@ -1047,7 +1030,6 @@
         else installBanner.classList.remove('visible');
     }
 
-    // --- TOAST NOTIFICATION ---
     function showToast(text) {
         const toast = document.getElementById('toastMsg');
         toast.textContent = text;
@@ -1055,7 +1037,6 @@
         setTimeout(() => toast.classList.remove('active'), 2000);
     }
 
-    // --- PRESENCE SYSTEM ---
     function updatePresence(status) {
         if(!currentUser) return;
         const ref = doc(db, USERS_PATH, currentUser.uid);
@@ -1360,8 +1341,11 @@
                 const roomId = room.id;
                 const partnerId = room.participants.find(uid => uid !== currentUser.uid);
                 const partnerInfo = room.participantInfo?.[partnerId] || { displayName: 'Unknown', photoURL: null };
-                const lastMsg = room.lastMessage?.text || 'No messages';
                 
+                let lastMsg = room.lastMessage?.text || 'No messages';
+                if(room.lastMessage?.type === 'deleted') lastMsg = "🚫 এই মেসেজটি মুছে ফেলা হয়েছে";
+                if(room.lastMessage?.type === 'image') lastMsg = "📷 একটি ছবি পাঠিয়েছেন";
+
                 let time = '';
                 if(room.lastMessage?.timestamp) {
                     time = new Date(room.lastMessage.timestamp.seconds * 1000).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
@@ -1634,6 +1618,11 @@
                 const div = document.createElement('div');
                 div.className = `msg ${isMe ? 'me' : 'you'}`;
                 
+                // *** UPDATED: DELETED MESSAGE STYLE ***
+                if(m.type === 'deleted') {
+                    div.classList.add('deleted');
+                }
+
                 let replyHtml = '';
                 if(m.replyTo) {
                     replyHtml = `
@@ -1644,9 +1633,12 @@
                 }
 
                 let contentHTML = m.text || ''; 
-                if(m.type === 'image') {
+                
+                if (m.type === 'deleted') {
+                    contentHTML = `🚫 ${contentHTML}`; 
+                } else if(m.type === 'image') {
                     const imgId = `img-${m.id}`;
-                    contentHTML = `<img src="${contentHTML}" id="${imgId}" class="chat-img">`;
+                    contentHTML = `<img src="${contentHTML}" id="${imgId}" class="chat-img" loading="lazy">`;
                     setTimeout(() => {
                         const imgEl = document.getElementById(imgId);
                         if(imgEl) {
@@ -1759,9 +1751,24 @@
         if(navigator.vibrate) navigator.vibrate(50);
         currentMsgId = msgId;
         currentMsgData = m;
-        renderInlineReactions(el, msgId);
+        
+        // Hide reaction logic if msg deleted
+        if(m.type !== 'deleted') renderInlineReactions(el, msgId);
+
         const isMe = m.senderId === currentUser.uid;
-        document.getElementById('optDelete').style.display = isMe ? 'flex' : 'none';
+        
+        const btnDeleteEveryone = document.getElementById('optDeleteEveryone');
+        const btnDeleteMe = document.getElementById('optDelete');
+        
+        if (isMe && m.type !== 'deleted') {
+            btnDeleteEveryone.style.display = 'flex';
+        } else {
+            btnDeleteEveryone.style.display = 'none';
+        }
+        
+        // Always show delete for me
+        btnDeleteMe.style.display = 'flex';
+
         document.getElementById('optionsSheet').classList.add('active');
     }
 
@@ -1812,7 +1819,7 @@
     });
 
     document.getElementById('optCopy').addEventListener('click', async () => {
-        if(currentMsgData && currentMsgData.text) {
+        if(currentMsgData && currentMsgData.text && currentMsgData.type !== 'image' && currentMsgData.type !== 'deleted') {
              try {
                 await navigator.clipboard.writeText(currentMsgData.text);
                 showToast("টেক্সট কপি করা হয়েছে");
@@ -1825,22 +1832,32 @@
                 document.body.removeChild(ta);
                 showToast("টেক্সট কপি করা হয়েছে");
             }
+        } else {
+             showToast("কপি করা সম্ভব নয়");
         }
         hideOptions();
     });
 
+    // *** DELETE HANDLERS ***
     document.getElementById('optDelete').addEventListener('click', () => {
-        if(confirm("মেসেজটি ডিলিট করতে চান?")) {
-            deleteMessage(currentChatId, currentMsgId);
+        if(confirm("আপনি কি শুধু নিজের জন্য মেসেজটি লুকাতে চান?")) {
+            deleteMessage(currentChatId, currentMsgId, 'me');
+        }
+        hideOptions();
+    });
+    
+    document.getElementById('optDeleteEveryone').addEventListener('click', () => {
+        if(confirm("আপনি কি সবার জন্য মেসেজটি ডিলিট করতে চান?")) {
+            deleteMessage(currentChatId, currentMsgId, 'everyone');
         }
         hideOptions();
     });
 
     document.getElementById('optReply').addEventListener('click', () => {
-        if(currentMsgData) {
+        if(currentMsgData && currentMsgData.type !== 'deleted') {
             replyTo = { 
                 id: currentMsgId, 
-                text: currentMsgData.text, 
+                text: currentMsgData.type === 'image' ? 'Image' : currentMsgData.text, 
                 name: currentMsgData.senderId === currentUser.uid ? 'You' : currentPartnerData.displayName 
             };
             document.getElementById('replyToName').textContent = replyTo.name;
@@ -1908,9 +1925,40 @@
         });
     }
 
-    async function deleteMessage(roomId, msgId) {
-        const ref = doc(db, CHATS_PATH, roomId, 'messages', msgId);
-        await updateDoc(ref, { deletedFor: arrayUnion(currentUser.uid) });
+    // *** FIXED DELETE FUNCTION: UPDATES LAST MESSAGE ***
+    async function deleteMessage(roomId, msgId, type) {
+        const msgRef = doc(db, CHATS_PATH, roomId, 'messages', msgId);
+        
+        if (type === 'everyone') {
+            await updateDoc(msgRef, { 
+                type: 'deleted',
+                text: 'এই মেসেজটি মুছে ফেলা হয়েছে',
+                reactions: {} 
+            });
+            
+            // Fix: Also update room's last message if needed
+            const roomRef = doc(db, CHATS_PATH, roomId);
+            const roomSnap = await getDoc(roomRef);
+            if(roomSnap.exists()) {
+                const roomData = roomSnap.data();
+                // Check if the deleted message matches the room's lastMessage text
+                // Since we don't store lastMessage ID easily, we just update it anyway
+                // to reflect "Deleted" state if it looks similar.
+                // A safer bet is just to update it:
+                await updateDoc(roomRef, {
+                    lastMessage: {
+                        ...roomData.lastMessage,
+                        type: 'deleted',
+                        text: '🚫 এই মেসেজটি মুছে ফেলা হয়েছে'
+                    },
+                    updatedAt: serverTimestamp()
+                });
+            }
+            showToast("মেসেজটি সবার জন্য মুছে ফেলা হয়েছে");
+        } else {
+            await updateDoc(msgRef, { deletedFor: arrayUnion(currentUser.uid) });
+            showToast("মেসেজটি আপনার চ্যাট থেকে সরানো হয়েছে");
+        }
     }
 
     const msgInput = document.getElementById('msg-input');
@@ -1931,6 +1979,65 @@
             e.preventDefault();
             sendMessage();
         }
+    });
+
+    // *** NEW: SMART COMPRESS IMAGE FUNCTION (NO STORAGE) ***
+    // This compresses image client-side to very small size (Base64)
+    // Avoids lag and storage errors.
+    function compressImage(file) {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = (event) => {
+                const img = new Image();
+                img.src = event.target.result;
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const MAX_WIDTH = 800; // Resize to reasonable max width
+                    const MAX_HEIGHT = 800;
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > height) {
+                        if (width > MAX_WIDTH) {
+                            height *= MAX_WIDTH / width;
+                            width = MAX_WIDTH;
+                        }
+                    } else {
+                        if (height > MAX_HEIGHT) {
+                            width *= MAX_HEIGHT / height;
+                            height = MAX_HEIGHT;
+                        }
+                    }
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext("2d");
+                    ctx.drawImage(img, 0, 0, width, height);
+                    
+                    // Compress to JPEG with 0.7 quality
+                    const dataUrl = canvas.toDataURL("image/jpeg", 0.7);
+                    resolve(dataUrl);
+                };
+            };
+        });
+    }
+
+    const imgInput = document.getElementById('img-input');
+    document.getElementById('img-btn').addEventListener('click', () => imgInput.click());
+    imgInput.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if(!file) return;
+
+        showToast("ছবি প্রসেস করা হচ্ছে...");
+        try {
+            const compressedBase64 = await compressImage(file);
+            await sendMessage(compressedBase64, 'image');
+            showToast("ছবি পাঠানো হয়েছে");
+        } catch(err) {
+            console.error(err);
+            showToast("ছবি পাঠাতে সমস্যা হয়েছে");
+        }
+        imgInput.value = '';
     });
     
     async function sendMessage(textOverride=null, type='text') {
@@ -1974,16 +2081,6 @@
             hiddenFor: [] 
         }, { merge: true });
     }
-
-    const imgInput = document.getElementById('img-input');
-    document.getElementById('img-btn').addEventListener('click', () => imgInput.click());
-    imgInput.addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if(!file) return;
-        const reader = new FileReader();
-        reader.onload = () => sendMessage(reader.result, 'image');
-        reader.readAsDataURL(file);
-    });
 
   </script>
 </body>
