@@ -68,27 +68,64 @@
       position: fixed; width: 100%; font-size: 15px; line-height: 1.4;
     }
 
-    /* --- LOADING SPINNER (Double Ring) --- */
-    .lds-dual-ring {
-      display: inline-block;
-      width: 60px;
-      height: 60px;
+    /* --- PREMIUM LOADER ANIMATION (Safe Distance Version) --- */
+    .premium-splash-container {
+      position: relative;
+      width: 240px; /* Increased size to create safe distance */
+      height: 240px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
-    .lds-dual-ring:after {
-      content: " ";
-      display: block;
-      width: 48px;
-      height: 48px;
-      margin: 6px;
+
+    .splash-text {
+      font-size: 32px; /* Adjusted size for perfect balance */
+      font-weight: 900;
+      background: var(--primary-grad);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      z-index: 10;
+      letter-spacing: -0.5px;
+    }
+
+    .splash-ring {
+      position: absolute;
       border-radius: 50%;
-      border: 5px solid var(--primary);
-      border-color: var(--primary) transparent var(--primary) transparent;
-      animation: lds-dual-ring 1.2s linear infinite;
+      border: 3px solid transparent; /* Thinner border looks more elegant */
+      box-shadow: 0 0 20px rgba(255, 45, 85, 0.08);
     }
-    @keyframes lds-dual-ring {
+
+    /* Outer Ring - Furthest away */
+    .splash-ring:nth-child(1) {
+      width: 100%;
+      height: 100%;
+      border-top-color: var(--primary);
+      border-right-color: var(--primary);
+      animation: spin-cw 2.5s linear infinite; /* Slower spin for premium feel */
+    }
+
+    /* Inner Ring - Middle distance (Still safe from text) */
+    .splash-ring:nth-child(2) {
+      width: 75%; /* Creates the gap between text and ring */
+      height: 75%;
+      border-bottom-color: #FF5C8A;
+      border-left-color: #FF5C8A;
+      animation: spin-ccw 2s linear infinite;
+    }
+
+    @keyframes spin-cw {
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
+    @keyframes spin-ccw {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(-360deg); }
+    }
+
+    /* Old loader class kept for fallback inside chat list */
+    .lds-dual-ring { display: inline-block; width: 60px; height: 60px; }
+    .lds-dual-ring:after { content: " "; display: block; width: 48px; height: 48px; margin: 6px; border-radius: 50%; border: 5px solid var(--primary); border-color: var(--primary) transparent var(--primary) transparent; animation: lds-dual-ring 1.2s linear infinite; }
+    @keyframes lds-dual-ring { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
     /* --- UTILITIES --- */
     .glass-panel {
@@ -107,6 +144,21 @@
     }
     .view-section.active { display: flex; animation: fadeIn 0.3s ease-out; z-index: 10; }
     @keyframes fadeIn { from { opacity: 0; transform: scale(0.99); } to { opacity: 1; transform: scale(1); } }
+
+    /* --- INSTALL BANNER --- */
+    #install-banner {
+        display: none; /* Hidden by default */
+        background: var(--bg-card);
+        padding: 10px 16px;
+        margin: 10px 16px 0;
+        border-radius: 16px;
+        box-shadow: var(--shadow-sm);
+        align-items: center;
+        justify-content: space-between;
+        border: 1px solid var(--primary);
+        animation: slideDown 0.4s ease;
+    }
+    @keyframes slideDown { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
     /* --- HEADER --- */
     header.app {
@@ -200,7 +252,35 @@
       background: var(--msg-you-bg); color: var(--msg-you-text); border-radius: 4px 18px 18px 18px; 
     }
     .msg-bubble img.chat-img { border-radius: 12px; max-width: 100%; display: block; margin-top: 4px; }
-    .msg-meta { font-size: 9px; margin-top: 4px; opacity: 0.7; text-align: right; display: flex; justify-content: flex-end; gap:3px; }
+    .msg-meta { font-size: 9px; margin-top: 4px; opacity: 0.7; text-align: right; display: flex; justify-content: flex-end; align-items: center; gap:3px; }
+
+    /* --- STATUS INDICATORS --- */
+    .status-tick {
+        font-weight: 900;
+        font-size: 10px;
+        margin-left: 2px;
+    }
+    .status-eye {
+        font-size: 12px;
+        margin-left: 2px;
+        color: #4CD964; /* Green Eye */
+        background: white; /* White bg for better contrast on red bubble */
+        border-radius: 50%;
+        width: 14px; height: 14px;
+        display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    }
+
+    /* HEART REACTION CSS */
+    .heart-reaction {
+      position: absolute; bottom: -6px; right: -4px;
+      font-size: 14px; background: #fff; border-radius: 50%;
+      width: 22px; height: 22px; display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.15); z-index: 5;
+      animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      border: 1px solid rgba(0,0,0,0.05);
+    }
+    @keyframes popIn { from { transform: scale(0); } to { transform: scale(1); } }
     
     /* Footer & Input FIXED */
     .chat-input-area {
@@ -332,7 +412,7 @@
       display: flex; justify-content: center; align-items: center; opacity: 0; pointer-events: none; transition: 0.3s; 
     }
     #lightbox.active { opacity: 1; pointer-events: auto; }
-    #lightbox img { max-width: 100%; max-height: 100%; transition: transform 0.2s; }
+    #lightbox img { max-width: 100%; max-height: 100%; transition: transform 0.1s; transform-origin: center; will-change: transform; }
   </style>
 
   <script>
@@ -348,45 +428,50 @@
     const blobManifest = new Blob([JSON.stringify(manifestData)], {type: 'application/json'});
     document.getElementById('my-manifest').setAttribute('href', URL.createObjectURL(blobManifest));
 
+    // --- SERVICE WORKER AUTO-GENERATOR FOR PWA & NOTIFICATIONS ---
+    // Creating a virtual service worker to satisfy PWA requirements and handle basic caching
+    const swCode = `
+      self.addEventListener('install', (e) => { self.skipWaiting(); });
+      self.addEventListener('activate', (e) => { e.waitUntil(self.clients.claim()); });
+      self.addEventListener('fetch', (e) => { 
+        e.respondWith(fetch(e.request).catch(() => { return new Response("Offline"); }));
+      });
+    `;
+    const swBlob = new Blob([swCode], {type: 'application/javascript'});
+    const swUrl = URL.createObjectURL(swBlob);
+
     if ('serviceWorker' in navigator) {
-         navigator.serviceWorker.register('sw.js').catch(() => {
-             // Fallback dummy
-         });
+         navigator.serviceWorker.register(swUrl).then(() => console.log('SW Registered')).catch(console.error);
     }
   </script>
 </head>
 <body>
 
-  <!-- TOAST -->
   <div id="toastMsg" class="toast">
     <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>
     <span id="toastText">Success</span>
   </div>
 
-  <!-- SPLASH SCREEN -->
   <div id="splash-screen" style="position:fixed;inset:0;background:var(--bg-body);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity 0.5s;">
-    <div style="font-size:50px;font-weight:900;background:var(--primary-grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">PingMe</div>
-    <div style="margin-top:20px;">
-        <div class="lds-dual-ring"></div>
+    <div class="premium-splash-container">
+        <div class="splash-ring"></div>
+        <div class="splash-ring"></div>
+        <div class="splash-text">PingMe</div>
     </div>
-  </div>
+    </div>
 
-  <!-- LIGHTBOX -->
   <div id="lightbox">
-      <button id="lightbox-close" style="position:absolute;top:20px;right:20px;background:rgba(255,255,255,0.2);color:white;border:none;border-radius:50%;width:40px;height:40px;font-size:24px;cursor:pointer;">&times;</button>
+      <button id="lightbox-close" style="position:absolute;top:20px;right:20px;background:rgba(255,255,255,0.2);color:white;border:none;border-radius:50%;width:40px;height:40px;font-size:24px;cursor:pointer;z-index:5001;">&times;</button>
       <img id="lightbox-img" src="">
   </div>
 
-  <!-- ACTION SHEET (CONTEXT MENU) -->
   <div id="actionSheetOverlay" class="overlay">
     <div class="action-sheet" id="actionSheetContent">
-       <!-- Dynamic Buttons -->
-    </div>
+       </div>
   </div>
 
   <div class="wrap" style="height:100%;">
       
-      <!-- AUTH VIEW -->
       <div id="view-auth" class="view-section active">
           <div class="auth-wrap">
               <div class="auth-card">
@@ -409,7 +494,6 @@
           </div>
       </div>
 
-      <!-- HOME VIEW (Chat List) -->
       <div id="view-home" class="view-section">
           <header class="app glass-panel">
              <div class="header-title" style="font-size:22px; font-weight:800;">Chats</div>
@@ -421,6 +505,14 @@
              </button>
           </header>
           
+          <div id="install-banner">
+              <div style="display:flex;align-items:center;gap:10px;">
+                  <img src="https://i.postimg.cc/RZ5FH16z/Gemini-Generated-Image-rgsqsqrgsqsqrgsq-removebg-preview.png" width="30" style="border-radius:6px;">
+                  <div style="font-weight:600; font-size:13px;">Install App</div>
+              </div>
+              <button id="install-btn" style="background:var(--primary); color:white; border:none; padding:6px 14px; border-radius:20px; font-size:11px; font-weight:700; cursor:pointer;">Install</button>
+          </div>
+
           <div class="list-container" id="chat-list-container">
               <div style="text-align:center; padding:50px; color:var(--text-muted);">
                   <div class="lds-dual-ring" style="transform:scale(0.5);"></div>
@@ -444,7 +536,6 @@
           </nav>
       </div>
 
-      <!-- FIND FRIENDS VIEW -->
       <div id="view-find" class="view-section" style="z-index: 20;">
           <header class="app glass-panel">
               <button class="icon-btn" id="back-from-find">
@@ -472,7 +563,6 @@
           </div>
       </div>
 
-      <!-- CHAT ROOM VIEW -->
       <div id="view-chat" class="view-section" style="z-index: 30;">
           <header class="app glass-panel" style="justify-content: flex-start; gap: 10px;">
               <button class="icon-btn" id="chat-back-btn">
@@ -524,7 +614,6 @@
           </main>
       </div>
 
-      <!-- MY PROFILE VIEW -->
       <div id="view-profile" class="view-section" style="z-index: 20;">
           <header class="app glass-panel">
               <button class="icon-btn" id="back-from-profile">
@@ -584,7 +673,6 @@
           </div>
       </div>
 
-      <!-- FRIEND PROFILE VIEW -->
       <div id="view-friend-profile" class="view-section" style="z-index: 40;">
           <header class="app glass-panel">
               <button class="icon-btn" id="back-from-friend-profile">
@@ -621,7 +709,6 @@
 
   </div> 
 
-  <!-- JAVASCRIPT LOGIC -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, updateProfile, sendEmailVerification, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
@@ -686,8 +773,77 @@
            if(id === 'view-profile') get('nav-profile').classList.add('active');
         }
     };
-    window.viewImg = (src) => { get('lightbox-img').src=src; get('lightbox').classList.add('active'); };
+
+    // --- PINCH TO ZOOM IMAGE VIEWER LOGIC ---
+    const lightboxImg = get('lightbox-img');
+    const lightbox = get('lightbox');
+    let scale = 1, pointX = 0, pointY = 0, startX = 0, startY = 0, isDragging = false, startDist = 0;
+
+    function resetZoom() {
+        scale = 1; pointX = 0; pointY = 0;
+        lightboxImg.style.transform = `translate(0px, 0px) scale(1)`;
+    }
+
+    window.viewImg = (src) => { 
+        lightboxImg.src = src; 
+        resetZoom();
+        lightbox.classList.add('active'); 
+    };
     get('lightbox-close').onclick = () => get('lightbox').classList.remove('active');
+
+    // Zoom & Pan Event Listeners
+    lightbox.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 2) {
+            e.preventDefault(); // Prevent page scroll
+            startDist = Math.hypot(
+                e.touches[0].pageX - e.touches[1].pageX,
+                e.touches[0].pageY - e.touches[1].pageY
+            );
+        } else if (e.touches.length === 1) {
+            startX = e.touches[0].pageX - pointX;
+            startY = e.touches[0].pageY - pointY;
+            isDragging = true;
+        }
+    });
+
+    lightbox.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+        if (e.touches.length === 2) {
+            // Pinch Zoom
+            const dist = Math.hypot(
+                e.touches[0].pageX - e.touches[1].pageX,
+                e.touches[0].pageY - e.touches[1].pageY
+            );
+            const delta = dist / startDist;
+            scale = Math.min(Math.max(1, scale * delta), 4); // Limit zoom 1x to 4x
+            startDist = dist;
+            lightboxImg.style.transform = `translate(${pointX}px, ${pointY}px) scale(${scale})`;
+        } else if (e.touches.length === 1 && isDragging && scale > 1) {
+            // Pan when zoomed
+            pointX = e.touches[0].pageX - startX;
+            pointY = e.touches[0].pageY - startY;
+            lightboxImg.style.transform = `translate(${pointX}px, ${pointY}px) scale(${scale})`;
+        }
+    });
+
+    lightbox.addEventListener('touchend', () => {
+        isDragging = false;
+        if (scale < 1) resetZoom(); // Reset if under-zoomed
+    });
+
+
+    // --- NOTIFICATION PERMISSION REQUEST ---
+    function requestNotificationPermission() {
+        if ("Notification" in window) {
+            if (Notification.permission !== "granted" && Notification.permission !== "denied") {
+                Notification.requestPermission().then(permission => {
+                    if (permission === "granted") {
+                        console.log("Notification permission granted!");
+                    }
+                });
+            }
+        }
+    }
 
     // --- AUTHENTICATION ---
     onAuthStateChanged(auth, async (user) => {
@@ -705,6 +861,7 @@
             showView('view-home');
             loadChatList();
             updatePresence('online');
+            requestNotificationPermission(); // Ask for permission after login
             listenGlobalMessages();
             splash.style.opacity = 0; setTimeout(()=>splash.classList.add('hidden'),500);
         } else {
@@ -802,110 +959,20 @@
     get('nav-profile').onclick = () => showView('view-profile');
     get('back-from-find').onclick = () => showView('view-home');
     get('back-from-profile').onclick = () => showView('view-home');
-    get('logout-btn').onclick = () => { updatePresence('offline'); signOut(auth); };
-    get('back-from-friend-profile').onclick = () => showView('view-chat');
-    
-    // Theme
-    get('theme-toggle').addEventListener('change', (e) => {
-        document.body.setAttribute('data-theme', e.target.checked ? 'dark' : 'light');
-    });
-
-    // --- HOME: CHAT LIST ---
-    function loadChatList() {
-        if(unsubscribeChats) unsubscribeChats();
-        const ref = collection(db, CHATS_PATH);
-        unsubscribeChats = onSnapshot(ref, (snapshot) => {
-            const list = get('chat-list-container');
-            list.innerHTML = '';
-            let hasChats = false;
-            const rooms = [];
-            
-            snapshot.forEach(d => {
-                const room = d.data();
-                if(room.participants && room.participants.includes(currentUser.uid)) {
-                    if(room.hiddenFor && room.hiddenFor.includes(currentUser.uid)) return;
-                    rooms.push({ id: d.id, ...room });
-                }
-            });
-            rooms.sort((a,b) => (b.updatedAt?.seconds || 0) - (a.updatedAt?.seconds || 0));
-
-            rooms.forEach(room => {
-                hasChats = true;
-                const pid = room.participants.find(id => id !== currentUser.uid);
-                const info = room.participantInfo?.[pid] || { displayName: 'User', photoURL: null };
-                
-                let lastTxt = room.lastMessage?.text || 'No messages';
-                if(room.lastMessage?.type === 'image') lastTxt = '📷 Photo';
-                if(room.lastMessage?.type === 'deleted') lastTxt = '🚫 Message deleted';
-
-                const time = room.lastMessage?.timestamp ? new Date(room.lastMessage.timestamp.seconds * 1000).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '';
-                
-                const card = document.createElement('div');
-                card.className = 'user-card';
-                card.innerHTML = `
-                   <div class="avatar-wrapper">
-                      <div class="avatar">${info.photoURL ? `<img src="${info.photoURL}">` : info.displayName[0].toUpperCase()}</div>
-                      <div class="status-dot" id="dot-${room.id}"></div>
-                   </div>
-                   <div class="card-info">
-                      <div class="card-top"><span class="card-name">${info.displayName}</span><span class="card-time">${time}</span></div>
-                      <div class="card-msg">${lastTxt}</div>
-                   </div>
-                `;
-                
-                // LONG PRESS FOR CHAT OPTIONS
-                addLongPress(card, () => {
-                    openActionSheet([
-                         { text: "Delete Chat (For me)", class: "danger", action: () => deleteChatForMe(room.id) },
-                         { text: "Cancel", action: hideActionSheet }
-                    ]);
-                }, () => openChat(pid, info));
-
-                list.appendChild(card);
-                
-                getDoc(doc(db, USERS_PATH, pid)).then(s => {
-                    if(s.exists() && s.data().status === 'online') get(`dot-${room.id}`).classList.add('online');
-                });
-            });
-
-            if(!hasChats) list.innerHTML = `<div style="text-align:center; padding:50px 20px; color:var(--text-muted);">No chats.<br>Go to <b>Search</b> to find friends.</div>`;
-        });
-    }
-
-    // --- CHAT ROOM ---
-    async function openChat(pid, pData) {
-        currentPartnerId = pid;
-        currentPartnerData = pData;
-        
-        // Fetch fresh data if needed
-        if(!pData.photoURL) {
-            const snap = await getDoc(doc(db, USERS_PATH, pid));
-            if(snap.exists()) currentPartnerData = snap.data();
-        }
-
-        const uids = [currentUser.uid, pid].sort();
-        currentChatId = uids.join('_');
-        
-        get('chat-header-name').textContent = currentPartnerData.displayName;
-        if(currentPartnerData.photoURL) { get('chat-header-img').src=currentPartnerData.photoURL; get('chat-header-img').style.display='block'; get('chat-header-initial').style.display='none'; }
-        else { get('chat-header-img').style.display='none'; get('chat-header-initial').textContent=currentPartnerData.displayName[0]; get('chat-header-initial').style.display='block'; }
-        
-        // Reset status text
-        get('chat-header-status').textContent = 'Connecting...';
-        get('chat-header-status').style.color = 'var(--text-muted)';
-
-        showView('view-chat');
-        listenToRoom(currentChatId);
-        loadMessages(currentChatId);
-    }
-    
     get('chat-back-btn').onclick = () => {
+        showView('view-home');
         if(unsubscribeMsgs) unsubscribeMsgs();
         if(unsubscribeRoom) unsubscribeRoom();
-        if(unsubscribePartnerStatus) unsubscribePartnerStatus();
-        showView('view-home');
-        currentChatId = null;
     };
+    
+    // UPDATED LOGOUT LOGIC HERE
+    get('logout-btn').onclick = async () => { 
+        updatePresence('offline'); 
+        await signOut(auth); 
+        window.location.reload(); 
+    };
+    
+    get('back-from-friend-profile').onclick = () => showView('view-chat');
     
     // View Friend Profile from Header (FIXED: Fetch full data to get PingID)
     get('chat-user-header').onclick = async () => {
@@ -942,17 +1009,81 @@
     async function toggleBlock(uid, shouldBlock) {
         const ref = doc(db, USERS_PATH, currentUser.uid);
         if(shouldBlock) {
-            await updateDoc(ref, { blockedUsers: arrayUnion(uid) });
+            if(!currentUserData.blockedUsers) currentUserData.blockedUsers = [];
             currentUserData.blockedUsers.push(uid);
-            showToast("Blocked User");
-            get('friend-block-btn').textContent = "Unblock User";
+            await updateDoc(ref, { blockedUsers: arrayUnion(uid) });
+            showToast("User Blocked");
         } else {
+            currentUserData.blockedUsers = currentUserData.blockedUsers.filter(x => x !== uid);
             await updateDoc(ref, { blockedUsers: arrayRemove(uid) });
-            currentUserData.blockedUsers = currentUserData.blockedUsers.filter(x=>x!==uid);
-            showToast("Unblocked User");
-            get('friend-block-btn').textContent = "Block User";
+            showToast("User Unblocked");
         }
+
+        // Update Profile Button if visible
+        const btn = get('friend-block-btn');
+        if(currentPartnerId === uid && btn) {
+            btn.textContent = shouldBlock ? "Unblock User" : "Block User";
+        }
+        
+        // Update Chat UI immediately if active
+        if(currentPartnerId === uid && get('view-chat').classList.contains('active')) {
+            updateChatUIForBlocks(currentPartnerData); // Check status again
+        }
+
+        // Refresh Chat List to update long press options
+        loadChatList();
     }
+
+    // --- CHAT ROOM LOGIC ---
+
+    // OPEN CHAT FUNCTION (Added back)
+    async function openChat(partnerId, partnerInfo) {
+        currentPartnerId = partnerId;
+        currentPartnerData = partnerInfo || { displayName: 'User', photoURL: null };
+        
+        // Construct Chat ID
+        const ids = [currentUser.uid, currentPartnerId].sort();
+        currentChatId = ids.join('_');
+
+        // Update Header
+        get('chat-header-name').textContent = currentPartnerData.displayName;
+        const img = get('chat-header-img');
+        const txt = get('chat-header-initial');
+        if(currentPartnerData.photoURL) { 
+            img.src = currentPartnerData.photoURL; 
+            img.style.display = 'block'; 
+            txt.style.display = 'none'; 
+        } else { 
+            img.style.display = 'none'; 
+            txt.style.display = 'flex'; 
+            txt.textContent = (currentPartnerData.displayName || 'U')[0]; 
+        }
+        
+        get('chat-header-status').textContent = 'Connecting...';
+        showView('view-chat');
+        
+        // Load Data
+        loadMessages(currentChatId);
+        listenToRoom(currentChatId);
+
+        // Create/Update Chat Doc if needed (for list appearance)
+        const chatRef = doc(db, CHATS_PATH, currentChatId);
+        try {
+            const snap = await getDoc(chatRef);
+            if (!snap.exists()) {
+                await setDoc(chatRef, {
+                    participants: [currentUser.uid, currentPartnerId],
+                    participantInfo: {
+                        [currentUser.uid]: { displayName: currentUserData.displayName, photoURL: currentUserData.photoURL },
+                        [currentPartnerId]: { displayName: currentPartnerData.displayName, photoURL: currentPartnerData.photoURL }
+                    },
+                    updatedAt: serverTimestamp()
+                });
+            }
+        } catch(e) { console.error(e); }
+    }
+    // Expose for onClick handlers
+    window.openChat = openChat;
 
     function listenToRoom(rid) {
         if(unsubscribeRoom) unsubscribeRoom();
@@ -988,27 +1119,123 @@
                      }
                  }
                  
-                 // Block Logic
-                 const banner = get('blocked-banner');
-                 const inputArea = get('input-area-wrapper');
-                 if(u.blockedUsers?.includes(currentUser.uid)) {
-                     banner.textContent = "You have been blocked by this user."; banner.style.display = 'block'; inputArea.style.display = 'none';
-                 } else if (currentUserData.blockedUsers?.includes(currentPartnerId)) {
-                     banner.innerHTML = `You blocked this user. <span style="text-decoration:underline; cursor:pointer;" onclick="window.quickUnblock()">Unblock</span>`; 
-                     banner.style.display = 'block'; inputArea.style.display = 'none';
-                     window.quickUnblock = () => toggleBlock(currentPartnerId, false);
-                 } else {
-                     banner.style.display = 'none'; inputArea.style.display = 'block';
-                 }
+                 updateChatUIForBlocks(u);
              }
         });
     }
 
+    function updateChatUIForBlocks(partnerUser) {
+        const banner = get('blocked-banner');
+        const inputArea = get('input-area-wrapper');
+        
+        if (partnerUser.blockedUsers?.includes(currentUser.uid)) {
+             banner.textContent = "You have been blocked by this user."; 
+             banner.style.display = 'block'; 
+             inputArea.style.display = 'none';
+        } else if (currentUserData.blockedUsers?.includes(currentPartnerId)) {
+             banner.innerHTML = `You blocked this user. <span style="text-decoration:underline; cursor:pointer;" onclick="window.quickUnblock()">Unblock</span>`; 
+             banner.style.display = 'block'; 
+             inputArea.style.display = 'none';
+             window.quickUnblock = () => toggleBlock(currentPartnerId, false);
+        } else {
+             banner.style.display = 'none'; 
+             inputArea.style.display = 'block';
+        }
+    }
+
+    // --- HEART REACTION TOGGLE ---
+    async function toggleLike(rid, mid, currentLikes) {
+        const uid = currentUser.uid;
+        if(currentLikes && currentLikes.includes(uid)) {
+             await updateDoc(doc(db, CHATS_PATH, rid, 'messages', mid), { likes: arrayRemove(uid) });
+        } else {
+             await updateDoc(doc(db, CHATS_PATH, rid, 'messages', mid), { likes: arrayUnion(uid) });
+        }
+    }
+
+    // --- CHAT LIST ---
+    function loadChatList() {
+        if(unsubscribeChats) unsubscribeChats();
+        const ref = collection(db, CHATS_PATH);
+        unsubscribeChats = onSnapshot(ref, (snapshot) => {
+            const list = get('chat-list-container');
+            list.innerHTML = '';
+            let hasChats = false;
+            const rooms = [];
+            
+            snapshot.forEach(d => {
+                const room = d.data();
+                if(room.participants && room.participants.includes(currentUser.uid)) {
+                    if(room.hiddenFor && room.hiddenFor.includes(currentUser.uid)) return;
+                    
+                    // --- DELIVERY LOGIC (Background) ---
+                    if(room.lastMessage && room.lastMessage.senderId !== currentUser.uid && room.lastMessage.status === 'sent') {
+                        updateDoc(doc(db, CHATS_PATH, d.id), { 'lastMessage.status': 'delivered' });
+                    }
+                    
+                    rooms.push({ id: d.id, ...room });
+                }
+            });
+            rooms.sort((a,b) => (b.updatedAt?.seconds || 0) - (a.updatedAt?.seconds || 0));
+
+            rooms.forEach(room => {
+                hasChats = true;
+                const pid = room.participants.find(id => id !== currentUser.uid);
+                const info = room.participantInfo?.[pid] || { displayName: 'User', photoURL: null };
+                
+                let lastTxt = room.lastMessage?.text || 'No messages';
+                if(room.lastMessage?.type === 'image') lastTxt = '📷 Photo';
+                if(room.lastMessage?.type === 'deleted') lastTxt = '🚫 Message deleted';
+
+                const time = room.lastMessage?.timestamp ? new Date(room.lastMessage.timestamp.seconds * 1000).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '';
+                
+                const card = document.createElement('div');
+                card.className = 'user-card';
+                card.innerHTML = `
+                   <div class="avatar-wrapper">
+                      <div class="avatar">${info.photoURL ? `<img src="${info.photoURL}">` : info.displayName[0].toUpperCase()}</div>
+                      <div class="status-dot" id="dot-${room.id}"></div>
+                   </div>
+                   <div class="card-info">
+                      <div class="card-top"><span class="card-name">${info.displayName}</span><span class="card-time">${time}</span></div>
+                      <div class="card-msg">${lastTxt}</div>
+                   </div>
+                `;
+                
+                // LONG PRESS FOR CHAT OPTIONS (UPDATED WITH BLOCK/UNBLOCK)
+                const isBlocked = currentUserData.blockedUsers?.includes(pid);
+                const blockText = isBlocked ? "Unblock User" : "Block User";
+                
+                addLongPress(card, () => {
+                    openActionSheet([
+                         { text: "Delete Chat (For me)", class: "danger", action: () => deleteChatForMe(room.id) },
+                         { text: blockText, class: isBlocked ? "" : "danger", action: () => { toggleBlock(pid, !isBlocked); hideActionSheet(); } },
+                         { text: "Cancel", action: hideActionSheet }
+                    ]);
+                }, () => openChat(pid, info));
+
+                list.appendChild(card);
+                
+                getDoc(doc(db, USERS_PATH, pid)).then(s => {
+                    if(s.exists() && s.data().status === 'online') get(`dot-${room.id}`).classList.add('online');
+                });
+            });
+
+            if(!hasChats) list.innerHTML = `<div style="text-align:center; padding:50px 20px; color:var(--text-muted);">No chats.<br>Go to <b>Search</b> to find friends.</div>`;
+        });
+    }
+
+    // --- CHAT ROOM MESSAGES (SCROLL & DOUBLE CLICK FIX) ---
     function loadMessages(rid) {
         const ref = collection(db, CHATS_PATH, rid, 'messages');
         const list = get('messages');
+        let isFirstLoad = true;
         
         unsubscribeMsgs = onSnapshot(ref, (snap) => {
+            // SCROLL LOGIC PRE-CALCULATION
+            const wasAtBottom = (list.scrollHeight - list.scrollTop) <= (list.clientHeight + 100);
+            const savedScrollTop = list.scrollTop;
+
             list.innerHTML = '';
             const msgs = [];
             snap.forEach(d => msgs.push({id: d.id, ...d.data()}));
@@ -1018,6 +1245,11 @@
             
             msgs.forEach((m, i) => {
                 if(m.deletedFor && m.deletedFor.includes(currentUser.uid)) return;
+
+                // --- READ RECEIPT LOGIC (Recipient Side) ---
+                if(m.senderId !== currentUser.uid && m.status !== 'seen') {
+                    updateDoc(doc(db, CHATS_PATH, rid, 'messages', m.id), { status: 'seen' });
+                }
 
                 const date = m.timestamp ? new Date(m.timestamp.seconds * 1000) : new Date();
                 const dStr = date.toDateString();
@@ -1042,16 +1274,44 @@
                     </div>`;
                 }
                 
+                // CHECK FOR LIKES
+                const isLiked = m.likes && m.likes.length > 0;
+                const heartHTML = isLiked ? `<div class="heart-reaction">❤️</div>` : '';
+
+                // --- STATUS ICONS (Sender Side) ---
+                let statusHTML = '';
+                if(isMe && m.type !== 'deleted') {
+                    if(m.status === 'seen') {
+                        statusHTML = '<span class="status-eye">👁️</span>';
+                    } else if (m.status === 'delivered') {
+                        statusHTML = '<span class="status-tick">✓✓</span>';
+                    } else {
+                        statusHTML = '<span class="status-tick">✓</span>';
+                    }
+                }
+
                 row.innerHTML = `
                    <div class="msg-bubble">
                       ${replyHTML}
                       ${content}
-                      <div class="msg-meta">${date.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
+                      ${heartHTML}
+                      <div class="msg-meta">
+                        ${date.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
+                        ${statusHTML}
+                      </div>
                    </div>
                 `;
                 
+                // DOUBLE CLICK TO HEART
+                const bubble = row.querySelector('.msg-bubble');
+                bubble.addEventListener('dblclick', (e) => {
+                    e.stopPropagation(); // prevent other clicks
+                    if(m.type === 'deleted') return;
+                    toggleLike(rid, m.id, m.likes);
+                });
+
                 // LONG PRESS MESSAGE ACTIONS
-                addLongPress(row.querySelector('.msg-bubble'), () => {
+                addLongPress(bubble, () => {
                     if(m.type === 'deleted') return;
                     const opts = [];
                     opts.push({ text: "Reply", action: () => initReply(m) });
@@ -1067,7 +1327,18 @@
                 
                 list.appendChild(row);
             });
-            list.scrollTop = list.scrollHeight;
+            
+            // RESTORE SCROLL POSITION
+            if (isFirstLoad) {
+                list.scrollTop = list.scrollHeight;
+                isFirstLoad = false;
+            } else if (wasAtBottom) {
+                // If user was at the bottom, keep them at the bottom
+                list.scrollTop = list.scrollHeight;
+            } else {
+                // If user was scrolled up, restore exact position
+                list.scrollTop = savedScrollTop;
+            }
         });
     }
 
@@ -1084,9 +1355,47 @@
 
     async function sendMsg(txt, type='text') {
         if(!txt) return;
+
+        // --- 1. OPTIMISTIC UI: INSTANTLY SHOW MESSAGE ---
+        const list = get('messages');
+        const tempRow = document.createElement('div');
+        tempRow.className = 'msg-row me'; 
+        
+        let displayContent = txt;
+        if(type === 'image') displayContent = `<img src="${txt}" class="chat-img" style="opacity: 0.7;">`; 
+
+        let replyMarkup = '';
+        if(replyTo && type === 'text') {
+             replyMarkup = `<div style="border-left:2px solid var(--primary); padding-left:6px; margin-bottom:4px; font-size:11px; opacity:0.8;">
+                 <div style="font-weight:700">${replyTo.name}</div>
+                 <div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis">${replyTo.text}</div>
+             </div>`;
+        }
+
+        tempRow.innerHTML = `
+           <div class="msg-bubble">
+              ${replyMarkup}
+              ${displayContent}
+              <div class="msg-meta">
+                 Sending...
+                 <span class="status-tick" style="opacity:0.5">✓</span>
+              </div> 
+           </div>
+        `;
+        list.appendChild(tempRow);
+        list.scrollTop = list.scrollHeight;
+        // ----------------------------------------------------
+
+        // Check if partner is likely online to set initial status to 'delivered'
+        let initialStatus = 'sent';
+        const partnerSnap = await getDoc(doc(db, USERS_PATH, currentPartnerId));
+        if(partnerSnap.exists() && partnerSnap.data().status === 'online') {
+            initialStatus = 'delivered';
+        }
+
         const payload = {
             senderId: currentUser.uid, text: txt, type: type,
-            status: 'sent', deletedFor: [], timestamp: serverTimestamp()
+            status: initialStatus, deletedFor: [], likes: [], timestamp: serverTimestamp()
         };
         if(replyTo && type==='text') { payload.replyTo = replyTo; get('cancelReply').click(); }
         
@@ -1101,11 +1410,28 @@
         }, {merge: true});
     }
 
-    get('send-btn').onclick = () => { const t = get('msg-input').value.trim(); if(t) { sendMsg(t); get('msg-input').value=''; } };
+    get('send-btn').onclick = () => { 
+        const t = get('msg-input').value.trim(); 
+        if(t) { 
+            sendMsg(t); 
+            get('msg-input').value=''; 
+            get('msg-input').focus(); // Keep focus for fast typing
+        } 
+    };
+
+    // --- ENTER TO SEND (COMPUTER) ---
+    get('msg-input').addEventListener('keydown', (e) => {
+        if(e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            get('send-btn').click();
+        }
+    });
     
     get('img-btn').onclick = () => get('img-input').click();
     get('img-input').onchange = async (e) => {
-        const f = e.target.files[0]; if(!f) return;
+        const f = e.target.files[0]; 
+        if(!f) return;
+        get('img-input').value = ''; 
         showToast("Sending...");
         const reader = new FileReader();
         reader.readAsDataURL(f);
@@ -1226,12 +1552,13 @@
         };
     };
 
-    // --- GLOBAL ---
+    // --- GLOBAL PRESENCE & NOTIFICATIONS ---
     function updatePresence(status) {
         if(currentUser) updateDoc(doc(db, USERS_PATH, currentUser.uid), { status: status, lastActive: serverTimestamp() }).catch(()=>{});
     }
     document.addEventListener('visibilitychange', () => updatePresence(document.visibilityState === 'visible' ? 'online' : 'offline'));
 
+    // ** UPDATED NOTIFICATION LOGIC FOR NATIVE ACCESS **
     function listenGlobalMessages() {
         if(globalNotificationUnsubscribe) globalNotificationUnsubscribe();
         const q = query(collection(db, CHATS_PATH), where("participants", "array-contains", currentUser.uid));
@@ -1239,9 +1566,25 @@
             snap.docChanges().forEach(change => {
                 if(change.type === 'modified') {
                     const d = change.doc.data();
-                    if(d.lastMessage?.senderId !== currentUser.uid && (Date.now() - d.updatedAt.seconds*1000 < 5000)) {
-                         if(currentChatId !== change.doc.id && document.visibilityState==='hidden') {
-                             new Notification("New Message", { body: d.lastMessage.text, icon: 'https://i.postimg.cc/RZ5FH16z/Gemini-Generated-Image-rgsqsqrgsqsqrgsq-removebg-preview.png' });
+                    // If message is new (within 5 seconds) and NOT from me
+                    if(d.lastMessage?.senderId !== currentUser.uid && (Date.now() - (d.updatedAt?.seconds || 0)*1000 < 5000)) {
+                         
+                         // Condition 1: If tab is hidden/minimized
+                         // Condition 2: Or if I am not in this specific chat room
+                         if(document.visibilityState === 'hidden' || currentChatId !== change.doc.id) {
+                             
+                             // 1. Native Notification (Works in background/desktop)
+                             if (Notification.permission === "granted") {
+                                 const notif = new Notification("New Message", {
+                                     body: d.lastMessage.type === 'image' ? '📷 Photo' : d.lastMessage.text,
+                                     icon: 'https://i.postimg.cc/RZ5FH16z/Gemini-Generated-Image-rgsqsqrgsqsqrgsq-removebg-preview.png',
+                                     tag: 'new-msg'
+                                 });
+                                 notif.onclick = () => {
+                                     window.focus();
+                                     this.close();
+                                 };
+                             }
                          }
                     }
                 }
@@ -1262,6 +1605,36 @@
     async function deleteChatForMe(rid) {
         await updateDoc(doc(db, CHATS_PATH, rid), { hiddenFor: arrayUnion(currentUser.uid) });
         hideActionSheet(); showToast("Chat Deleted");
+    }
+
+    // --- INSTALL LOGIC ---
+    let deferredPrompt;
+    const installBanner = document.getElementById('install-banner');
+    const installBtn = document.getElementById('install-btn');
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        installBanner.style.display = 'flex';
+    });
+
+    installBtn.addEventListener('click', async () => {
+        if (deferredPrompt) {
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            deferredPrompt = null;
+            if (outcome === 'accepted') {
+                installBanner.style.display = 'none';
+            }
+        }
+    });
+
+    window.addEventListener('appinstalled', () => {
+        installBanner.style.display = 'none';
+    });
+    
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+        installBanner.style.display = 'none';
     }
 
   </script>
