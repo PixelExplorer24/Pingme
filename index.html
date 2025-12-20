@@ -380,6 +380,8 @@
 </head>
 <body>
 
+  <audio id="notification-sound" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto" hidden></audio>
+
   <div id="toastMsg" class="toast">
     <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>
     <span id="toastText">Success</span>
@@ -1394,7 +1396,7 @@
         };
     };
 
-    // --- GLOBAL PRESENCE & NOTIFICATIONS ---
+    // --- GLOBAL PRESENCE & NOTIFICATIONS (UPDATED NATIVE) ---
     function updatePresence(status) {
         if(currentUser) updateDoc(doc(db, USERS_PATH, currentUser.uid), { status: status, lastActive: serverTimestamp() }).catch(()=>{});
     }
@@ -1409,13 +1411,30 @@
                     const d = change.doc.data();
                     if(d.lastMessage?.senderId !== currentUser.uid && (Date.now() - (d.updatedAt?.seconds || 0)*1000 < 5000)) {
                          if(document.visibilityState === 'hidden' || currentChatId !== change.doc.id) {
+                             
+                             // 1. Play Sound
+                             const audio = document.getElementById('notification-sound');
+                             if(audio) {
+                                 audio.currentTime = 0;
+                                 audio.play().catch(e => console.log("Audio permission needed first interaction"));
+                             }
+
+                             // 2. Determine Name
+                             const senderId = d.lastMessage.senderId;
+                             const senderProfile = d.participantInfo && d.participantInfo[senderId] ? d.participantInfo[senderId] : { displayName: 'Friend' };
+                             const title = senderProfile.displayName;
+
+                             // 3. Show Native Notification
                              if (Notification.permission === "granted") {
-                                 const notif = new Notification("New Message", {
-                                     body: d.lastMessage.type === 'image' ? '📷 Photo' : d.lastMessage.text,
-                                     icon: 'https://i.postimg.cc/RZ5FH16z/Gemini-Generated-Image-rgsqsqrgsqsqrgsq-removebg-preview.png',
-                                     tag: 'new-msg'
+                                 const notif = new Notification(title, {
+                                     body: d.lastMessage.type === 'image' ? '📷 Sent a photo' : d.lastMessage.text,
+                                     icon: senderProfile.photoURL || 'https://i.postimg.cc/RZ5FH16z/Gemini-Generated-Image-rgsqsqrgsqsqrgsq-removebg-preview.png',
+                                     tag: 'new-msg',
+                                     renotify: true,
+                                     vibrate: [200, 100, 200],
+                                     requireInteraction: false
                                  });
-                                 notif.onclick = () => { window.focus(); this.close(); };
+                                 notif.onclick = () => { window.focus(); notif.close(); };
                              }
                          }
                     }
