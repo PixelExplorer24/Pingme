@@ -46,7 +46,8 @@
       font-family: 'Inter', system-ui, -apple-system, sans-serif;
     }
 
-    [data-theme="dark"] {
+    /* Fixed Dark Mode Selector */
+    html[data-theme="dark"] {
       --bg-body: #000000;
       --bg-card: #1C1C1E;
       --bg-input: #2C2C2E;
@@ -56,6 +57,7 @@
       --glass: rgba(28, 28, 30, 0.95);
       --msg-you-bg: #2C2C2E;
       --msg-you-text: #FFFFFF;
+      --theme-color: #000000; 
     }
 
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
@@ -66,6 +68,7 @@
       background: var(--bg-body); color: var(--text-main);
       overflow: hidden;
       position: fixed; width: 100%; font-size: 15px; line-height: 1.4;
+      transition: background 0.3s, color 0.3s;
     }
 
     /* --- PREMIUM LOADER ANIMATION --- */
@@ -182,7 +185,9 @@
     }
     .messages-area {
         flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; 
-        gap: 2px; padding-bottom: 20px; -webkit-overflow-scrolling: touch;
+        gap: 2px; padding-bottom: 80px; /* Increased buffer for typing bubble safety */
+        -webkit-overflow-scrolling: touch;
+        scroll-behavior: auto;
     }
     .date-separator {
         align-self: center; background: rgba(128,128,128,0.15); padding: 4px 12px;
@@ -217,8 +222,35 @@
       border: 1px solid rgba(0,0,0,0.05);
     }
     @keyframes popIn { from { transform: scale(0); } to { transform: scale(1); } }
+
+    /* --- TYPING INDICATOR (POSITION UPDATED) --- */
+    .typing-bubble-container {
+        position: absolute; 
+        top: -48px; /* Safe distance above input box */
+        left: 20px; 
+        z-index: 50;
+        display: none; 
+        animation: slideUpFade 0.3s ease-out;
+        pointer-events: none;
+    }
+    .typing-bubble-container.active { display: block; }
+    @keyframes slideUpFade { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+
+    .typing-bubble {
+        background: var(--bg-input); padding: 12px 16px; border-radius: 18px 18px 18px 4px;
+        box-shadow: var(--shadow-sm); display: flex; gap: 4px; align-items: center; height: 38px;
+        border: 1px solid var(--border);
+    }
+    .dot {
+        width: 6px; height: 6px; background: #8E8E93; border-radius: 50%;
+        animation: typingBounce 1.4s infinite ease-in-out both;
+    }
+    .dot:nth-child(1) { animation-delay: -0.32s; }
+    .dot:nth-child(2) { animation-delay: -0.16s; }
+    @keyframes typingBounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
     
     .chat-input-area {
+      position: relative; /* Context for typing bubble */
       flex-shrink: 0; background: var(--glass); backdrop-filter: blur(20px); border-top: 1px solid var(--border);
       padding: 10px 16px; padding-bottom: max(10px, env(safe-area-inset-bottom));
       display: flex; flex-direction: column; gap: 8px; z-index: 60; width: 100%;
@@ -228,7 +260,7 @@
       border-radius: 24px; padding: 6px 6px 6px 12px; border: 1px solid transparent; transition: border 0.2s;
     }
     .input-wrapper:focus-within { border-color: var(--primary); background: var(--bg-card); }
-    textarea.chat-box {
+    textarea.chat-box, input.chat-box {
       flex: 1; background: transparent; border: none; font-size: 15px; color: var(--text-main);
       resize: none; max-height: 120px; padding: 10px 0; line-height: 20px;
     }
@@ -361,21 +393,6 @@
     };
     const blobManifest = new Blob([JSON.stringify(manifestData)], {type: 'application/json'});
     document.getElementById('my-manifest').setAttribute('href', URL.createObjectURL(blobManifest));
-
-    // Service Worker for PWA
-    const swCode = `
-      self.addEventListener('install', (e) => { self.skipWaiting(); });
-      self.addEventListener('activate', (e) => { e.waitUntil(self.clients.claim()); });
-      self.addEventListener('fetch', (e) => { 
-        e.respondWith(fetch(e.request).catch(() => { return new Response("Offline"); }));
-      });
-    `;
-    const swBlob = new Blob([swCode], {type: 'application/javascript'});
-    const swUrl = URL.createObjectURL(swBlob);
-
-    if ('serviceWorker' in navigator) {
-         navigator.serviceWorker.register(swUrl).then(() => console.log('SW Registered')).catch(console.error);
-    }
   </script>
 </head>
 <body>
@@ -447,6 +464,13 @@
               <button id="install-btn" style="background:var(--primary); color:white; border:none; padding:6px 14px; border-radius:20px; font-size:11px; font-weight:700; cursor:pointer;">Install</button>
           </div>
 
+          <div style="padding: 0 16px; margin-top: 20px; margin-bottom: 10px;">
+              <div class="input-wrapper" style="background:var(--bg-input); padding: 8px 12px;">
+                  <svg width="18" height="18" fill="none" stroke="var(--text-muted)" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                  <input id="home-search-input" class="chat-box" placeholder="Search message, name, ID..." style="height:auto; padding:0; margin-left:8px;">
+              </div>
+          </div>
+
           <div class="list-container" id="chat-list-container">
               <div style="text-align:center; padding:50px; color:var(--text-muted);">
                   <div class="lds-dual-ring" style="transform:scale(0.5);"></div>
@@ -479,7 +503,7 @@
           </header>
           <div class="profile-container">
              <div class="input-wrapper" style="margin-bottom:20px; background:var(--bg-card); padding:8px 16px;">
-                 <input id="search-ping-id" class="chat-box" placeholder="Enter Ping ID (e.g. pm_AbCd12)" style="height:auto;">
+                 <input id="search-ping-id" class="chat-box" placeholder="Enter Ping ID (e.g. rahim1234)" style="height:auto;">
                  <button id="search-btn" class="icon-btn" style="background:var(--primary); color:white; width:32px; height:32px;">
                     <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                  </button>
@@ -517,11 +541,15 @@
           <main class="chat-view">
               <div class="messages-area" id="messages"></div>
               
-              <div id="typing-indicator" style="padding:0 20px 10px; font-size:11px; color:var(--text-muted); display:none;">
-                  <span style="font-weight:600;">Typing...</span>
-              </div>
-              
               <footer class="chat-input-area">
+                <div id="typing-bubble" class="typing-bubble-container">
+                  <div class="typing-bubble">
+                      <div class="dot"></div>
+                      <div class="dot"></div>
+                      <div class="dot"></div>
+                  </div>
+                </div>
+
                 <div id="blocked-banner" style="background:#FFE5E5; color:#FF3B30; padding:10px; text-align:center; border-radius:12px; font-size:13px; display:none; font-weight:600; margin-bottom:5px;"></div>
                 
                 <div id="input-area-wrapper">
@@ -554,9 +582,6 @@
                   <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" /></svg>
               </button>
               <div class="header-title">My Profile</div>
-              <button class="icon-btn" id="logout-btn" style="color:#FF3B30;">
-                  <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
-              </button>
           </header>
           
           <div class="profile-container">
@@ -604,6 +629,12 @@
               </div>
               
               <button id="save-profile-btn" class="btn-primary" style="margin-top:0;">Save Changes</button>
+
+              <div class="settings-group" style="margin-top: 20px; border: 1px solid rgba(255, 59, 48, 0.2); background: rgba(255, 59, 48, 0.05);">
+                  <div class="settings-item" id="logout-btn" style="justify-content: center; cursor: pointer;">
+                      <span style="color: #FF3B30; font-weight: 600;">Sign Out</span>
+                  </div>
+              </div>
           </div>
       </div>
 
@@ -646,8 +677,10 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, updateProfile, sendEmailVerification, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, query, collection, where, onSnapshot, serverTimestamp, increment, orderBy, limit, addDoc, arrayUnion, arrayRemove, deleteDoc, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-    
+    import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, query, collection, where, onSnapshot, serverTimestamp, increment, orderBy, limit, addDoc, arrayUnion, arrayRemove, deleteDoc, writeBatch, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    // ADDED: Messaging Import
+    import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-messaging.js";
+
     // --- CONFIG ---
     const firebaseConfig = {
       apiKey: "AIzaSyAOEmgVj-OzfVaZsNOn47WTdaCrb5h8h_s",
@@ -662,6 +695,17 @@
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
+    const messaging = getMessaging(app); // ADDED: Init Messaging
+    
+    // --- ENABLE OFFLINE PERSISTENCE ---
+    enableIndexedDbPersistence(db).catch((err) => {
+        if (err.code == 'failed-precondition') {
+            console.log('Multiple tabs open, persistence can only be enabled in one tab at a a time.');
+        } else if (err.code == 'unimplemented') {
+            console.log('The current browser does not support all of the features required to enable persistence');
+        }
+    });
+
     const USERS_PATH = `artifacts/${firebaseConfig.projectId}/public/data/users`;
     const CHATS_PATH = `artifacts/${firebaseConfig.projectId}/public/data/chat_rooms`;
 
@@ -672,10 +716,41 @@
     let isLoginMode = true, isSigningUp = false;
     let replyTo = null, currentMsgId = null;
     let globalNotificationUnsubscribe = null;
+    let typingTimeout = null, isTyping = false;
+    let backgroundDisconnectTimeout = null;
+    let wakeLock = null;
 
-    // --- HELPER: TIME AGO ---
-    function formatTimeAgo(date) {
-        if(!date) return '';
+    // --- CACHE & INSTANT LOAD ---
+    function checkCacheOnStartup() {
+        const cachedUser = localStorage.getItem('cached_user_data');
+        if (cachedUser) {
+            try {
+                currentUserData = JSON.parse(cachedUser);
+                if(currentUserData.uid) {
+                    document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+                    get('view-home').classList.add('active');
+                    get('nav-chats').classList.add('active');
+                    updateHeaderUI();
+                    const cachedChats = localStorage.getItem('cached_chat_list');
+                    if(cachedChats) {
+                        const rooms = JSON.parse(cachedChats);
+                        renderChatList(rooms);
+                    }
+                    const splash = get('splash-screen');
+                    splash.style.opacity = 0;
+                    setTimeout(() => splash.classList.add('hidden'), 500);
+                }
+            } catch(e) { console.error("Cache parse error", e); }
+        }
+    }
+    checkCacheOnStartup();
+
+    function formatTimeAgo(dateInput) {
+        if(!dateInput) return '';
+        let date = dateInput;
+        if(dateInput.seconds) date = new Date(dateInput.seconds * 1000);
+        else if(typeof dateInput === 'string') date = new Date(dateInput);
+
         const seconds = Math.floor((new Date() - date) / 1000);
         let interval = seconds / 31536000;
         if (interval > 1) return Math.floor(interval) + "y ago";
@@ -690,12 +765,18 @@
         return "Active just now";
     }
 
-    // --- UI HELPERS ---
     const get = (id) => document.getElementById(id);
     const showToast = (msg) => {
         const t = get('toastMsg'); get('toastText').textContent = msg;
         t.classList.add('active'); setTimeout(() => t.classList.remove('active'), 2500);
     };
+    
+    const scrollToBottom = () => {
+        const list = get('messages');
+        requestAnimationFrame(() => { list.scrollTop = list.scrollHeight; });
+        setTimeout(() => { list.scrollTop = list.scrollHeight; }, 100);
+    };
+
     const showView = (id) => {
         document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
         get(id).classList.add('active');
@@ -705,9 +786,46 @@
            if(id === 'view-find') get('nav-find').classList.add('active');
            if(id === 'view-profile') get('nav-profile').classList.add('active');
         }
+        if (id === 'view-chat') requestWakeLock();
+        else releaseWakeLock();
     };
 
-    // --- PINCH TO ZOOM IMAGE VIEWER LOGIC ---
+    function initTheme() {
+        const savedTheme = localStorage.getItem('theme');
+        if(savedTheme === 'dark') {
+            document.documentElement.setAttribute('data-theme', 'dark');
+            get('theme-toggle').checked = true;
+        } else {
+            document.documentElement.removeAttribute('data-theme');
+            get('theme-toggle').checked = false;
+        }
+    }
+    
+    get('theme-toggle').addEventListener('change', (e) => {
+        if(e.target.checked) {
+            document.documentElement.setAttribute('data-theme', 'dark');
+            localStorage.setItem('theme', 'dark');
+        } else {
+            document.documentElement.removeAttribute('data-theme');
+            localStorage.setItem('theme', 'light');
+        }
+    });
+
+    get('home-search-input').addEventListener('input', (e) => {
+        const term = e.target.value.toLowerCase();
+        const cards = document.querySelectorAll('#chat-list-container .user-card');
+        cards.forEach(card => {
+            const name = card.querySelector('.card-name').textContent.toLowerCase();
+            const msg = card.querySelector('.card-msg').textContent.toLowerCase();
+            const meta = (card.getAttribute('data-search-meta') || '').toLowerCase();
+            if(name.includes(term) || msg.includes(term) || meta.includes(term)) {
+                card.style.display = 'flex';
+            } else {
+                card.style.display = 'none';
+            }
+        });
+    });
+
     const lightboxImg = get('lightbox-img');
     const lightbox = get('lightbox');
     let scale = 1, pointX = 0, pointY = 0, startX = 0, startY = 0, isDragging = false, startDist = 0;
@@ -718,63 +836,99 @@
     }
 
     window.viewImg = (src) => { 
-        lightboxImg.src = src; 
-        resetZoom();
-        lightbox.classList.add('active'); 
+        lightboxImg.src = src; resetZoom(); lightbox.classList.add('active'); 
     };
     get('lightbox-close').onclick = () => get('lightbox').classList.remove('active');
 
     lightbox.addEventListener('touchstart', (e) => {
         if (e.touches.length === 2) {
             e.preventDefault(); 
-            startDist = Math.hypot(
-                e.touches[0].pageX - e.touches[1].pageX,
-                e.touches[0].pageY - e.touches[1].pageY
-            );
+            startDist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
         } else if (e.touches.length === 1) {
-            startX = e.touches[0].pageX - pointX;
-            startY = e.touches[0].pageY - pointY;
-            isDragging = true;
+            startX = e.touches[0].pageX - pointX; startY = e.touches[0].pageY - pointY; isDragging = true;
         }
     });
 
     lightbox.addEventListener('touchmove', (e) => {
         e.preventDefault();
         if (e.touches.length === 2) {
-            const dist = Math.hypot(
-                e.touches[0].pageX - e.touches[1].pageX,
-                e.touches[0].pageY - e.touches[1].pageY
-            );
+            const dist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
             const delta = dist / startDist;
             scale = Math.min(Math.max(1, scale * delta), 4);
             startDist = dist;
             lightboxImg.style.transform = `translate(${pointX}px, ${pointY}px) scale(${scale})`;
         } else if (e.touches.length === 1 && isDragging && scale > 1) {
-            pointX = e.touches[0].pageX - startX;
-            pointY = e.touches[0].pageY - startY;
+            pointX = e.touches[0].pageX - startX; pointY = e.touches[0].pageY - startY;
             lightboxImg.style.transform = `translate(${pointX}px, ${pointY}px) scale(${scale})`;
         }
     });
 
-    lightbox.addEventListener('touchend', () => {
-        isDragging = false;
-        if (scale < 1) resetZoom();
+    lightbox.addEventListener('touchend', () => { isDragging = false; if (scale < 1) resetZoom(); });
+
+    async function requestWakeLock() {
+        try {
+            if ('wakeLock' in navigator) {
+                wakeLock = await navigator.wakeLock.request('screen');
+                wakeLock.addEventListener('release', () => {});
+            }
+        } catch (err) { console.log(`${err.name}, ${err.message}`); }
+    }
+    
+    function releaseWakeLock() {
+        if(wakeLock) wakeLock.release().then(() => wakeLock = null);
+    }
+    
+    document.addEventListener('visibilitychange', async () => {
+        if (wakeLock !== null && document.visibilityState === 'visible') { await requestWakeLock(); }
     });
 
-    function requestNotificationPermission() {
-        if ("Notification" in window) {
-            if (Notification.permission !== "granted" && Notification.permission !== "denied") {
-                Notification.requestPermission().then(permission => {
-                    if (permission === "granted") console.log("Notification permission granted!");
-                });
+    // --- ADDED: PUSH NOTIFICATION SETUP ---
+    async function enableCloudMessaging() {
+        try {
+            // 1. Register the Service Worker (Real file now)
+            if ('serviceWorker' in navigator) {
+                const registration = await navigator.serviceWorker.register('./firebase-messaging-sw.js');
+                console.log('Service Worker Registered');
+
+                // 2. Request Permission
+                const permission = await Notification.requestPermission();
+                if (permission === 'granted') {
+                    // 3. Get FCM Token
+                    // IMPORTANT: VAPID Key set below
+                    const token = await getToken(messaging, { 
+                        vapidKey: "BHgCDxKVDMsPXfTHzMK7SxFmdYDtHIW5xbjidT8XpfPkmOWRpoScTgdbvWTC8YXh5h4I2aw29suviDzSqokN1No", 
+                        serviceWorkerRegistration: registration 
+                    });
+                    
+                    if (token) {
+                        console.log("FCM Token:", token);
+                        // 4. Save Token to User Profile
+                        if(currentUser) {
+                            await updateDoc(doc(db, USERS_PATH, currentUser.uid), { fcmToken: token });
+                        }
+                    }
+                }
             }
+        } catch (error) {
+            console.error("FCM Setup Error:", error);
         }
     }
+
+    // Handle Foreground Messages
+    onMessage(messaging, (payload) => {
+        console.log('Foreground Message:', payload);
+        const audio = document.getElementById('notification-sound');
+        if(audio) audio.play().catch(e=>{});
+        
+        showToast(`New Message: ${payload.notification.body}`);
+    });
+
 
     // --- AUTHENTICATION ---
     onAuthStateChanged(auth, async (user) => {
         const splash = get('splash-screen');
         if (user) {
+            initTheme();
             if (!user.emailVerified && !isSigningUp) {
                 await signOut(auth);
                 showToast("Please verify your email.");
@@ -783,15 +937,24 @@
             }
             if(isSigningUp) return;
             currentUser = user;
-            await loadUserProfile(user.uid);
+            
+            if(!currentUserData) await loadUserProfile(user.uid);
+            else loadUserProfile(user.uid);
+            
             showView('view-home');
             loadChatList();
             updatePresence('online');
-            requestNotificationPermission(); 
-            listenGlobalMessages();
+            
+            // Call Notification Setup on Login
+            enableCloudMessaging(); 
+            // listenGlobalMessages(); // Optional: Keep for desktop fallback if desired
+            
             splash.style.opacity = 0; setTimeout(()=>splash.classList.add('hidden'),500);
         } else {
             currentUser = null; currentUserData = null;
+            localStorage.removeItem('cached_user_data');
+            localStorage.removeItem('cached_chat_list');
+            initTheme();
             showView('view-auth');
             splash.style.opacity = 0; setTimeout(()=>splash.classList.add('hidden'),500);
         }
@@ -822,9 +985,13 @@
                 if(!name) throw new Error("Name required");
                 isSigningUp = true;
                 const cred = await createUserWithEmailAndPassword(auth, email, pass);
+                
+                const cleanName = name.replace(/[^a-zA-Z0-9]/g, '').toLowerCase().substring(0, 4);
+                const randomId = cleanName + Math.floor(1000 + Math.random() * 9000);
+                
                 const newUser = {
                     uid: cred.user.uid, displayName: name, email: email,
-                    pingId: 'pm_' + Math.random().toString(36).substr(2, 6),
+                    pingId: randomId,
                     photoURL: null, bio: '', phone: '', createdAt: serverTimestamp(),
                     status: 'offline', blockedUsers: []
                 };
@@ -851,18 +1018,23 @@
         catch(e) { showToast(e.message); }
     };
 
-    // --- USER PROFILE & DATA ---
     async function loadUserProfile(uid) {
         const snap = await getDoc(doc(db, USERS_PATH, uid));
-        if (snap.exists()) currentUserData = snap.data();
-        else {
-            currentUserData = { uid: uid, displayName: currentUser.displayName, blockedUsers: [], pingId: 'pm_' + Math.random().toString(36).substr(2, 6) };
+        if (snap.exists()) {
+             currentUserData = snap.data();
+             localStorage.setItem('cached_user_data', JSON.stringify(currentUserData));
+        } else {
+            const baseName = currentUser.displayName ? currentUser.displayName.replace(/[^a-zA-Z0-9]/g, '').toLowerCase().substring(0, 4) : 'user';
+            const fallbackId = baseName + Math.floor(1000 + Math.random() * 9000);
+            
+            currentUserData = { uid: uid, displayName: currentUser.displayName, blockedUsers: [], pingId: fallbackId };
             await setDoc(doc(db, USERS_PATH, uid), currentUserData);
         }
         updateHeaderUI();
     }
 
     function updateHeaderUI() {
+        if(!currentUserData) return;
         const name = currentUserData.displayName || 'User';
         const photo = currentUserData.photoURL;
         if(photo) { get('header-avatar-img').src=photo; get('header-avatar-img').style.display='block'; get('header-avatar-text').style.display='none'; }
@@ -876,7 +1048,6 @@
         if(photo) { get('profile-img-preview').src = photo; get('profile-img-preview').style.display='block'; get('profile-initial-preview').style.display='none'; }
     }
 
-    // --- NAVIGATION ---
     get('profile-header-btn').onclick = () => showView('view-profile');
     get('nav-chats').onclick = () => showView('view-home');
     get('nav-find').onclick = () => { showView('view-find'); loadSearchHistory(); };
@@ -890,9 +1061,7 @@
     };
     
     get('logout-btn').onclick = async () => { 
-        updatePresence('offline'); 
-        await signOut(auth); 
-        window.location.reload(); 
+        updatePresence('offline'); await signOut(auth); window.location.reload(); 
     };
     
     get('back-from-friend-profile').onclick = () => showView('view-chat');
@@ -940,9 +1109,9 @@
         if(currentPartnerId === uid && btn) btn.textContent = shouldBlock ? "Unblock User" : "Block User";
         if(currentPartnerId === uid && get('view-chat').classList.contains('active')) updateChatUIForBlocks(currentPartnerData);
         loadChatList();
+        localStorage.setItem('cached_user_data', JSON.stringify(currentUserData));
     }
 
-    // --- CHAT ROOM LOGIC ---
     async function openChat(partnerId, partnerInfo) {
         currentPartnerId = partnerId;
         currentPartnerData = partnerInfo || { displayName: 'User', photoURL: null };
@@ -991,7 +1160,11 @@
         unsubscribeRoom = onSnapshot(rRef, (snap) => {
             if(!snap.exists()) return;
             const data = snap.data();
-            get('typing-indicator').style.display = (data.typing && data.typing[currentPartnerId]) ? 'block' : 'none';
+            
+            const isPartnerTyping = data.typing && data.typing[currentPartnerId];
+            const bubble = get('typing-bubble');
+            if(isPartnerTyping) { bubble.classList.add('active'); scrollToBottom(); } 
+            else { bubble.classList.remove('active'); }
         });
 
         unsubscribePartnerStatus = onSnapshot(doc(db, USERS_PATH, currentPartnerId), (snap) => {
@@ -1003,13 +1176,27 @@
                  }
                  else { 
                      statusEl.style.color = 'var(--text-muted)';
-                     if (u.lastActive) statusEl.textContent = "Active " + formatTimeAgo(u.lastActive.toDate());
+                     if (u.lastActive) statusEl.textContent = "Active " + formatTimeAgo(u.lastActive);
                      else statusEl.textContent = 'Offline'; 
                  }
                  updateChatUIForBlocks(u);
              }
         });
     }
+
+    const msgInput = get('msg-input');
+    async function updateTypingStatus(status) {
+        if(!currentChatId) return;
+        try {
+            await updateDoc(doc(db, CHATS_PATH, currentChatId), { [`typing.${currentUser.uid}`]: status });
+        } catch(e) { console.log("Typing error", e); }
+    }
+
+    msgInput.addEventListener('input', () => {
+        if(!isTyping) { isTyping = true; updateTypingStatus(true); }
+        clearTimeout(typingTimeout);
+        typingTimeout = setTimeout(() => { isTyping = false; updateTypingStatus(false); }, 2000); 
+    });
 
     function updateChatUIForBlocks(partnerUser) {
         const banner = get('blocked-banner');
@@ -1033,16 +1220,78 @@
         else await updateDoc(doc(db, CHATS_PATH, rid, 'messages', mid), { likes: arrayUnion(uid) });
     }
 
-    // --- CHAT LIST ---
+    function renderChatList(rooms) {
+        const list = get('chat-list-container');
+        list.innerHTML = '';
+        if(!currentUserData) return;
+
+        rooms.forEach(room => {
+            const pid = room.participants.find(id => id !== currentUserData.uid);
+            if (!pid) return;
+
+            const info = room.participantInfo?.[pid] || { displayName: 'User', photoURL: null };
+            
+            let lastTxt = room.lastMessage?.text || 'No messages';
+            if(room.lastMessage?.type === 'image') lastTxt = '📷 Photo';
+            if(room.lastMessage?.type === 'deleted') lastTxt = '🚫 Message deleted';
+
+            let time = '';
+            if(room.lastMessage?.timestamp) {
+                let d;
+                if(room.lastMessage.timestamp.seconds) d = new Date(room.lastMessage.timestamp.seconds * 1000);
+                else d = new Date(room.lastMessage.timestamp);
+                time = d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+            }
+            
+            const card = document.createElement('div');
+            card.className = 'user-card';
+            card.setAttribute('data-uid', pid);
+            
+            card.innerHTML = `
+               <div class="avatar-wrapper">
+                  <div class="avatar">${info.photoURL ? `<img src="${info.photoURL}">` : (info.displayName?info.displayName[0].toUpperCase():'U')}</div>
+                  <div class="status-dot" id="dot-${room.id}"></div>
+               </div>
+               <div class="card-info">
+                  <div class="card-top"><span class="card-name">${info.displayName}</span><span class="card-time">${time}</span></div>
+                  <div class="card-msg">${lastTxt}</div>
+               </div>
+            `;
+            
+            const isBlocked = currentUserData.blockedUsers?.includes(pid);
+            const blockText = isBlocked ? "Unblock User" : "Block User";
+            
+            addLongPress(card, () => {
+                openActionSheet([
+                     { text: "Delete Chat (For me)", class: "danger", action: () => deleteChatForMe(room.id) },
+                     { text: blockText, class: isBlocked ? "" : "danger", action: () => { toggleBlock(pid, !isBlocked); hideActionSheet(); } },
+                     { text: "Cancel", action: hideActionSheet }
+                ]);
+            }, () => openChat(pid, info));
+
+            list.appendChild(card);
+            
+            getDoc(doc(db, USERS_PATH, pid)).then(s => {
+                if(s.exists()) {
+                    const u = s.data();
+                    if(u.status === 'online') {
+                        const dot = get(`dot-${room.id}`);
+                        if(dot) dot.classList.add('online');
+                    }
+                    const metaString = `${u.pingId || ''} ${u.email || ''} ${u.phone || ''}`;
+                    card.setAttribute('data-search-meta', metaString);
+                }
+            }).catch(e=>{});
+        });
+
+        if(rooms.length === 0) list.innerHTML = `<div style="text-align:center; padding:50px 20px; color:var(--text-muted);">No chats.<br>Go to <b>Search</b> to find friends.</div>`;
+    }
+
     function loadChatList() {
         if(unsubscribeChats) unsubscribeChats();
         const ref = collection(db, CHATS_PATH);
         unsubscribeChats = onSnapshot(ref, (snapshot) => {
-            const list = get('chat-list-container');
-            list.innerHTML = '';
-            let hasChats = false;
             const rooms = [];
-            
             snapshot.forEach(d => {
                 const room = d.data();
                 if(room.participants && room.participants.includes(currentUser.uid)) {
@@ -1054,64 +1303,25 @@
                 }
             });
             rooms.sort((a,b) => (b.updatedAt?.seconds || 0) - (a.updatedAt?.seconds || 0));
-
-            rooms.forEach(room => {
-                hasChats = true;
-                const pid = room.participants.find(id => id !== currentUser.uid);
-                const info = room.participantInfo?.[pid] || { displayName: 'User', photoURL: null };
-                
-                let lastTxt = room.lastMessage?.text || 'No messages';
-                if(room.lastMessage?.type === 'image') lastTxt = '📷 Photo';
-                if(room.lastMessage?.type === 'deleted') lastTxt = '🚫 Message deleted';
-
-                const time = room.lastMessage?.timestamp ? new Date(room.lastMessage.timestamp.seconds * 1000).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '';
-                
-                const card = document.createElement('div');
-                card.className = 'user-card';
-                card.innerHTML = `
-                   <div class="avatar-wrapper">
-                      <div class="avatar">${info.photoURL ? `<img src="${info.photoURL}">` : info.displayName[0].toUpperCase()}</div>
-                      <div class="status-dot" id="dot-${room.id}"></div>
-                   </div>
-                   <div class="card-info">
-                      <div class="card-top"><span class="card-name">${info.displayName}</span><span class="card-time">${time}</span></div>
-                      <div class="card-msg">${lastTxt}</div>
-                   </div>
-                `;
-                
-                const isBlocked = currentUserData.blockedUsers?.includes(pid);
-                const blockText = isBlocked ? "Unblock User" : "Block User";
-                
-                // LONG PRESS: DELETE CHAT / BLOCK
-                addLongPress(card, () => {
-                    openActionSheet([
-                         { text: "Delete Chat (For me)", class: "danger", action: () => deleteChatForMe(room.id) },
-                         { text: blockText, class: isBlocked ? "" : "danger", action: () => { toggleBlock(pid, !isBlocked); hideActionSheet(); } },
-                         { text: "Cancel", action: hideActionSheet }
-                    ]);
-                }, () => openChat(pid, info));
-
-                list.appendChild(card);
-                
-                getDoc(doc(db, USERS_PATH, pid)).then(s => {
-                    if(s.exists() && s.data().status === 'online') get(`dot-${room.id}`).classList.add('online');
-                });
-            });
-
-            if(!hasChats) list.innerHTML = `<div style="text-align:center; padding:50px 20px; color:var(--text-muted);">No chats.<br>Go to <b>Search</b> to find friends.</div>`;
+            localStorage.setItem('cached_chat_list', JSON.stringify(rooms));
+            renderChatList(rooms);
+            
+            const currentSearch = get('home-search-input').value;
+            if(currentSearch) {
+                 const event = new Event('input');
+                 get('home-search-input').dispatchEvent(event);
+            }
         });
     }
 
-    // --- CHAT ROOM MESSAGES ---
     function loadMessages(rid) {
         const ref = collection(db, CHATS_PATH, rid, 'messages');
         const list = get('messages');
         let isFirstLoad = true;
         
         unsubscribeMsgs = onSnapshot(ref, (snap) => {
-            const wasAtBottom = (list.scrollHeight - list.scrollTop) <= (list.clientHeight + 100);
-            const savedScrollTop = list.scrollTop;
-
+            const wasAtBottom = (list.scrollHeight - list.scrollTop) <= (list.clientHeight + 150);
+            
             list.innerHTML = '';
             const msgs = [];
             snap.forEach(d => msgs.push({id: d.id, ...d.data()}));
@@ -1138,7 +1348,7 @@
                 row.className = `msg-row ${isMe ? 'me' : 'you'}`;
                 
                 let content = m.text;
-                if(m.type === 'image') content = `<img src="${m.text}" class="chat-img" onclick="window.viewImg('${m.text}')">`;
+                if(m.type === 'image') content = `<img src="${m.text}" class="chat-img" onclick="window.viewImg('${m.text}')" onload="if(${isFirstLoad} || ${wasAtBottom}) scrollToBottom()">`;
                 if(m.type === 'deleted') { content = '<span style="font-style:italic; opacity:0.6;">🚫 Message deleted</span>'; }
                 
                 let replyHTML = '';
@@ -1172,36 +1382,21 @@
                 `;
                 
                 const bubble = row.querySelector('.msg-bubble');
-                bubble.addEventListener('dblclick', (e) => {
-                    e.stopPropagation();
-                    if(m.type === 'deleted') return;
-                    toggleLike(rid, m.id, m.likes);
-                });
+                bubble.addEventListener('dblclick', (e) => { e.stopPropagation(); if(m.type === 'deleted') return; toggleLike(rid, m.id, m.likes); });
 
-                // --- UPDATED MESSAGE ACTIONS (DELETE/COPY) ---
                 addLongPress(bubble, () => {
                     if(m.type === 'deleted') return;
                     const opts = [];
                     opts.push({ text: "Reply", action: () => initReply(m) });
-
-                    // ALWAYS ALLOW COPY IF TEXT
                     if(m.type === 'text') {
-                        opts.push({ text: "Copy Text", action: () => { 
-                            navigator.clipboard.writeText(m.text); 
-                            showToast("Copied"); 
-                            hideActionSheet(); 
-                        }});
+                        opts.push({ text: "Copy Text", action: () => { navigator.clipboard.writeText(m.text); showToast("Copied"); hideActionSheet(); }});
+                    } else if (m.type === 'image') {
+                         opts.push({ text: "View Image", action: () => { viewImg(m.text); hideActionSheet(); }});
                     }
-                    
                     if(isMe) {
-                        // MY MESSAGE: UNSEND OR DELETE FOR ME
                         opts.push({ text: "Unsend (Everyone)", class:"danger", action: () => deleteMsg(rid, m.id, 'everyone') });
-                        opts.push({ text: "Delete for Me", class:"danger", action: () => deleteMsg(rid, m.id, 'me') });
-                    } else {
-                        // FRIEND'S MESSAGE: DELETE FOR ME ONLY
-                        opts.push({ text: "Delete for Me", class:"danger", action: () => deleteMsg(rid, m.id, 'me') });
                     }
-
+                    opts.push({ text: "Delete for Me", class:"danger", action: () => deleteMsg(rid, m.id, 'me') });
                     opts.push({ text: "Cancel", action: hideActionSheet });
                     openActionSheet(opts);
                 });
@@ -1209,13 +1404,11 @@
                 list.appendChild(row);
             });
             
-            if (isFirstLoad) { list.scrollTop = list.scrollHeight; isFirstLoad = false; }
-            else if (wasAtBottom) list.scrollTop = list.scrollHeight;
-            else list.scrollTop = savedScrollTop;
+            if (isFirstLoad || wasAtBottom) scrollToBottom();
+            isFirstLoad = false;
         });
     }
 
-    // --- MESSAGE SENDING ---
     function initReply(m) {
         replyTo = { id: m.id, text: m.type==='image'?'Photo':m.text, name: m.senderId===currentUser.uid?'You':currentPartnerData.displayName };
         get('replyToName').textContent = replyTo.name;
@@ -1228,10 +1421,12 @@
 
     async function sendMsg(txt, type='text') {
         if(!txt) return;
-
         const list = get('messages');
         const tempRow = document.createElement('div');
         tempRow.className = 'msg-row me'; 
+        const tempId = 'temp_' + Date.now();
+        tempRow.id = tempId;
+
         let displayContent = txt;
         if(type === 'image') displayContent = `<img src="${txt}" class="chat-img" style="opacity: 0.7;">`; 
         let replyMarkup = '';
@@ -1243,27 +1438,39 @@
         }
         tempRow.innerHTML = `<div class="msg-bubble">${replyMarkup}${displayContent}<div class="msg-meta">Sending...<span class="status-tick" style="opacity:0.5">✓</span></div></div>`;
         list.appendChild(tempRow);
-        list.scrollTop = list.scrollHeight;
+        scrollToBottom(); 
 
-        let initialStatus = 'sent';
-        const partnerSnap = await getDoc(doc(db, USERS_PATH, currentPartnerId));
-        if(partnerSnap.exists() && partnerSnap.data().status === 'online') initialStatus = 'delivered';
+        try {
+            let initialStatus = 'sent';
+            const partnerSnap = await getDoc(doc(db, USERS_PATH, currentPartnerId));
+            if(partnerSnap.exists() && partnerSnap.data().status === 'online') initialStatus = 'delivered';
 
-        const payload = {
-            senderId: currentUser.uid, text: txt, type: type,
-            status: initialStatus, deletedFor: [], likes: [], timestamp: serverTimestamp()
-        };
-        if(replyTo && type==='text') { payload.replyTo = replyTo; get('cancelReply').click(); }
-        
-        await addDoc(collection(db, CHATS_PATH, currentChatId, 'messages'), payload);
-        await setDoc(doc(db, CHATS_PATH, currentChatId), {
-            participants: [currentUser.uid, currentPartnerId],
-            participantInfo: { 
-                [currentUser.uid]: { displayName: currentUserData.displayName, photoURL: currentUserData.photoURL },
-                [currentPartnerId]: { displayName: currentPartnerData.displayName, photoURL: currentPartnerData.photoURL }
-            },
-            lastMessage: payload, updatedAt: serverTimestamp(), hiddenFor: arrayRemove(currentPartnerId)
-        }, {merge: true});
+            const payload = {
+                senderId: currentUser.uid, text: txt, type: type,
+                status: initialStatus, deletedFor: [], likes: [], timestamp: serverTimestamp()
+            };
+            if(replyTo && type==='text') { payload.replyTo = replyTo; get('cancelReply').click(); }
+            
+            await addDoc(collection(db, CHATS_PATH, currentChatId, 'messages'), payload);
+            await setDoc(doc(db, CHATS_PATH, currentChatId), {
+                participants: [currentUser.uid, currentPartnerId],
+                participantInfo: { 
+                    [currentUser.uid]: { displayName: currentUserData.displayName, photoURL: currentUserData.photoURL },
+                    [currentPartnerId]: { displayName: currentPartnerData.displayName, photoURL: currentPartnerData.photoURL }
+                },
+                lastMessage: payload, updatedAt: serverTimestamp(), hiddenFor: arrayRemove(currentPartnerId)
+            }, {merge: true});
+            
+            clearTimeout(typingTimeout); isTyping = false; updateTypingStatus(false);
+        } catch (error) {
+            console.error("Message failed:", error);
+            const errRow = document.getElementById(tempId);
+            if(errRow) {
+                const meta = errRow.querySelector('.msg-meta');
+                if(meta) meta.innerHTML = '<span style="color:#FF3B30; font-weight:bold;">Error ❌</span>';
+                showToast("Message failed to send");
+            }
+        }
     }
 
     get('send-btn').onclick = () => { 
@@ -1271,21 +1478,20 @@
         if(t) { sendMsg(t); get('msg-input').value=''; get('msg-input').focus(); } 
     };
 
+    get('msg-input').addEventListener('focus', () => { setTimeout(scrollToBottom, 300); });
     get('msg-input').addEventListener('keydown', (e) => {
         if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); get('send-btn').click(); }
     });
     
     get('img-btn').onclick = () => get('img-input').click();
     get('img-input').onchange = async (e) => {
-        const f = e.target.files[0]; 
-        if(!f) return;
-        get('img-input').value = ''; 
-        showToast("Sending...");
+        const f = e.target.files[0]; if(!f) return;
+        get('img-input').value = ''; showToast("Sending...");
         const reader = new FileReader();
         reader.readAsDataURL(f);
         reader.onload = (ev) => {
             const img = new Image(); img.src = ev.target.result;
-            img.onload = () => {
+            img.onload = async () => {
                 const cvs = document.createElement('canvas');
                 const scale = Math.min(800/img.width, 800/img.height, 1);
                 cvs.width = img.width*scale; cvs.height = img.height*scale;
@@ -1295,7 +1501,6 @@
         };
     };
 
-    // --- HELPERS: ACTION SHEET & LONG PRESS ---
     function openActionSheet(buttons) {
         const sheet = get('actionSheetContent');
         sheet.innerHTML = '<div class="sheet-header">Select Option</div>';
@@ -1320,7 +1525,6 @@
         if(onClick) el.addEventListener('click', onClick);
     }
     
-    // --- SEARCH ---
     get('search-btn').onclick = async () => {
         const pid = get('search-ping-id').value.trim();
         const res = get('search-results'); res.innerHTML = 'Searching...';
@@ -1329,7 +1533,7 @@
         const snap = await getDocs(q);
         
         res.innerHTML = '';
-        if(snap.empty) return (res.innerHTML = '<div style="text-align:center;color:var(--text-muted);">User not found.<br>Check PingID exactly (e.g. pm_AbCd12)</div>');
+        if(snap.empty) return (res.innerHTML = '<div style="text-align:center;color:var(--text-muted);">User not found.<br>Check PingID exactly (e.g. rahim1234)</div>');
         
         snap.forEach(d => {
             const u = d.data();
@@ -1370,12 +1574,18 @@
     };
     get('clear-history-btn').onclick = () => { localStorage.removeItem(`history_${currentUser.uid}`); loadSearchHistory(); };
 
-    // --- PROFILE SAVE ---
     get('save-profile-btn').onclick = async () => {
         const btn = get('save-profile-btn'); btn.textContent = 'Saving...';
         await updateDoc(doc(db, USERS_PATH, currentUser.uid), {
             displayName: get('edit-name').value, bio: get('edit-bio').value, phone: get('edit-phone').value
         });
+        
+        currentUserData.displayName = get('edit-name').value;
+        currentUserData.bio = get('edit-bio').value;
+        currentUserData.phone = get('edit-phone').value;
+        localStorage.setItem('cached_user_data', JSON.stringify(currentUserData));
+        updateHeaderUI();
+
         showToast("Profile Saved");
         btn.textContent = 'Save Changes';
     };
@@ -1391,67 +1601,38 @@
                 cvs.getContext('2d').drawImage(img,0,0,300,300);
                 const url = cvs.toDataURL('image/jpeg',0.8);
                 await updateDoc(doc(db, USERS_PATH, currentUser.uid), { photoURL: url });
-                currentUserData.photoURL = url; updateHeaderUI(); showToast("Photo Updated");
+                currentUserData.photoURL = url;
+                localStorage.setItem('cached_user_data', JSON.stringify(currentUserData));
+                updateHeaderUI();
+                showToast("Photo Updated");
             };
         };
     };
 
-    // --- GLOBAL PRESENCE & NOTIFICATIONS (UPDATED NATIVE) ---
     function updatePresence(status) {
         if(currentUser) updateDoc(doc(db, USERS_PATH, currentUser.uid), { status: status, lastActive: serverTimestamp() }).catch(()=>{});
     }
-    document.addEventListener('visibilitychange', () => updatePresence(document.visibilityState === 'visible' ? 'online' : 'offline'));
-
-    function listenGlobalMessages() {
-        if(globalNotificationUnsubscribe) globalNotificationUnsubscribe();
-        const q = query(collection(db, CHATS_PATH), where("participants", "array-contains", currentUser.uid));
-        globalNotificationUnsubscribe = onSnapshot(q, (snap) => {
-            snap.docChanges().forEach(change => {
-                if(change.type === 'modified') {
-                    const d = change.doc.data();
-                    if(d.lastMessage?.senderId !== currentUser.uid && (Date.now() - (d.updatedAt?.seconds || 0)*1000 < 5000)) {
-                         if(document.visibilityState === 'hidden' || currentChatId !== change.doc.id) {
-                             
-                             // 1. Play Sound
-                             const audio = document.getElementById('notification-sound');
-                             if(audio) {
-                                 audio.currentTime = 0;
-                                 audio.play().catch(e => console.log("Audio permission needed first interaction"));
-                             }
-
-                             // 2. Determine Name
-                             const senderId = d.lastMessage.senderId;
-                             const senderProfile = d.participantInfo && d.participantInfo[senderId] ? d.participantInfo[senderId] : { displayName: 'Friend' };
-                             const title = senderProfile.displayName;
-
-                             // 3. Show Native Notification
-                             if (Notification.permission === "granted") {
-                                 const notif = new Notification(title, {
-                                     body: d.lastMessage.type === 'image' ? '📷 Sent a photo' : d.lastMessage.text,
-                                     icon: senderProfile.photoURL || 'https://i.postimg.cc/RZ5FH16z/Gemini-Generated-Image-rgsqsqrgsqsqrgsq-removebg-preview.png',
-                                     tag: 'new-msg',
-                                     renotify: true,
-                                     vibrate: [200, 100, 200],
-                                     requireInteraction: false
-                                 });
-                                 notif.onclick = () => { window.focus(); notif.close(); };
-                             }
-                         }
-                    }
-                }
-            });
-        });
-    }
     
-    // --- DELETION LOGIC (UPDATED) ---
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+            if (backgroundDisconnectTimeout) clearTimeout(backgroundDisconnectTimeout);
+            updatePresence('online');
+            if (wakeLock !== null) requestWakeLock();
+        } else {
+            backgroundDisconnectTimeout = setTimeout(() => { updatePresence('offline'); }, 2 * 60 * 1000); 
+        }
+    });
+    
+    setInterval(() => {
+        if(currentUser && document.visibilityState === 'visible') { updatePresence('online'); }
+    }, 60000);
+
     async function deleteMsg(rid, mid, scope) {
         if(scope === 'everyone') {
-             // UNSEND: Marks message as deleted for everyone
              await updateDoc(doc(db, CHATS_PATH, rid, 'messages', mid), { type: 'deleted', text: 'deleted' });
              await updateDoc(doc(db, CHATS_PATH, rid), { 'lastMessage.type': 'deleted', 'lastMessage.text': 'deleted' });
              showToast("Unsent");
         } else {
-             // DELETE FOR ME: Hides it from my view only
              await updateDoc(doc(db, CHATS_PATH, rid, 'messages', mid), { deletedFor: arrayUnion(currentUser.uid) });
              showToast("Deleted");
         }
@@ -1459,20 +1640,16 @@
     }
     
     async function deleteChatForMe(rid) {
-        // DELETE CHAT FOR ME: Hides chat from list until new message arrives
         await updateDoc(doc(db, CHATS_PATH, rid), { hiddenFor: arrayUnion(currentUser.uid) });
         hideActionSheet(); showToast("Chat Deleted");
     }
 
-    // --- INSTALL LOGIC ---
     let deferredPrompt;
     const installBanner = document.getElementById('install-banner');
     const installBtn = document.getElementById('install-btn');
 
     window.addEventListener('beforeinstallprompt', (e) => {
-        e.preventDefault();
-        deferredPrompt = e;
-        installBanner.style.display = 'flex';
+        e.preventDefault(); deferredPrompt = e; installBanner.style.display = 'flex';
     });
 
     installBtn.addEventListener('click', async () => {
@@ -1480,20 +1657,13 @@
             deferredPrompt.prompt();
             const { outcome } = await deferredPrompt.userChoice;
             deferredPrompt = null;
-            if (outcome === 'accepted') {
-                installBanner.style.display = 'none';
-            }
+            if (outcome === 'accepted') { installBanner.style.display = 'none'; }
         }
     });
 
-    window.addEventListener('appinstalled', () => {
-        installBanner.style.display = 'none';
-    });
-    
-    if (window.matchMedia('(display-mode: standalone)').matches) {
-        installBanner.style.display = 'none';
-    }
+    window.addEventListener('appinstalled', () => { installBanner.style.display = 'none'; });
+    if (window.matchMedia('(display-mode: standalone)').matches) { installBanner.style.display = 'none'; }
 
   </script>
 </body>
-</html>
+</html> 
