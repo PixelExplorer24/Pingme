@@ -393,34 +393,6 @@
     };
     const blobManifest = new Blob([JSON.stringify(manifestData)], {type: 'application/json'});
     document.getElementById('my-manifest').setAttribute('href', URL.createObjectURL(blobManifest));
-
-    // Service Worker for PWA (Optimized for Background Persistence)
-    const swCode = `
-      self.addEventListener('install', (e) => { 
-        self.skipWaiting(); 
-      });
-      self.addEventListener('activate', (e) => { 
-        e.waitUntil(self.clients.claim()); 
-      });
-      // Basic fetch handler with network-first strategy for live data
-      self.addEventListener('fetch', (e) => { 
-        e.respondWith(
-          fetch(e.request)
-            .catch(() => caches.match(e.request))
-            .then(res => res || new Response("Offline", { status: 503 }))
-        );
-      });
-    `;
-    const swBlob = new Blob([swCode], {type: 'application/javascript'});
-    const swUrl = URL.createObjectURL(swBlob);
-
-    if ('serviceWorker' in navigator) {
-         navigator.serviceWorker.register(swUrl).then((reg) => {
-             console.log('SW Registered');
-             // Attempt to keep SW alive (Hack for background connectivity)
-             setInterval(() => { reg.update(); }, 60 * 1000); 
-         }).catch(console.error);
-    }
   </script>
 </head>
 <body>
@@ -706,7 +678,9 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, updateProfile, sendEmailVerification, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
     import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, query, collection, where, onSnapshot, serverTimestamp, increment, orderBy, limit, addDoc, arrayUnion, arrayRemove, deleteDoc, writeBatch, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-    
+    // ADDED: Messaging Import
+    import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-messaging.js";
+
     // --- CONFIG ---
     const firebaseConfig = {
       apiKey: "AIzaSyAOEmgVj-OzfVaZsNOn47WTdaCrb5h8h_s",
@@ -721,8 +695,9 @@
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
+    const messaging = getMessaging(app); // ADDED: Init Messaging
     
-    // --- ENABLE OFFLINE PERSISTENCE (SERVER CONNECTIVITY UPGRADE) ---
+    // --- ENABLE OFFLINE PERSISTENCE ---
     enableIndexedDbPersistence(db).catch((err) => {
         if (err.code == 'failed-precondition') {
             console.log('Multiple tabs open, persistence can only be enabled in one tab at a a time.');
@@ -742,30 +717,25 @@
     let replyTo = null, currentMsgId = null;
     let globalNotificationUnsubscribe = null;
     let typingTimeout = null, isTyping = false;
-    
-    // Background Connectivity Handles
     let backgroundDisconnectTimeout = null;
     let wakeLock = null;
 
-    // --- CACHE & INSTANT LOAD LOGIC ---
+    // --- CACHE & INSTANT LOAD ---
     function checkCacheOnStartup() {
         const cachedUser = localStorage.getItem('cached_user_data');
         if (cachedUser) {
             try {
                 currentUserData = JSON.parse(cachedUser);
                 if(currentUserData.uid) {
-                    // Pre-render Home UI immediately
                     document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
                     get('view-home').classList.add('active');
                     get('nav-chats').classList.add('active');
                     updateHeaderUI();
-                    
                     const cachedChats = localStorage.getItem('cached_chat_list');
                     if(cachedChats) {
                         const rooms = JSON.parse(cachedChats);
-                        renderChatList(rooms); // Render cached list
+                        renderChatList(rooms);
                     }
-                    // Hide Splash immediately if cache exists
                     const splash = get('splash-screen');
                     splash.style.opacity = 0;
                     setTimeout(() => splash.classList.add('hidden'), 500);
@@ -773,13 +743,10 @@
             } catch(e) { console.error("Cache parse error", e); }
         }
     }
-    // Call immediately before Firebase auth triggers
     checkCacheOnStartup();
 
-    // --- HELPER: TIME AGO ---
     function formatTimeAgo(dateInput) {
         if(!dateInput) return '';
-        // Handle Firestore Timestamp or Date String or Date Object
         let date = dateInput;
         if(dateInput.seconds) date = new Date(dateInput.seconds * 1000);
         else if(typeof dateInput === 'string') date = new Date(dateInput);
@@ -798,22 +765,16 @@
         return "Active just now";
     }
 
-    // --- UI HELPERS ---
     const get = (id) => document.getElementById(id);
     const showToast = (msg) => {
         const t = get('toastMsg'); get('toastText').textContent = msg;
         t.classList.add('active'); setTimeout(() => t.classList.remove('active'), 2500);
     };
     
-    // --- SCROLL HELPER ---
     const scrollToBottom = () => {
         const list = get('messages');
-        requestAnimationFrame(() => {
-            list.scrollTop = list.scrollHeight;
-        });
-        setTimeout(() => {
-             list.scrollTop = list.scrollHeight;
-        }, 100);
+        requestAnimationFrame(() => { list.scrollTop = list.scrollHeight; });
+        setTimeout(() => { list.scrollTop = list.scrollHeight; }, 100);
     };
 
     const showView = (id) => {
@@ -825,13 +786,10 @@
            if(id === 'view-find') get('nav-find').classList.add('active');
            if(id === 'view-profile') get('nav-profile').classList.add('active');
         }
-        
-        // Handle Wake Lock for Chat View
         if (id === 'view-chat') requestWakeLock();
         else releaseWakeLock();
     };
 
-    // --- DARK MODE LOGIC (FIXED) ---
     function initTheme() {
         const savedTheme = localStorage.getItem('theme');
         if(savedTheme === 'dark') {
@@ -853,16 +811,13 @@
         }
     });
 
-    // --- HOME SEARCH LOGIC (NEW) ---
     get('home-search-input').addEventListener('input', (e) => {
         const term = e.target.value.toLowerCase();
         const cards = document.querySelectorAll('#chat-list-container .user-card');
-        
         cards.forEach(card => {
             const name = card.querySelector('.card-name').textContent.toLowerCase();
             const msg = card.querySelector('.card-msg').textContent.toLowerCase();
-            const meta = (card.getAttribute('data-search-meta') || '').toLowerCase(); // Hidden data (PingID, etc)
-            
+            const meta = (card.getAttribute('data-search-meta') || '').toLowerCase();
             if(name.includes(term) || msg.includes(term) || meta.includes(term)) {
                 card.style.display = 'flex';
             } else {
@@ -871,7 +826,6 @@
         });
     });
 
-    // --- PINCH TO ZOOM IMAGE VIEWER LOGIC ---
     const lightboxImg = get('lightbox-img');
     const lightbox = get('lightbox');
     let scale = 1, pointX = 0, pointY = 0, startX = 0, startY = 0, isDragging = false, startDist = 0;
@@ -882,92 +836,99 @@
     }
 
     window.viewImg = (src) => { 
-        lightboxImg.src = src; 
-        resetZoom();
-        lightbox.classList.add('active'); 
+        lightboxImg.src = src; resetZoom(); lightbox.classList.add('active'); 
     };
     get('lightbox-close').onclick = () => get('lightbox').classList.remove('active');
 
     lightbox.addEventListener('touchstart', (e) => {
         if (e.touches.length === 2) {
             e.preventDefault(); 
-            startDist = Math.hypot(
-                e.touches[0].pageX - e.touches[1].pageX,
-                e.touches[0].pageY - e.touches[1].pageY
-            );
+            startDist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
         } else if (e.touches.length === 1) {
-            startX = e.touches[0].pageX - pointX;
-            startY = e.touches[0].pageY - pointY;
-            isDragging = true;
+            startX = e.touches[0].pageX - pointX; startY = e.touches[0].pageY - pointY; isDragging = true;
         }
     });
 
     lightbox.addEventListener('touchmove', (e) => {
         e.preventDefault();
         if (e.touches.length === 2) {
-            const dist = Math.hypot(
-                e.touches[0].pageX - e.touches[1].pageX,
-                e.touches[0].pageY - e.touches[1].pageY
-            );
+            const dist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
             const delta = dist / startDist;
             scale = Math.min(Math.max(1, scale * delta), 4);
             startDist = dist;
             lightboxImg.style.transform = `translate(${pointX}px, ${pointY}px) scale(${scale})`;
         } else if (e.touches.length === 1 && isDragging && scale > 1) {
-            pointX = e.touches[0].pageX - startX;
-            pointY = e.touches[0].pageY - startY;
+            pointX = e.touches[0].pageX - startX; pointY = e.touches[0].pageY - startY;
             lightboxImg.style.transform = `translate(${pointX}px, ${pointY}px) scale(${scale})`;
         }
     });
 
-    lightbox.addEventListener('touchend', () => {
-        isDragging = false;
-        if (scale < 1) resetZoom();
-    });
+    lightbox.addEventListener('touchend', () => { isDragging = false; if (scale < 1) resetZoom(); });
 
-    function requestNotificationPermission() {
-        if ("Notification" in window) {
-            if (Notification.permission !== "granted" && Notification.permission !== "denied") {
-                Notification.requestPermission().then(permission => {
-                    if (permission === "granted") console.log("Notification permission granted!");
-                });
-            }
-        }
-    }
-
-    // --- WAKE LOCK API (KEEPS SCREEN ON) ---
     async function requestWakeLock() {
         try {
             if ('wakeLock' in navigator) {
                 wakeLock = await navigator.wakeLock.request('screen');
-                wakeLock.addEventListener('release', () => {
-                    // console.log('Screen Wake Lock released');
-                });
+                wakeLock.addEventListener('release', () => {});
             }
-        } catch (err) {
-            // Wake Lock is optional enhancement
-            console.log(`${err.name}, ${err.message}`);
-        }
+        } catch (err) { console.log(`${err.name}, ${err.message}`); }
     }
     
     function releaseWakeLock() {
-        if(wakeLock) {
-            wakeLock.release().then(() => wakeLock = null);
-        }
+        if(wakeLock) wakeLock.release().then(() => wakeLock = null);
     }
     
-    // Re-request wake lock if visibility changes back to visible
     document.addEventListener('visibilitychange', async () => {
-        if (wakeLock !== null && document.visibilityState === 'visible') {
-            await requestWakeLock();
-        }
+        if (wakeLock !== null && document.visibilityState === 'visible') { await requestWakeLock(); }
     });
+
+    // --- ADDED: PUSH NOTIFICATION SETUP ---
+    async function enableCloudMessaging() {
+        try {
+            // 1. Register the Service Worker (Real file now)
+            if ('serviceWorker' in navigator) {
+                const registration = await navigator.serviceWorker.register('./firebase-messaging-sw.js');
+                console.log('Service Worker Registered');
+
+                // 2. Request Permission
+                const permission = await Notification.requestPermission();
+                if (permission === 'granted') {
+                    // 3. Get FCM Token
+                    // IMPORTANT: VAPID Key set below
+                    const token = await getToken(messaging, { 
+                        vapidKey: "BHgCDxKVDMsPXfTHzMK7SxFmdYDtHIW5xbjidT8XpfPkmOWRpoScTgdbvWTC8YXh5h4I2aw29suviDzSqokN1No", 
+                        serviceWorkerRegistration: registration 
+                    });
+                    
+                    if (token) {
+                        console.log("FCM Token:", token);
+                        // 4. Save Token to User Profile
+                        if(currentUser) {
+                            await updateDoc(doc(db, USERS_PATH, currentUser.uid), { fcmToken: token });
+                        }
+                    }
+                }
+            }
+        } catch (error) {
+            console.error("FCM Setup Error:", error);
+        }
+    }
+
+    // Handle Foreground Messages
+    onMessage(messaging, (payload) => {
+        console.log('Foreground Message:', payload);
+        const audio = document.getElementById('notification-sound');
+        if(audio) audio.play().catch(e=>{});
+        
+        showToast(`New Message: ${payload.notification.body}`);
+    });
+
 
     // --- AUTHENTICATION ---
     onAuthStateChanged(auth, async (user) => {
         const splash = get('splash-screen');
         if (user) {
-            initTheme(); // Ensure theme loads on login
+            initTheme();
             if (!user.emailVerified && !isSigningUp) {
                 await signOut(auth);
                 showToast("Please verify your email.");
@@ -977,21 +938,23 @@
             if(isSigningUp) return;
             currentUser = user;
             
-            // Check cache again to be sure, or fetch fresh
             if(!currentUserData) await loadUserProfile(user.uid);
-            else loadUserProfile(user.uid); // Fetch fresh in background
+            else loadUserProfile(user.uid);
             
             showView('view-home');
             loadChatList();
             updatePresence('online');
-            requestNotificationPermission(); 
-            listenGlobalMessages();
+            
+            // Call Notification Setup on Login
+            enableCloudMessaging(); 
+            // listenGlobalMessages(); // Optional: Keep for desktop fallback if desired
+            
             splash.style.opacity = 0; setTimeout(()=>splash.classList.add('hidden'),500);
         } else {
             currentUser = null; currentUserData = null;
             localStorage.removeItem('cached_user_data');
             localStorage.removeItem('cached_chat_list');
-            initTheme(); // Ensure theme loads even if logged out
+            initTheme();
             showView('view-auth');
             splash.style.opacity = 0; setTimeout(()=>splash.classList.add('hidden'),500);
         }
@@ -1055,13 +1018,10 @@
         catch(e) { showToast(e.message); }
     };
 
-    // --- USER PROFILE & DATA ---
     async function loadUserProfile(uid) {
-        // Try getting fresh data
         const snap = await getDoc(doc(db, USERS_PATH, uid));
         if (snap.exists()) {
              currentUserData = snap.data();
-             // Save to cache
              localStorage.setItem('cached_user_data', JSON.stringify(currentUserData));
         } else {
             const baseName = currentUser.displayName ? currentUser.displayName.replace(/[^a-zA-Z0-9]/g, '').toLowerCase().substring(0, 4) : 'user';
@@ -1088,7 +1048,6 @@
         if(photo) { get('profile-img-preview').src = photo; get('profile-img-preview').style.display='block'; get('profile-initial-preview').style.display='none'; }
     }
 
-    // --- NAVIGATION ---
     get('profile-header-btn').onclick = () => showView('view-profile');
     get('nav-chats').onclick = () => showView('view-home');
     get('nav-find').onclick = () => { showView('view-find'); loadSearchHistory(); };
@@ -1102,9 +1061,7 @@
     };
     
     get('logout-btn').onclick = async () => { 
-        updatePresence('offline'); 
-        await signOut(auth); 
-        window.location.reload(); 
+        updatePresence('offline'); await signOut(auth); window.location.reload(); 
     };
     
     get('back-from-friend-profile').onclick = () => showView('view-chat');
@@ -1152,11 +1109,9 @@
         if(currentPartnerId === uid && btn) btn.textContent = shouldBlock ? "Unblock User" : "Block User";
         if(currentPartnerId === uid && get('view-chat').classList.contains('active')) updateChatUIForBlocks(currentPartnerData);
         loadChatList();
-        // Update cache
         localStorage.setItem('cached_user_data', JSON.stringify(currentUserData));
     }
 
-    // --- CHAT ROOM LOGIC ---
     async function openChat(partnerId, partnerInfo) {
         currentPartnerId = partnerId;
         currentPartnerData = partnerInfo || { displayName: 'User', photoURL: null };
@@ -1202,20 +1157,14 @@
         const rRef = doc(db, CHATS_PATH, rid);
         updateDoc(rRef, { hiddenFor: arrayRemove(currentUser.uid) }).catch(()=>{});
 
-        // UPDATED: Listen for Typing Status
         unsubscribeRoom = onSnapshot(rRef, (snap) => {
             if(!snap.exists()) return;
             const data = snap.data();
             
-            // Show bubble if partner is typing
             const isPartnerTyping = data.typing && data.typing[currentPartnerId];
             const bubble = get('typing-bubble');
-            if(isPartnerTyping) {
-                bubble.classList.add('active');
-                scrollToBottom();
-            } else {
-                bubble.classList.remove('active');
-            }
+            if(isPartnerTyping) { bubble.classList.add('active'); scrollToBottom(); } 
+            else { bubble.classList.remove('active'); }
         });
 
         unsubscribePartnerStatus = onSnapshot(doc(db, USERS_PATH, currentPartnerId), (snap) => {
@@ -1235,27 +1184,18 @@
         });
     }
 
-    // --- TYPING HANDLER ---
     const msgInput = get('msg-input');
     async function updateTypingStatus(status) {
         if(!currentChatId) return;
         try {
-            await updateDoc(doc(db, CHATS_PATH, currentChatId), {
-                [`typing.${currentUser.uid}`]: status
-            });
+            await updateDoc(doc(db, CHATS_PATH, currentChatId), { [`typing.${currentUser.uid}`]: status });
         } catch(e) { console.log("Typing error", e); }
     }
 
     msgInput.addEventListener('input', () => {
-        if(!isTyping) {
-            isTyping = true;
-            updateTypingStatus(true);
-        }
+        if(!isTyping) { isTyping = true; updateTypingStatus(true); }
         clearTimeout(typingTimeout);
-        typingTimeout = setTimeout(() => {
-            isTyping = false;
-            updateTypingStatus(false);
-        }, 2000); 
+        typingTimeout = setTimeout(() => { isTyping = false; updateTypingStatus(false); }, 2000); 
     });
 
     function updateChatUIForBlocks(partnerUser) {
@@ -1280,16 +1220,13 @@
         else await updateDoc(doc(db, CHATS_PATH, rid, 'messages', mid), { likes: arrayUnion(uid) });
     }
 
-    // --- CHAT LIST (UPDATED WITH LOCAL CACHE & META DATA) ---
     function renderChatList(rooms) {
         const list = get('chat-list-container');
         list.innerHTML = '';
-        
-        if(!currentUserData) return; // Wait for user data
+        if(!currentUserData) return;
 
         rooms.forEach(room => {
             const pid = room.participants.find(id => id !== currentUserData.uid);
-            // Safety check if partner ID exists
             if (!pid) return;
 
             const info = room.participantInfo?.[pid] || { displayName: 'User', photoURL: null };
@@ -1298,7 +1235,6 @@
             if(room.lastMessage?.type === 'image') lastTxt = '📷 Photo';
             if(room.lastMessage?.type === 'deleted') lastTxt = '🚫 Message deleted';
 
-            // Handle timestamp format (Firestore vs Local Storage)
             let time = '';
             if(room.lastMessage?.timestamp) {
                 let d;
@@ -1309,7 +1245,6 @@
             
             const card = document.createElement('div');
             card.className = 'user-card';
-            // Attach ID to card for search
             card.setAttribute('data-uid', pid);
             
             card.innerHTML = `
@@ -1336,8 +1271,6 @@
 
             list.appendChild(card);
             
-            // Fetch status and extra data for search (PingID, Phone)
-            // Note: This part requires live connection, so we do it asynchronously without blocking render
             getDoc(doc(db, USERS_PATH, pid)).then(s => {
                 if(s.exists()) {
                     const u = s.data();
@@ -1345,7 +1278,6 @@
                         const dot = get(`dot-${room.id}`);
                         if(dot) dot.classList.add('online');
                     }
-                    // Attach meta data for search
                     const metaString = `${u.pingId || ''} ${u.email || ''} ${u.phone || ''}`;
                     card.setAttribute('data-search-meta', metaString);
                 }
@@ -1371,14 +1303,9 @@
                 }
             });
             rooms.sort((a,b) => (b.updatedAt?.seconds || 0) - (a.updatedAt?.seconds || 0));
-
-            // Save to LocalStorage for instant load next time
             localStorage.setItem('cached_chat_list', JSON.stringify(rooms));
-            
-            // Render UI
             renderChatList(rooms);
             
-            // Re-apply search filter if there's text in the box (in case of updates)
             const currentSearch = get('home-search-input').value;
             if(currentSearch) {
                  const event = new Event('input');
@@ -1387,7 +1314,6 @@
         });
     }
 
-    // --- CHAT ROOM MESSAGES (UPDATED LONG PRESS) ---
     function loadMessages(rid) {
         const ref = collection(db, CHATS_PATH, rid, 'messages');
         const list = get('messages');
@@ -1456,59 +1382,33 @@
                 `;
                 
                 const bubble = row.querySelector('.msg-bubble');
-                bubble.addEventListener('dblclick', (e) => {
-                    e.stopPropagation();
-                    if(m.type === 'deleted') return;
-                    toggleLike(rid, m.id, m.likes);
-                });
+                bubble.addEventListener('dblclick', (e) => { e.stopPropagation(); if(m.type === 'deleted') return; toggleLike(rid, m.id, m.likes); });
 
-                // UPDATED LONG PRESS LOGIC FOR EVERYONE
                 addLongPress(bubble, () => {
                     if(m.type === 'deleted') return;
-                    
                     const opts = [];
-                    // 1. Reply (Everyone)
                     opts.push({ text: "Reply", action: () => initReply(m) });
-
-                    // 2. Copy (Text) or View (Image)
                     if(m.type === 'text') {
-                        opts.push({ text: "Copy Text", action: () => { 
-                            navigator.clipboard.writeText(m.text); 
-                            showToast("Copied"); 
-                            hideActionSheet(); 
-                        }});
+                        opts.push({ text: "Copy Text", action: () => { navigator.clipboard.writeText(m.text); showToast("Copied"); hideActionSheet(); }});
                     } else if (m.type === 'image') {
-                         opts.push({ text: "View Image", action: () => { 
-                            viewImg(m.text);
-                            hideActionSheet(); 
-                        }});
+                         opts.push({ text: "View Image", action: () => { viewImg(m.text); hideActionSheet(); }});
                     }
-                    
-                    // 3. Unsend (Sender only - Standard Logic)
                     if(isMe) {
                         opts.push({ text: "Unsend (Everyone)", class:"danger", action: () => deleteMsg(rid, m.id, 'everyone') });
                     }
-
-                    // 4. Delete for Me (Everyone)
                     opts.push({ text: "Delete for Me", class:"danger", action: () => deleteMsg(rid, m.id, 'me') });
-
-                    // 5. Cancel
                     opts.push({ text: "Cancel", action: hideActionSheet });
-                    
                     openActionSheet(opts);
                 });
                 
                 list.appendChild(row);
             });
             
-            if (isFirstLoad || wasAtBottom) {
-                 scrollToBottom();
-            }
+            if (isFirstLoad || wasAtBottom) scrollToBottom();
             isFirstLoad = false;
         });
     }
 
-    // --- MESSAGE SENDING ---
     function initReply(m) {
         replyTo = { id: m.id, text: m.type==='image'?'Photo':m.text, name: m.senderId===currentUser.uid?'You':currentPartnerData.displayName };
         get('replyToName').textContent = replyTo.name;
@@ -1521,7 +1421,6 @@
 
     async function sendMsg(txt, type='text') {
         if(!txt) return;
-
         const list = get('messages');
         const tempRow = document.createElement('div');
         tempRow.className = 'msg-row me'; 
@@ -1562,10 +1461,7 @@
                 lastMessage: payload, updatedAt: serverTimestamp(), hiddenFor: arrayRemove(currentPartnerId)
             }, {merge: true});
             
-            clearTimeout(typingTimeout);
-            isTyping = false;
-            updateTypingStatus(false);
-
+            clearTimeout(typingTimeout); isTyping = false; updateTypingStatus(false);
         } catch (error) {
             console.error("Message failed:", error);
             const errRow = document.getElementById(tempId);
@@ -1589,10 +1485,8 @@
     
     get('img-btn').onclick = () => get('img-input').click();
     get('img-input').onchange = async (e) => {
-        const f = e.target.files[0]; 
-        if(!f) return;
-        get('img-input').value = ''; 
-        showToast("Sending...");
+        const f = e.target.files[0]; if(!f) return;
+        get('img-input').value = ''; showToast("Sending...");
         const reader = new FileReader();
         reader.readAsDataURL(f);
         reader.onload = (ev) => {
@@ -1607,7 +1501,6 @@
         };
     };
 
-    // --- HELPER: ACTION SHEET ---
     function openActionSheet(buttons) {
         const sheet = get('actionSheetContent');
         sheet.innerHTML = '<div class="sheet-header">Select Option</div>';
@@ -1632,7 +1525,6 @@
         if(onClick) el.addEventListener('click', onClick);
     }
     
-    // --- SEARCH PAGE (GLOBAL FIND) ---
     get('search-btn').onclick = async () => {
         const pid = get('search-ping-id').value.trim();
         const res = get('search-results'); res.innerHTML = 'Searching...';
@@ -1682,14 +1574,12 @@
     };
     get('clear-history-btn').onclick = () => { localStorage.removeItem(`history_${currentUser.uid}`); loadSearchHistory(); };
 
-    // --- PROFILE SAVE ---
     get('save-profile-btn').onclick = async () => {
         const btn = get('save-profile-btn'); btn.textContent = 'Saving...';
         await updateDoc(doc(db, USERS_PATH, currentUser.uid), {
             displayName: get('edit-name').value, bio: get('edit-bio').value, phone: get('edit-phone').value
         });
         
-        // Update local state and cache
         currentUserData.displayName = get('edit-name').value;
         currentUserData.bio = get('edit-bio').value;
         currentUserData.phone = get('edit-phone').value;
@@ -1711,8 +1601,6 @@
                 cvs.getContext('2d').drawImage(img,0,0,300,300);
                 const url = cvs.toDataURL('image/jpeg',0.8);
                 await updateDoc(doc(db, USERS_PATH, currentUser.uid), { photoURL: url });
-                
-                // Update local state and cache
                 currentUserData.photoURL = url;
                 localStorage.setItem('cached_user_data', JSON.stringify(currentUserData));
                 updateHeaderUI();
@@ -1721,72 +1609,24 @@
         };
     };
 
-    // --- GLOBAL PRESENCE & NOTIFICATIONS (UPDATED FOR BACKGROUND) ---
     function updatePresence(status) {
         if(currentUser) updateDoc(doc(db, USERS_PATH, currentUser.uid), { status: status, lastActive: serverTimestamp() }).catch(()=>{});
     }
     
-    // Smart Presence Logic: Don't disconnect immediately on minimize
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') {
-            // Came back to foreground
             if (backgroundDisconnectTimeout) clearTimeout(backgroundDisconnectTimeout);
             updatePresence('online');
-            // Force reconnect if needed
             if (wakeLock !== null) requestWakeLock();
         } else {
-            // Gone to background - wait 2 mins before marking offline
-            // This simulates "background connectivity" for the partner
-            backgroundDisconnectTimeout = setTimeout(() => {
-                updatePresence('offline');
-            }, 2 * 60 * 1000); // 2 Minutes Grace Period
+            backgroundDisconnectTimeout = setTimeout(() => { updatePresence('offline'); }, 2 * 60 * 1000); 
         }
     });
     
-    // Heartbeat to keep connection alive (try to fool browser throttling)
     setInterval(() => {
-        if(currentUser && document.visibilityState === 'visible') {
-            updatePresence('online');
-        }
+        if(currentUser && document.visibilityState === 'visible') { updatePresence('online'); }
     }, 60000);
 
-    function listenGlobalMessages() {
-        if(globalNotificationUnsubscribe) globalNotificationUnsubscribe();
-        const q = query(collection(db, CHATS_PATH), where("participants", "array-contains", currentUser.uid));
-        globalNotificationUnsubscribe = onSnapshot(q, (snap) => {
-            snap.docChanges().forEach(change => {
-                if(change.type === 'modified') {
-                    const d = change.doc.data();
-                    if(d.lastMessage?.senderId !== currentUser.uid && (Date.now() - (d.updatedAt?.seconds || 0)*1000 < 5000)) {
-                         if(document.visibilityState === 'hidden' || currentChatId !== change.doc.id) {
-                             const audio = document.getElementById('notification-sound');
-                             if(audio) {
-                                 audio.currentTime = 0;
-                                 audio.play().catch(e => console.log("Audio permission needed first interaction"));
-                             }
-                             const senderId = d.lastMessage.senderId;
-                             const senderProfile = d.participantInfo && d.participantInfo[senderId] ? d.participantInfo[senderId] : { displayName: 'Friend' };
-                             const title = senderProfile.displayName;
-
-                             if (Notification.permission === "granted") {
-                                 const notif = new Notification(title, {
-                                     body: d.lastMessage.type === 'image' ? '📷 Sent a photo' : d.lastMessage.text,
-                                     icon: senderProfile.photoURL || 'https://i.postimg.cc/RZ5FH16z/Gemini-Generated-Image-rgsqsqrgsqsqrgsq-removebg-preview.png',
-                                     tag: 'new-msg',
-                                     renotify: true,
-                                     vibrate: [200, 100, 200],
-                                     requireInteraction: false
-                                 });
-                                 notif.onclick = () => { window.focus(); notif.close(); };
-                             }
-                         }
-                    }
-                }
-            });
-        });
-    }
-    
-    // --- DELETION LOGIC ---
     async function deleteMsg(rid, mid, scope) {
         if(scope === 'everyone') {
              await updateDoc(doc(db, CHATS_PATH, rid, 'messages', mid), { type: 'deleted', text: 'deleted' });
@@ -1804,15 +1644,12 @@
         hideActionSheet(); showToast("Chat Deleted");
     }
 
-    // --- INSTALL LOGIC ---
     let deferredPrompt;
     const installBanner = document.getElementById('install-banner');
     const installBtn = document.getElementById('install-btn');
 
     window.addEventListener('beforeinstallprompt', (e) => {
-        e.preventDefault();
-        deferredPrompt = e;
-        installBanner.style.display = 'flex';
+        e.preventDefault(); deferredPrompt = e; installBanner.style.display = 'flex';
     });
 
     installBtn.addEventListener('click', async () => {
@@ -1820,20 +1657,13 @@
             deferredPrompt.prompt();
             const { outcome } = await deferredPrompt.userChoice;
             deferredPrompt = null;
-            if (outcome === 'accepted') {
-                installBanner.style.display = 'none';
-            }
+            if (outcome === 'accepted') { installBanner.style.display = 'none'; }
         }
     });
 
-    window.addEventListener('appinstalled', () => {
-        installBanner.style.display = 'none';
-    });
-    
-    if (window.matchMedia('(display-mode: standalone)').matches) {
-        installBanner.style.display = 'none';
-    }
+    window.addEventListener('appinstalled', () => { installBanner.style.display = 'none'; });
+    if (window.matchMedia('(display-mode: standalone)').matches) { installBanner.style.display = 'none'; }
 
   </script>
 </body>
-</html>
+</html> 
