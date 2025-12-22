@@ -7,9 +7,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="theme-color" content="#ffffff">
-  
-  <link rel="manifest" id="my-manifest">
+  <meta name="theme-color" content="#ffffff"> <link rel="manifest" id="my-manifest">
 
   <title>PingMe Premium</title>
   
@@ -31,6 +29,9 @@
       --border: rgba(0,0,0,0.08);
       --glass: rgba(255, 255, 255, 0.95);
       
+      /* Theme Color Fixed for Light Mode */
+      --theme-color: #ffffff;
+
       /* Messages */
       --msg-me-bg: var(--primary-grad);
       --msg-me-text: #FFFFFF;
@@ -183,12 +184,21 @@
         flex: 1; display: flex; flex-direction: column; background: var(--bg-body); 
         position: relative; overflow: hidden; width: 100%;
     }
+    
+    /* UPDATED MESSAGES AREA FOR DYNAMIC SPACING */
     .messages-area {
         flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; 
-        gap: 2px; padding-bottom: 80px; /* Increased buffer for typing bubble safety */
+        gap: 2px; 
+        padding-bottom: 20px; /* Reduced initial padding */
         -webkit-overflow-scrolling: touch;
         scroll-behavior: auto;
+        transition: padding-bottom 0.3s ease; /* Smooth transition */
     }
+    /* Dynamic class added via JS when typing */
+    .messages-area.typing-active {
+        padding-bottom: 80px; /* Expands to fit bubble */
+    }
+
     .date-separator {
         align-self: center; background: rgba(128,128,128,0.15); padding: 4px 12px;
         border-radius: 12px; font-size: 11px; font-weight: 600; color: var(--text-muted); margin: 16px 0 8px;
@@ -208,10 +218,18 @@
     .msg-meta { font-size: 9px; margin-top: 4px; opacity: 0.7; text-align: right; display: flex; justify-content: flex-end; align-items: center; gap:3px; }
 
     .status-tick { font-weight: 900; font-size: 10px; margin-left: 2px; }
-    .status-eye {
-        font-size: 12px; margin-left: 2px; color: #4CD964; background: white;
-        border-radius: 50%; width: 14px; height: 14px; display: flex; align-items: center; justify-content: center;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    
+    /* --- NEW SEEN AVATAR ANIMATION --- */
+    .seen-avatar {
+        width: 16px; height: 16px; border-radius: 50%;
+        margin-left: 4px; border: 1.5px solid var(--bg-body);
+        animation: dropIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        object-fit: cover;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    @keyframes dropIn {
+        from { opacity: 0; transform: translateY(-10px) scale(0.8); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
     }
 
     .heart-reaction {
@@ -223,15 +241,18 @@
     }
     @keyframes popIn { from { transform: scale(0); } to { transform: scale(1); } }
 
-    /* --- TYPING INDICATOR (POSITION UPDATED) --- */
+    /* --- TYPING INDICATOR (FIXED POSITIONING) --- */
     .typing-bubble-container {
         position: absolute; 
-        top: -48px; /* Safe distance above input box */
+        /* UPDATED FIX: Anchor to bottom of previous element instead of fixed top pixel */
+        top: auto;
+        bottom: 100%; 
         left: 20px; 
         z-index: 50;
         display: none; 
         animation: slideUpFade 0.3s ease-out;
         pointer-events: none;
+        margin-bottom: 6px; /* Space from input box */
     }
     .typing-bubble-container.active { display: block; }
     @keyframes slideUpFade { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
@@ -394,7 +415,7 @@
     const blobManifest = new Blob([JSON.stringify(manifestData)], {type: 'application/json'});
     document.getElementById('my-manifest').setAttribute('href', URL.createObjectURL(blobManifest));
 
-    // Service Worker for PWA (Optimized for Background Persistence)
+    // Service Worker for PWA (Blob URL method preserved for single-file structure)
     const swCode = `
       self.addEventListener('install', (e) => { 
         self.skipWaiting(); 
@@ -402,7 +423,6 @@
       self.addEventListener('activate', (e) => { 
         e.waitUntil(self.clients.claim()); 
       });
-      // Basic fetch handler with network-first strategy for live data
       self.addEventListener('fetch', (e) => { 
         e.respondWith(
           fetch(e.request)
@@ -417,7 +437,6 @@
     if ('serviceWorker' in navigator) {
          navigator.serviceWorker.register(swUrl).then((reg) => {
              console.log('SW Registered');
-             // Attempt to keep SW alive (Hack for background connectivity)
              setInterval(() => { reg.update(); }, 60 * 1000); 
          }).catch(console.error);
     }
@@ -425,7 +444,17 @@
 </head>
 <body>
 
-  <audio id="notification-sound" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto" hidden></audio>
+  <audio id="notification-sound" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto" hidden crossorigin="anonymous"></audio>
+
+  <audio id="snd-btn-click" src="https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3" preload="auto" hidden crossorigin="anonymous"></audio>
+  
+  <audio id="snd-sent" src="https://assets.mixkit.co/active_storage/sfx/1606/1606-preview.mp3" preload="auto" hidden crossorigin="anonymous"></audio>
+
+  <audio id="snd-seen" src="https://assets.mixkit.co/active_storage/sfx/571/571-preview.mp3" preload="auto" hidden crossorigin="anonymous"></audio>
+
+  <audio id="snd-typing-click" src="https://assets.mixkit.co/active_storage/sfx/2364/2364-preview.mp3" preload="auto" hidden crossorigin="anonymous"></audio>
+
+  <audio id="snd-partner-typing" src="https://cdn.freesound.org/previews/240/240566_3905081-lq.mp3" preload="auto" loop hidden crossorigin="anonymous"></audio>
 
   <div id="toastMsg" class="toast">
     <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>
@@ -635,6 +664,13 @@
                           <span class="slider"></span>
                       </label>
                   </div>
+                  <div class="settings-item">
+                      <span class="settings-label">Sound Effects</span>
+                      <label class="switch">
+                          <input type="checkbox" id="sound-toggle" checked>
+                          <span class="slider"></span>
+                      </label>
+                  </div>
               </div>
 
               <div class="settings-group">
@@ -742,10 +778,49 @@
     let replyTo = null, currentMsgId = null;
     let globalNotificationUnsubscribe = null;
     let typingTimeout = null, isTyping = false;
+    let isSoundEnabled = true; // Sound State
     
     // Background Connectivity Handles
     let backgroundDisconnectTimeout = null;
     let wakeLock = null;
+
+    // --- SOUND SYSTEM & AUDIO UNLOCKER (UPDATED) ---
+    let audioUnlocked = false;
+    
+    function initAudio() {
+        if(audioUnlocked) return;
+        ['notification-sound', 'snd-btn-click', 'snd-sent', 'snd-seen', 'snd-typing-click', 'snd-partner-typing'].forEach(id => {
+            const el = document.getElementById(id);
+            if(el) { el.volume = 0; el.play().then(() => { el.pause(); el.currentTime = 0; }).catch(() => {}); }
+        });
+        audioUnlocked = true;
+        document.removeEventListener('click', initAudio);
+        document.removeEventListener('touchstart', initAudio);
+    }
+    
+    document.addEventListener('click', initAudio);
+    document.addEventListener('touchstart', initAudio);
+
+    const playSound = (id, loop=false) => {
+        if(!isSoundEnabled) return; // Check Global Sound State
+        const audio = document.getElementById(id);
+        if (audio) {
+            if(loop && !audio.paused) return; // Don't restart loop if already playing
+            audio.loop = loop;
+            if(id === 'snd-seen') audio.volume = 0.4;
+            else if(id === 'snd-partner-typing') audio.volume = 0.6;
+            else if(id === 'snd-typing-click') audio.volume = 0.3; // Softer key click
+            else audio.volume = 0.5;
+            
+            audio.currentTime = 0; 
+            audio.play().catch(e => console.log("Sound blocked:", e));
+        }
+    };
+    
+    const stopSound = (id) => {
+        const audio = document.getElementById(id);
+        if(audio) { audio.pause(); audio.currentTime = 0; }
+    };
 
     // --- CACHE & INSTANT LOAD LOGIC ---
     function checkCacheOnStartup() {
@@ -776,7 +851,7 @@
     // Call immediately before Firebase auth triggers
     checkCacheOnStartup();
 
-    // --- HELPER: TIME AGO ---
+    // --- HELPER: TIME AGO (UPDATED FOR REAL STATUS) ---
     function formatTimeAgo(dateInput) {
         if(!dateInput) return '';
         // Handle Firestore Timestamp or Date String or Date Object
@@ -795,7 +870,7 @@
         if (interval > 1) return Math.floor(interval) + "h ago";
         interval = seconds / 60;
         if (interval > 1) return Math.floor(interval) + "m ago";
-        return "Active just now";
+        return "Just now";
     }
 
     // --- UI HELPERS ---
@@ -841,6 +916,16 @@
             document.documentElement.removeAttribute('data-theme');
             get('theme-toggle').checked = false;
         }
+
+        // Init Sound State
+        const savedSound = localStorage.getItem('sound_enabled');
+        if(savedSound === 'false') {
+            isSoundEnabled = false;
+            get('sound-toggle').checked = false;
+        } else {
+            isSoundEnabled = true;
+            get('sound-toggle').checked = true;
+        }
     }
     
     get('theme-toggle').addEventListener('change', (e) => {
@@ -851,6 +936,13 @@
             document.documentElement.removeAttribute('data-theme');
             localStorage.setItem('theme', 'light');
         }
+    });
+
+    // Sound Toggle Listener
+    get('sound-toggle').addEventListener('change', (e) => {
+        isSoundEnabled = e.target.checked;
+        localStorage.setItem('sound_enabled', isSoundEnabled);
+        showToast(isSoundEnabled ? "Sounds On" : "Sounds Off");
     });
 
     // --- HOME SEARCH LOGIC (NEW) ---
@@ -1099,6 +1191,9 @@
         showView('view-home');
         if(unsubscribeMsgs) unsubscribeMsgs();
         if(unsubscribeRoom) unsubscribeRoom();
+        
+        // Stop typing sound when leaving chat
+        stopSound('snd-partner-typing');
     };
     
     get('logout-btn').onclick = async () => { 
@@ -1202,7 +1297,7 @@
         const rRef = doc(db, CHATS_PATH, rid);
         updateDoc(rRef, { hiddenFor: arrayRemove(currentUser.uid) }).catch(()=>{});
 
-        // UPDATED: Listen for Typing Status
+        // Listen for Partner Typing
         unsubscribeRoom = onSnapshot(rRef, (snap) => {
             if(!snap.exists()) return;
             const data = snap.data();
@@ -1210,24 +1305,43 @@
             // Show bubble if partner is typing
             const isPartnerTyping = data.typing && data.typing[currentPartnerId];
             const bubble = get('typing-bubble');
+            const msgArea = get('messages');
+
             if(isPartnerTyping) {
                 bubble.classList.add('active');
+                // Dynamic spacing activation
+                msgArea.classList.add('typing-active');
                 scrollToBottom();
+                playSound('snd-partner-typing', true); 
             } else {
                 bubble.classList.remove('active');
+                // Dynamic spacing deactivation
+                msgArea.classList.remove('typing-active');
+                stopSound('snd-partner-typing');
             }
         });
 
+        // --- UPDATED LOGIC FOR REAL-TIME STATUS ACCURACY ---
         unsubscribePartnerStatus = onSnapshot(doc(db, USERS_PATH, currentPartnerId), (snap) => {
              if(snap.exists()) {
                  const u = snap.data();
                  const statusEl = get('chat-header-status');
-                 if(u.status === 'online') { 
-                     statusEl.textContent = 'Active Now'; statusEl.style.color = '#4CD964'; 
+                 
+                 // Logic to determine if truly online based on heartbeat (2-3 min threshold)
+                 const now = new Date();
+                 const lastActive = u.lastActive ? (u.lastActive.seconds ? new Date(u.lastActive.seconds * 1000) : new Date(u.lastActive)) : new Date(0);
+                 const secondsDiff = (now - lastActive) / 1000;
+                 
+                 // Strict Check: Must be 'online' AND heartbeat within last 3 minutes (180s)
+                 const isReallyOnline = u.status === 'online' && secondsDiff < 180; 
+
+                 if(isReallyOnline) { 
+                     statusEl.textContent = 'Active Now'; 
+                     statusEl.style.color = '#4CD964'; 
                  }
                  else { 
                      statusEl.style.color = 'var(--text-muted)';
-                     if (u.lastActive) statusEl.textContent = "Active " + formatTimeAgo(u.lastActive);
+                     if (u.lastActive) statusEl.textContent = "Last seen " + formatTimeAgo(u.lastActive);
                      else statusEl.textContent = 'Offline'; 
                  }
                  updateChatUIForBlocks(u);
@@ -1245,6 +1359,11 @@
             });
         } catch(e) { console.log("Typing error", e); }
     }
+
+    msgInput.addEventListener('keydown', () => {
+        // --- NEW SOUND: KEY CLICK ---
+        playSound('snd-typing-click');
+    });
 
     msgInput.addEventListener('input', () => {
         if(!isTyping) {
@@ -1337,11 +1456,16 @@
             list.appendChild(card);
             
             // Fetch status and extra data for search (PingID, Phone)
-            // Note: This part requires live connection, so we do it asynchronously without blocking render
             getDoc(doc(db, USERS_PATH, pid)).then(s => {
                 if(s.exists()) {
                     const u = s.data();
-                    if(u.status === 'online') {
+                    
+                    // --- SEARCH LIST STATUS CHECK ---
+                    const now = new Date();
+                    const lastActive = u.lastActive ? (u.lastActive.seconds ? new Date(u.lastActive.seconds * 1000) : new Date(u.lastActive)) : new Date(0);
+                    const isActuallyOnline = u.status === 'online' && (now - lastActive)/1000 < 180;
+                    
+                    if(isActuallyOnline) {
                         const dot = get(`dot-${room.id}`);
                         if(dot) dot.classList.add('online');
                     }
@@ -1387,7 +1511,7 @@
         });
     }
 
-    // --- CHAT ROOM MESSAGES (UPDATED LONG PRESS) ---
+    // --- CHAT ROOM MESSAGES (UPDATED SEEN AVATAR) ---
     function loadMessages(rid) {
         const ref = collection(db, CHATS_PATH, rid, 'messages');
         const list = get('messages');
@@ -1395,6 +1519,19 @@
         
         unsubscribeMsgs = onSnapshot(ref, (snap) => {
             const wasAtBottom = (list.scrollHeight - list.scrollTop) <= (list.clientHeight + 150);
+            
+            // "SEEN" Sound Logic: Check for changes in existing messages that become seen
+            if (!isFirstLoad) {
+                snap.docChanges().forEach(change => {
+                    if (change.type === 'modified') {
+                        const d = change.doc.data();
+                        // If I sent the message, and it just turned to 'seen', play sound
+                        if (d.senderId === currentUser.uid && d.status === 'seen') {
+                            playSound('snd-seen'); // --- NEW SOUND: DING ---
+                        }
+                    }
+                });
+            }
             
             list.innerHTML = '';
             const msgs = [];
@@ -1438,7 +1575,16 @@
 
                 let statusHTML = '';
                 if(isMe && m.type !== 'deleted') {
-                    if(m.status === 'seen') statusHTML = '<span class="status-eye">👁️</span>';
+                    if(m.status === 'seen') {
+                         // --- NEW SEEN AVATAR LOGIC ---
+                         const pPic = currentPartnerData.photoURL;
+                         if(pPic) {
+                             statusHTML = `<img src="${pPic}" class="seen-avatar" alt="Seen">`;
+                         } else {
+                             const init = (currentPartnerData.displayName || 'U')[0].toUpperCase();
+                             statusHTML = `<div class="seen-avatar" style="background:var(--text-muted); display:inline-flex; align-items:center; justify-content:center; color:white; font-size:8px;">${init}</div>`;
+                         }
+                    }
                     else if (m.status === 'delivered') statusHTML = '<span class="status-tick">✓✓</span>';
                     else statusHTML = '<span class="status-tick">✓</span>';
                 }
@@ -1462,15 +1608,15 @@
                     toggleLike(rid, m.id, m.likes);
                 });
 
-                // UPDATED LONG PRESS LOGIC FOR EVERYONE
+                // LONG PRESS LOGIC
                 addLongPress(bubble, () => {
                     if(m.type === 'deleted') return;
                     
                     const opts = [];
-                    // 1. Reply (Everyone)
+                    // 1. Reply
                     opts.push({ text: "Reply", action: () => initReply(m) });
 
-                    // 2. Copy (Text) or View (Image)
+                    // 2. Copy/View
                     if(m.type === 'text') {
                         opts.push({ text: "Copy Text", action: () => { 
                             navigator.clipboard.writeText(m.text); 
@@ -1484,12 +1630,12 @@
                         }});
                     }
                     
-                    // 3. Unsend (Sender only - Standard Logic)
+                    // 3. Unsend (Sender only)
                     if(isMe) {
                         opts.push({ text: "Unsend (Everyone)", class:"danger", action: () => deleteMsg(rid, m.id, 'everyone') });
                     }
 
-                    // 4. Delete for Me (Everyone)
+                    // 4. Delete for Me
                     opts.push({ text: "Delete for Me", class:"danger", action: () => deleteMsg(rid, m.id, 'me') });
 
                     // 5. Cancel
@@ -1562,6 +1708,9 @@
                 lastMessage: payload, updatedAt: serverTimestamp(), hiddenFor: arrayRemove(currentPartnerId)
             }, {merge: true});
             
+            // --- NEW SOUND: SENT PING ---
+            playSound('snd-sent');
+
             clearTimeout(typingTimeout);
             isTyping = false;
             updateTypingStatus(false);
@@ -1579,12 +1728,20 @@
 
     get('send-btn').onclick = () => { 
         const t = get('msg-input').value.trim(); 
-        if(t) { sendMsg(t); get('msg-input').value=''; get('msg-input').focus(); } 
+        if(t) { 
+            playSound('snd-btn-click'); // --- NEW SOUND: BUTTON CLICK ---
+            sendMsg(t); 
+            get('msg-input').value=''; 
+            get('msg-input').focus(); 
+        } 
     };
 
     get('msg-input').addEventListener('focus', () => { setTimeout(scrollToBottom, 300); });
     get('msg-input').addEventListener('keydown', (e) => {
-        if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); get('send-btn').click(); }
+        if(e.key === 'Enter' && !e.shiftKey) { 
+            e.preventDefault(); 
+            get('send-btn').click(); 
+        }
     });
     
     get('img-btn').onclick = () => get('img-input').click();
@@ -1736,14 +1893,17 @@
             if (wakeLock !== null) requestWakeLock();
         } else {
             // Gone to background - wait 2 mins before marking offline
-            // This simulates "background connectivity" for the partner
             backgroundDisconnectTimeout = setTimeout(() => {
                 updatePresence('offline');
-            }, 2 * 60 * 1000); // 2 Minutes Grace Period
+            }, 2 * 60 * 1000); 
         }
     });
     
-    // Heartbeat to keep connection alive (try to fool browser throttling)
+    // --- FORCE OFFLINE ON WINDOW CLOSE ---
+    window.addEventListener('beforeunload', () => {
+        updatePresence('offline');
+    });
+    
     setInterval(() => {
         if(currentUser && document.visibilityState === 'visible') {
             updatePresence('online');
@@ -1759,10 +1919,13 @@
                     const d = change.doc.data();
                     if(d.lastMessage?.senderId !== currentUser.uid && (Date.now() - (d.updatedAt?.seconds || 0)*1000 < 5000)) {
                          if(document.visibilityState === 'hidden' || currentChatId !== change.doc.id) {
-                             const audio = document.getElementById('notification-sound');
-                             if(audio) {
-                                 audio.currentTime = 0;
-                                 audio.play().catch(e => console.log("Audio permission needed first interaction"));
+                             // --- SOUND CHECK ---
+                             if(isSoundEnabled) {
+                                 const audio = document.getElementById('notification-sound');
+                                 if(audio) {
+                                     audio.currentTime = 0;
+                                     audio.play().catch(e => console.log("Audio permission needed first interaction"));
+                                 }
                              }
                              const senderId = d.lastMessage.senderId;
                              const senderProfile = d.participantInfo && d.participantInfo[senderId] ? d.participantInfo[senderId] : { displayName: 'Friend' };
