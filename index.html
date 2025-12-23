@@ -183,6 +183,8 @@
     main.chat-view {
         flex: 1; display: flex; flex-direction: column; background: var(--bg-body); 
         position: relative; overflow: hidden; width: 100%;
+        /* Wallpaper Support */
+        background-size: cover; background-position: center; background-repeat: no-repeat;
     }
     
     /* UPDATED MESSAGES AREA FOR DYNAMIC SPACING */
@@ -200,8 +202,8 @@
     }
 
     .date-separator {
-        align-self: center; background: rgba(128,128,128,0.15); padding: 4px 12px;
-        border-radius: 12px; font-size: 11px; font-weight: 600; color: var(--text-muted); margin: 16px 0 8px;
+        align-self: center; background: rgba(128,128,128,0.25); backdrop-filter: blur(4px); padding: 4px 12px;
+        border-radius: 12px; font-size: 11px; font-weight: 600; color: var(--text-main); margin: 16px 0 8px;
     }
     .msg-row { display: flex; width: 100%; margin-bottom: 2px; position: relative; align-items: flex-end;}
     .msg-row.me { justify-content: flex-end; }
@@ -215,6 +217,26 @@
     .msg-row.me .msg-bubble { background: var(--msg-me-bg); color: var(--msg-me-text); border-radius: 18px 4px 18px 18px; }
     .msg-row.you .msg-bubble { background: var(--msg-you-bg); color: var(--msg-you-text); border-radius: 4px 18px 18px 18px; }
     .msg-bubble img.chat-img { border-radius: 12px; max-width: 100%; display: block; margin-top: 4px; }
+    
+    /* --- NEW MEDIA STYLES (VIDEO, FILE & AUDIO) --- */
+    .msg-bubble video.chat-video { border-radius: 12px; max-width: 100%; display: block; margin-top: 4px; }
+    .msg-bubble audio.chat-audio { width: 200px; margin-top: 4px; border-radius: 20px; max-width: 100%; }
+    
+    .file-attachment {
+        display: flex; align-items: center; gap: 10px; background: rgba(0,0,0,0.1);
+        padding: 8px 10px; border-radius: 12px; margin-top: 4px; text-decoration: none; color: inherit;
+        transition: background 0.2s;
+    }
+    .msg-row.me .file-attachment { background: rgba(255,255,255,0.2); }
+    .file-attachment:active { opacity: 0.7; }
+    .file-icon {
+        width: 32px; height: 32px; background: var(--bg-card); color: var(--primary);
+        border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 10px;
+        flex-shrink: 0; text-transform: uppercase;
+    }
+    .msg-row.me .file-icon { color: var(--primary); }
+    .file-name { font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 140px; }
+
     .msg-meta { font-size: 9px; margin-top: 4px; opacity: 0.7; text-align: right; display: flex; justify-content: flex-end; align-items: center; gap:3px; }
 
     .status-tick { font-weight: 900; font-size: 10px; margin-left: 2px; }
@@ -298,6 +320,24 @@
       border-left: 3px solid var(--primary); margin-bottom: 4px;
     }
     .reply-preview.active { display: flex; }
+
+    /* --- VOICE RECORDING UI --- */
+    #recording-overlay {
+        position: absolute; inset: 0; background: var(--bg-card); z-index: 10;
+        display: none; align-items: center; justify-content: space-between;
+        padding: 0 16px; border-radius: 24px; color: var(--primary);
+    }
+    #recording-overlay.active { display: flex; animation: slideInRight 0.2s ease-out; }
+    @keyframes slideInRight { from{transform: translateX(20px); opacity: 0;} to{transform: translateX(0); opacity: 1;} }
+    
+    .recording-dot {
+        width: 12px; height: 12px; border-radius: 50%; background: #FF3B30;
+        box-shadow: 0 0 10px rgba(255, 59, 48, 0.5);
+        animation: pulseRed 1s infinite;
+    }
+    @keyframes pulseRed { 0%{transform:scale(1);} 50%{transform:scale(1.3); opacity:0.7;} 100%{transform:scale(1);} }
+    
+    .mic-active { transform: scale(1.2); color: #FF3B30 !important; }
 
     /* --- BOTTOM NAV --- */
     .bottom-nav {
@@ -455,6 +495,8 @@
   <audio id="snd-typing-click" src="https://assets.mixkit.co/active_storage/sfx/2364/2364-preview.mp3" preload="auto" hidden crossorigin="anonymous"></audio>
 
   <audio id="snd-partner-typing" src="https://cdn.freesound.org/previews/240/240566_3905081-lq.mp3" preload="auto" loop hidden crossorigin="anonymous"></audio>
+
+  <audio id="snd-sweet-beep" src="https://assets.mixkit.co/active_storage/sfx/1862/1862-preview.mp3" preload="auto" hidden crossorigin="anonymous"></audio>
 
   <div id="toastMsg" class="toast">
     <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>
@@ -620,11 +662,25 @@
 
                     <div class="input-wrapper">
                         <input type="file" id="img-input" accept="image/*" hidden />
+                        <input type="file" id="video-input" accept="video/*" hidden />
+                        <input type="file" id="file-input" accept=".pdf,.doc,.docx,.txt,.zip" hidden />
+                        
+                        <div id="recording-overlay">
+                            <div class="recording-dot"></div>
+                            <span id="recording-timer" style="font-weight:600; font-variant-numeric:tabular-nums;">0:00</span>
+                            <div style="font-size:12px; opacity:0.8;">Release to Send</div>
+                        </div>
+
                         <button class="icon-btn" id="img-btn" style="width:32px; height:32px; color:var(--text-muted);">
-                            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                            <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                         </button>
                         <textarea id="msg-input" class="chat-box" rows="1" placeholder="iMessage"></textarea>
-                        <button class="btn-send" id="send-btn">
+                        
+                        <button class="icon-btn" id="mic-btn" style="width:32px; height:32px; margin-right:4px;">
+                            <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
+                        </button>
+
+                        <button class="btn-send" id="send-btn" style="display:none;">
                             <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M12 5l7 7-7 7" /></svg>
                         </button>
                     </div>
@@ -671,6 +727,15 @@
                           <span class="slider"></span>
                       </label>
                   </div>
+                  <div class="settings-item" id="wallpaper-btn" style="cursor:pointer;">
+                      <span class="settings-label">Chat Wallpaper</span>
+                      <div style="display:flex;align-items:center;gap:6px;">
+                           <span style="color:var(--text-muted); font-size:13px;">Change</span>
+                           <svg width="16" height="16" fill="none" stroke="var(--text-muted)" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" /></svg>
+                      </div>
+                  </div>
+                  <input type="color" id="bg-color-input" hidden>
+                  <input type="file" id="bg-img-input" hidden accept="image/*">
               </div>
 
               <div class="settings-group">
@@ -779,17 +844,25 @@
     let globalNotificationUnsubscribe = null;
     let typingTimeout = null, isTyping = false;
     let isSoundEnabled = true; // Sound State
+    let msgLimit = 20; // Pagination limit
     
     // Background Connectivity Handles
     let backgroundDisconnectTimeout = null;
     let wakeLock = null;
+
+    // --- AUDIO RECORDING STATE ---
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let isRecording = false;
+    let recordStartTime = 0;
+    let recordInterval = null;
 
     // --- SOUND SYSTEM & AUDIO UNLOCKER (UPDATED) ---
     let audioUnlocked = false;
     
     function initAudio() {
         if(audioUnlocked) return;
-        ['notification-sound', 'snd-btn-click', 'snd-sent', 'snd-seen', 'snd-typing-click', 'snd-partner-typing'].forEach(id => {
+        ['notification-sound', 'snd-btn-click', 'snd-sent', 'snd-seen', 'snd-typing-click', 'snd-partner-typing', 'snd-sweet-beep'].forEach(id => {
             const el = document.getElementById(id);
             if(el) { el.volume = 0; el.play().then(() => { el.pause(); el.currentTime = 0; }).catch(() => {}); }
         });
@@ -810,6 +883,7 @@
             if(id === 'snd-seen') audio.volume = 0.4;
             else if(id === 'snd-partner-typing') audio.volume = 0.6;
             else if(id === 'snd-typing-click') audio.volume = 0.3; // Softer key click
+            else if(id === 'snd-sweet-beep') audio.volume = 0.7; // Sweet beep volume
             else audio.volume = 0.5;
             
             audio.currentTime = 0; 
@@ -926,7 +1000,80 @@
             isSoundEnabled = true;
             get('sound-toggle').checked = true;
         }
+        
+        // Init Wallpaper
+        initWallpaper();
     }
+    
+    // --- WALLPAPER LOGIC ---
+    function initWallpaper() {
+        const savedBg = localStorage.getItem('chat_wallpaper');
+        const mainView = get('view-chat').querySelector('main');
+        
+        if (savedBg) {
+            if(savedBg.startsWith('#') || savedBg.startsWith('rgb')) {
+                // Solid Color
+                mainView.style.backgroundImage = 'none';
+                mainView.style.background = savedBg;
+            } else {
+                // Image (Data URL)
+                mainView.style.background = 'none'; // clear
+                mainView.style.backgroundImage = `url(${savedBg})`;
+                mainView.style.backgroundSize = 'cover';
+                mainView.style.backgroundPosition = 'center';
+            }
+        } else {
+            // Reset to default css var
+            mainView.style.background = '';
+            mainView.style.backgroundImage = '';
+        }
+    }
+    
+    get('wallpaper-btn').onclick = () => {
+        openActionSheet([
+            { text: "Choose Solid Color", action: () => { get('bg-color-input').click(); hideActionSheet(); } },
+            { text: "Upload Image", action: () => { get('bg-img-input').click(); hideActionSheet(); } },
+            { text: "Reset to Default", class: "danger", action: () => { 
+                localStorage.removeItem('chat_wallpaper'); 
+                initWallpaper();
+                showToast("Wallpaper Reset");
+                hideActionSheet();
+            }},
+            { text: "Cancel", action: hideActionSheet }
+        ]);
+    };
+    
+    get('bg-color-input').addEventListener('input', (e) => {
+        const color = e.target.value;
+        localStorage.setItem('chat_wallpaper', color);
+        initWallpaper();
+    });
+    
+    get('bg-img-input').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if(!file) return;
+        
+        if(file.size > 2 * 1024 * 1024) {
+            alert("Image too large (Max 2MB for wallpaper)");
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+             const dataUrl = ev.target.result;
+             try {
+                 localStorage.setItem('chat_wallpaper', dataUrl);
+                 initWallpaper();
+                 showToast("Wallpaper Updated");
+             } catch(err) {
+                 alert("Image too large to save. Try a smaller image.");
+             }
+        };
+        reader.readAsDataURL(file);
+        // clear input
+        get('bg-img-input').value = '';
+    });
+
     
     get('theme-toggle').addEventListener('change', (e) => {
         if(e.target.checked) {
@@ -1270,6 +1417,7 @@
         get('chat-header-status').textContent = 'Connecting...';
         showView('view-chat');
         
+        msgLimit = 20; // Reset pagination limit on new chat
         loadMessages(currentChatId);
         listenToRoom(currentChatId);
 
@@ -1285,6 +1433,19 @@
                     },
                     updatedAt: serverTimestamp()
                 });
+            } else {
+                // Ensure participantInfo is up to date when opening
+                // Only update my info here, partner info updates via their profile changes
+                const data = snap.data();
+                const myInfo = data.participantInfo ? data.participantInfo[currentUser.uid] : null;
+                if(!myInfo || myInfo.displayName !== currentUserData.displayName || myInfo.photoURL !== currentUserData.photoURL) {
+                     await updateDoc(chatRef, {
+                        [`participantInfo.${currentUser.uid}`]: { 
+                            displayName: currentUserData.displayName, 
+                            photoURL: currentUserData.photoURL 
+                        }
+                     });
+                }
             }
         } catch(e) { console.error(e); }
     }
@@ -1297,11 +1458,30 @@
         const rRef = doc(db, CHATS_PATH, rid);
         updateDoc(rRef, { hiddenFor: arrayRemove(currentUser.uid) }).catch(()=>{});
 
-        // Listen for Partner Typing
+        // Listen for Partner Typing & Room Updates (Name changes)
         unsubscribeRoom = onSnapshot(rRef, (snap) => {
             if(!snap.exists()) return;
             const data = snap.data();
             
+            // --- REAL-TIME NAME UPDATE IN CHAT HEADER ---
+            // Check if partner's info updated in the chat room document
+            if(data.participantInfo && data.participantInfo[currentPartnerId]) {
+                 const newInfo = data.participantInfo[currentPartnerId];
+                 // Update global var
+                 currentPartnerData.displayName = newInfo.displayName;
+                 currentPartnerData.photoURL = newInfo.photoURL;
+                 
+                 // Update UI
+                 get('chat-header-name').textContent = newInfo.displayName;
+                 const img = get('chat-header-img');
+                 const txt = get('chat-header-initial');
+                 if(newInfo.photoURL) { 
+                    img.src = newInfo.photoURL; img.style.display = 'block'; txt.style.display = 'none'; 
+                 } else { 
+                    img.style.display = 'none'; txt.style.display = 'flex'; txt.textContent = (newInfo.displayName || 'U')[0]; 
+                 }
+            }
+
             // Show bubble if partner is typing
             const isPartnerTyping = data.typing && data.typing[currentPartnerId];
             const bubble = get('typing-bubble');
@@ -1366,6 +1546,11 @@
     });
 
     msgInput.addEventListener('input', () => {
+        // If there's text, show send button, hide mic
+        const hasText = msgInput.value.trim().length > 0;
+        get('mic-btn').style.display = hasText ? 'none' : 'flex';
+        get('send-btn').style.display = hasText ? 'flex' : 'none';
+
         if(!isTyping) {
             isTyping = true;
             updateTypingStatus(true);
@@ -1411,10 +1596,14 @@
             // Safety check if partner ID exists
             if (!pid) return;
 
+            // Use info stored in room document if available (faster & synced), else fallback
             const info = room.participantInfo?.[pid] || { displayName: 'User', photoURL: null };
             
             let lastTxt = room.lastMessage?.text || 'No messages';
             if(room.lastMessage?.type === 'image') lastTxt = '📷 Photo';
+            if(room.lastMessage?.type === 'video') lastTxt = '🎥 Video';
+            if(room.lastMessage?.type === 'file') lastTxt = '📄 File';
+            if(room.lastMessage?.type === 'audio') lastTxt = '🎤 Voice Message';
             if(room.lastMessage?.type === 'deleted') lastTxt = '🚫 Message deleted';
 
             // Handle timestamp format (Firestore vs Local Storage)
@@ -1456,10 +1645,18 @@
             list.appendChild(card);
             
             // Fetch status and extra data for search (PingID, Phone)
+            // Also triggers a passive update if name changed in User DB but not Room DB
             getDoc(doc(db, USERS_PATH, pid)).then(s => {
                 if(s.exists()) {
                     const u = s.data();
                     
+                    // --- REAL-TIME LIST NAME SYNC CHECK ---
+                    // If name in Users collection differs from Room collection cache, update card text immediately
+                    if(u.displayName !== info.displayName) {
+                         const nameEl = card.querySelector('.card-name');
+                         if(nameEl) nameEl.textContent = u.displayName;
+                    }
+
                     // --- SEARCH LIST STATUS CHECK ---
                     const now = new Date();
                     const lastActive = u.lastActive ? (u.lastActive.seconds ? new Date(u.lastActive.seconds * 1000) : new Date(u.lastActive)) : new Date(0);
@@ -1511,17 +1708,28 @@
         });
     }
 
-    // --- CHAT ROOM MESSAGES (UPDATED SEEN AVATAR) ---
-    function loadMessages(rid) {
+    // --- CHAT ROOM MESSAGES (UPDATED PAGINATION & ORDERING) ---
+    function loadMessages(rid, isLoadMore = false) {
+        if(unsubscribeMsgs) unsubscribeMsgs();
+        
+        // QUERY: Get latest [msgLimit] messages, Ordered DESC (Newest First)
+        // We will reverse client side to show Oldest -> Newest
         const ref = collection(db, CHATS_PATH, rid, 'messages');
+        const q = query(ref, orderBy('timestamp', 'desc'), limit(msgLimit));
+        
         const list = get('messages');
+        
+        // Save previous scroll height to maintain position on load more
+        let prevScrollHeight = 0;
+        if(isLoadMore) prevScrollHeight = list.scrollHeight;
+        
         let isFirstLoad = true;
         
-        unsubscribeMsgs = onSnapshot(ref, (snap) => {
+        unsubscribeMsgs = onSnapshot(q, (snap) => {
             const wasAtBottom = (list.scrollHeight - list.scrollTop) <= (list.clientHeight + 150);
             
             // "SEEN" Sound Logic: Check for changes in existing messages that become seen
-            if (!isFirstLoad) {
+            if (!isFirstLoad && !isLoadMore) {
                 snap.docChanges().forEach(change => {
                     if (change.type === 'modified') {
                         const d = change.doc.data();
@@ -1530,13 +1738,23 @@
                             playSound('snd-seen'); // --- NEW SOUND: DING ---
                         }
                     }
+                    // --- NEW SWEET BEEP LOGIC FOR INCOMING MESSAGES ---
+                    if (change.type === 'added') {
+                        const d = change.doc.data();
+                        // If message is NOT from me (from friend)
+                        if (d.senderId !== currentUser.uid) {
+                            playSound('snd-sweet-beep'); // Play Sweet Chime
+                        }
+                    }
                 });
             }
             
             list.innerHTML = '';
             const msgs = [];
             snap.forEach(d => msgs.push({id: d.id, ...d.data()}));
-            msgs.sort((a,b) => (a.timestamp?.seconds || 0) - (b.timestamp?.seconds || 0));
+            
+            // Reverse array because query was DESC, but we render ASC (Top to Bottom)
+            msgs.reverse();
             
             let lastDate = null;
             
@@ -1560,6 +1778,16 @@
                 
                 let content = m.text;
                 if(m.type === 'image') content = `<img src="${m.text}" class="chat-img" onclick="window.viewImg('${m.text}')" onload="if(${isFirstLoad} || ${wasAtBottom}) scrollToBottom()">`;
+                else if(m.type === 'video') content = `<video src="${m.text}" class="chat-video" controls playsinline></video>`;
+                else if(m.type === 'audio') content = `<audio src="${m.text}" class="chat-audio" controls controlsList="nodownload"></audio>`;
+                else if(m.type === 'file') {
+                    const ext = m.fileName ? m.fileName.split('.').pop().toUpperCase() : 'FILE';
+                    content = `<a href="${m.text}" download="${m.fileName || 'file'}" class="file-attachment">
+                        <div class="file-icon">${ext}</div>
+                        <div class="file-name">${m.fileName || 'Document'}</div>
+                    </a>`;
+                }
+
                 if(m.type === 'deleted') { content = '<span style="font-style:italic; opacity:0.6;">🚫 Message deleted</span>'; }
                 
                 let replyHTML = '';
@@ -1647,16 +1875,35 @@
                 list.appendChild(row);
             });
             
-            if (isFirstLoad || wasAtBottom) {
+            // SCROLL POSITION HANDLING
+            if (isLoadMore) {
+                // Restore scroll position to where user was
+                list.scrollTop = list.scrollHeight - prevScrollHeight;
+            } else if (isFirstLoad || wasAtBottom) {
                  scrollToBottom();
             }
             isFirstLoad = false;
         });
+
+        // INFINITE SCROLL LISTENER
+        list.onscroll = () => {
+           // If scrolled to top AND we have loaded exactly the limit (meaning there might be more)
+           if(list.scrollTop === 0 && list.children.length >= msgLimit) {
+               msgLimit += 20; // Increase limit
+               loadMessages(rid, true); // Reload with flag to preserve position
+           }
+        };
     }
 
     // --- MESSAGE SENDING ---
     function initReply(m) {
-        replyTo = { id: m.id, text: m.type==='image'?'Photo':m.text, name: m.senderId===currentUser.uid?'You':currentPartnerData.displayName };
+        let txt = m.text;
+        if(m.type === 'image') txt = '📷 Photo';
+        else if(m.type === 'video') txt = '🎥 Video';
+        else if(m.type === 'file') txt = '📄 File';
+        else if(m.type === 'audio') txt = '🎤 Voice Message';
+        
+        replyTo = { id: m.id, text: txt, name: m.senderId===currentUser.uid?'You':currentPartnerData.displayName };
         get('replyToName').textContent = replyTo.name;
         get('replyTextPreview').textContent = replyTo.text;
         get('replyPreview').classList.add('active');
@@ -1665,7 +1912,7 @@
     }
     get('cancelReply').onclick = () => { replyTo = null; get('replyPreview').classList.remove('active'); };
 
-    async function sendMsg(txt, type='text') {
+    async function sendMsg(txt, type='text', fileName=null) {
         if(!txt) return;
 
         const list = get('messages');
@@ -1676,8 +1923,12 @@
 
         let displayContent = txt;
         if(type === 'image') displayContent = `<img src="${txt}" class="chat-img" style="opacity: 0.7;">`; 
+        else if(type === 'video') displayContent = `<video src="${txt}" class="chat-video" style="opacity:0.7;"></video>`;
+        else if(type === 'audio') displayContent = `<div style="padding:10px;">Sending Voice...</div>`;
+        else if(type === 'file') displayContent = `<div class="file-attachment" style="opacity:0.7;"><div class="file-icon">...</div><div class="file-name">${fileName}</div></div>`;
+
         let replyMarkup = '';
-        if(replyTo && type === 'text') {
+        if(replyTo) {
              replyMarkup = `<div style="border-left:2px solid var(--primary); padding-left:6px; margin-bottom:4px; font-size:11px; opacity:0.8;">
                  <div style="font-weight:700">${replyTo.name}</div>
                  <div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis">${replyTo.text}</div>
@@ -1694,9 +1945,10 @@
 
             const payload = {
                 senderId: currentUser.uid, text: txt, type: type,
-                status: initialStatus, deletedFor: [], likes: [], timestamp: serverTimestamp()
+                status: initialStatus, deletedFor: [], likes: [], timestamp: serverTimestamp(),
+                fileName: fileName // Added filename field
             };
-            if(replyTo && type==='text') { payload.replyTo = replyTo; get('cancelReply').click(); }
+            if(replyTo) { payload.replyTo = replyTo; get('cancelReply').click(); }
             
             await addDoc(collection(db, CHATS_PATH, currentChatId, 'messages'), payload);
             await setDoc(doc(db, CHATS_PATH, currentChatId), {
@@ -1733,6 +1985,9 @@
             sendMsg(t); 
             get('msg-input').value=''; 
             get('msg-input').focus(); 
+            // Reset Mic Button
+            get('mic-btn').style.display = 'flex';
+            get('send-btn').style.display = 'none';
         } 
     };
 
@@ -1744,25 +1999,150 @@
         }
     });
     
-    get('img-btn').onclick = () => get('img-input').click();
-    get('img-input').onchange = async (e) => {
-        const f = e.target.files[0]; 
-        if(!f) return;
-        get('img-input').value = ''; 
-        showToast("Sending...");
+    // --- ATTACHMENT HANDLING ---
+    get('img-btn').onclick = () => {
+        openActionSheet([
+            { text: "Photo", action: () => { get('img-input').click(); hideActionSheet(); } },
+            { text: "Video", action: () => { get('video-input').click(); hideActionSheet(); } },
+            { text: "Document", action: () => { get('file-input').click(); hideActionSheet(); } },
+            { text: "Cancel", action: hideActionSheet }
+        ]);
+    };
+
+    // Helper for file reading
+    const handleFileSelect = (file, type) => {
+        if(!file) return;
+        // Check size (Limit to 750KB because Firestore doc max is 1MB and Base64 increases size by ~33%)
+        if(file.size > 750 * 1024) {
+            alert("File is too large for free server. Please select a file smaller than 750KB.");
+            return;
+        }
+
+        showToast("Processing...");
         const reader = new FileReader();
-        reader.readAsDataURL(f);
+        reader.readAsDataURL(file);
         reader.onload = (ev) => {
-            const img = new Image(); img.src = ev.target.result;
-            img.onload = async () => {
-                const cvs = document.createElement('canvas');
-                const scale = Math.min(800/img.width, 800/img.height, 1);
-                cvs.width = img.width*scale; cvs.height = img.height*scale;
-                cvs.getContext('2d').drawImage(img,0,0,cvs.width,cvs.height);
-                sendMsg(cvs.toDataURL('image/jpeg', 0.7), 'image');
-            };
+            const dataUrl = ev.target.result;
+            // For images, we compress as before
+            if(type === 'image') {
+                const img = new Image(); img.src = dataUrl;
+                img.onload = async () => {
+                    const cvs = document.createElement('canvas');
+                    const scale = Math.min(800/img.width, 800/img.height, 1);
+                    cvs.width = img.width*scale; cvs.height = img.height*scale;
+                    cvs.getContext('2d').drawImage(img,0,0,cvs.width,cvs.height);
+                    sendMsg(cvs.toDataURL('image/jpeg', 0.7), 'image');
+                };
+            } else {
+                // For video/files, send raw base64
+                sendMsg(dataUrl, type, file.name);
+            }
         };
     };
+
+    get('img-input').onchange = (e) => { handleFileSelect(e.target.files[0], 'image'); get('img-input').value=''; };
+    get('video-input').onchange = (e) => { handleFileSelect(e.target.files[0], 'video'); get('video-input').value=''; };
+    get('file-input').onchange = (e) => { handleFileSelect(e.target.files[0], 'file'); get('file-input').value=''; };
+
+    // --- VOICE RECORDING LOGIC (HOLD TO RECORD) ---
+    const micBtn = get('mic-btn');
+    const recordingOverlay = get('recording-overlay');
+    const timerDisplay = get('recording-timer');
+
+    async function startRecording() {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream);
+            audioChunks = [];
+
+            mediaRecorder.ondataavailable = (event) => {
+                if(event.data.size > 0) audioChunks.push(event.data);
+            };
+
+            mediaRecorder.start();
+            isRecording = true;
+            micBtn.classList.add('mic-active');
+            recordingOverlay.classList.add('active');
+            
+            // Timer Logic
+            recordStartTime = Date.now();
+            timerDisplay.textContent = '0:00';
+            recordInterval = setInterval(() => {
+                const diff = Math.floor((Date.now() - recordStartTime) / 1000);
+                const m = Math.floor(diff / 60);
+                const s = diff % 60;
+                timerDisplay.textContent = `${m}:${s.toString().padStart(2, '0')}`;
+                
+                // Safety: Stop after 60s
+                if(diff >= 60) stopRecordingAndSend(); 
+            }, 1000);
+            
+            playSound('snd-typing-click'); // Start sound
+
+        } catch (err) {
+            console.error(err);
+            alert("Microphone permission denied.");
+        }
+    }
+
+    function stopRecordingAndSend() {
+        if (!mediaRecorder || !isRecording) return;
+        
+        mediaRecorder.stop();
+        isRecording = false;
+        clearInterval(recordInterval);
+        
+        micBtn.classList.remove('mic-active');
+        recordingOverlay.classList.remove('active');
+
+        mediaRecorder.onstop = () => {
+            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            
+            // Prevent accidental short taps
+            if (Date.now() - recordStartTime < 1000) {
+                showToast("Hold longer to record");
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.readAsDataURL(audioBlob);
+            reader.onloadend = () => {
+                const base64Audio = reader.result;
+                sendMsg(base64Audio, 'audio');
+            };
+        };
+        
+        // Stop all tracks to release mic
+        mediaRecorder.stream.getTracks().forEach(track => track.stop());
+    }
+
+    // Touch Events for Mobile (Hold)
+    micBtn.addEventListener('touchstart', (e) => {
+        e.preventDefault(); 
+        startRecording();
+    });
+
+    micBtn.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        stopRecordingAndSend();
+    });
+
+    // Mouse Events for Desktop (Click and Hold)
+    micBtn.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        startRecording();
+    });
+
+    micBtn.addEventListener('mouseup', (e) => {
+        e.preventDefault();
+        stopRecordingAndSend();
+    });
+    
+    // Safety if mouse leaves button while holding
+    micBtn.addEventListener('mouseleave', (e) => {
+        if(isRecording) stopRecordingAndSend();
+    });
+
 
     // --- HELPER: ACTION SHEET ---
     function openActionSheet(buttons) {
@@ -1839,20 +2219,43 @@
     };
     get('clear-history-btn').onclick = () => { localStorage.removeItem(`history_${currentUser.uid}`); loadSearchHistory(); };
 
-    // --- PROFILE SAVE ---
+    // --- PROFILE SAVE & REAL-TIME SYNC ---
     get('save-profile-btn').onclick = async () => {
-        const btn = get('save-profile-btn'); btn.textContent = 'Saving...';
+        const btn = get('save-profile-btn'); 
+        btn.textContent = 'Saving...';
+        const newName = get('edit-name').value;
+        const newBio = get('edit-bio').value;
+        const newPhone = get('edit-phone').value;
+        const newPhoto = currentUserData.photoURL; // already updated by image input
+
+        // 1. Update User Document
         await updateDoc(doc(db, USERS_PATH, currentUser.uid), {
-            displayName: get('edit-name').value, bio: get('edit-bio').value, phone: get('edit-phone').value
+            displayName: newName, bio: newBio, phone: newPhone
         });
         
-        // Update local state and cache
-        currentUserData.displayName = get('edit-name').value;
-        currentUserData.bio = get('edit-bio').value;
-        currentUserData.phone = get('edit-phone').value;
-        localStorage.setItem('cached_user_data', JSON.stringify(currentUserData));
-        updateHeaderUI();
+        // 2. Update all Chat Rooms where I am a participant (For real-time name change for others)
+        const q = query(collection(db, CHATS_PATH), where("participants", "array-contains", currentUser.uid));
+        const snaps = await getDocs(q);
+        
+        // Use batch for better performance (though standard loop works too)
+        const batch = writeBatch(db);
+        snaps.forEach(d => {
+            const ref = doc(db, CHATS_PATH, d.id);
+            // Update the specific key for my UID in the participantInfo map
+            batch.update(ref, {
+                [`participantInfo.${currentUser.uid}.displayName`]: newName,
+                [`participantInfo.${currentUser.uid}.photoURL`]: newPhoto
+            });
+        });
+        await batch.commit();
 
+        // Update local state and cache
+        currentUserData.displayName = newName;
+        currentUserData.bio = newBio;
+        currentUserData.phone = newPhone;
+        localStorage.setItem('cached_user_data', JSON.stringify(currentUserData));
+        
+        updateHeaderUI();
         showToast("Profile Saved");
         btn.textContent = 'Save Changes';
     };
@@ -1867,8 +2270,25 @@
                 const cvs = document.createElement('canvas'); cvs.width=300; cvs.height=300;
                 cvs.getContext('2d').drawImage(img,0,0,300,300);
                 const url = cvs.toDataURL('image/jpeg',0.8);
+                
+                // Update local state temporarily so save button picks it up if clicked later
+                // But generally users want immediate photo update.
+                // Let's update photo immediately in DB + Chats
+                
+                showToast("Uploading...");
                 await updateDoc(doc(db, USERS_PATH, currentUser.uid), { photoURL: url });
                 
+                // Sync to chats
+                const q = query(collection(db, CHATS_PATH), where("participants", "array-contains", currentUser.uid));
+                const snaps = await getDocs(q);
+                const batch = writeBatch(db);
+                snaps.forEach(d => {
+                    batch.update(doc(db, CHATS_PATH, d.id), {
+                        [`participantInfo.${currentUser.uid}.photoURL`]: url
+                    });
+                });
+                await batch.commit();
+
                 // Update local state and cache
                 currentUserData.photoURL = url;
                 localStorage.setItem('cached_user_data', JSON.stringify(currentUserData));
@@ -1920,8 +2340,9 @@
                     if(d.lastMessage?.senderId !== currentUser.uid && (Date.now() - (d.updatedAt?.seconds || 0)*1000 < 5000)) {
                          if(document.visibilityState === 'hidden' || currentChatId !== change.doc.id) {
                              // --- SOUND CHECK ---
+                             // --- UPDATED: Play Sweet Beep for Notification ---
                              if(isSoundEnabled) {
-                                 const audio = document.getElementById('notification-sound');
+                                 const audio = document.getElementById('snd-sweet-beep');
                                  if(audio) {
                                      audio.currentTime = 0;
                                      audio.play().catch(e => console.log("Audio permission needed first interaction"));
@@ -1931,9 +2352,15 @@
                              const senderProfile = d.participantInfo && d.participantInfo[senderId] ? d.participantInfo[senderId] : { displayName: 'Friend' };
                              const title = senderProfile.displayName;
 
+                             let bodyTxt = d.lastMessage.text;
+                             if(d.lastMessage.type === 'image') bodyTxt = '📷 Sent a photo';
+                             else if(d.lastMessage.type === 'video') bodyTxt = '🎥 Sent a video';
+                             else if(d.lastMessage.type === 'file') bodyTxt = '📄 Sent a file';
+                             else if(d.lastMessage.type === 'audio') bodyTxt = '🎤 Sent a voice message';
+
                              if (Notification.permission === "granted") {
                                  const notif = new Notification(title, {
-                                     body: d.lastMessage.type === 'image' ? '📷 Sent a photo' : d.lastMessage.text,
+                                     body: bodyTxt,
                                      icon: senderProfile.photoURL || 'https://i.postimg.cc/RZ5FH16z/Gemini-Generated-Image-rgsqsqrgsqsqrgsq-removebg-preview.png',
                                      tag: 'new-msg',
                                      renotify: true,
