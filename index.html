@@ -321,23 +321,36 @@
     }
     .reply-preview.active { display: flex; }
 
-    /* --- VOICE RECORDING UI --- */
+    /* --- UPDATED VOICE RECORDING UI (SONAR & WAVE) --- */
     #recording-overlay {
-        position: absolute; inset: 0; background: var(--bg-card); z-index: 10;
+        position: absolute; inset: 0; background: linear-gradient(90deg, #FF3B30 0%, #FF9500 100%); z-index: 10;
         display: none; align-items: center; justify-content: space-between;
-        padding: 0 16px; border-radius: 24px; color: var(--primary);
+        padding: 0 20px; border-radius: 24px; color: white;
+        box-shadow: 0 4px 15px rgba(255, 59, 48, 0.4);
     }
     #recording-overlay.active { display: flex; animation: slideInRight 0.2s ease-out; }
     @keyframes slideInRight { from{transform: translateX(20px); opacity: 0;} to{transform: translateX(0); opacity: 1;} }
     
     .recording-dot {
-        width: 12px; height: 12px; border-radius: 50%; background: #FF3B30;
-        box-shadow: 0 0 10px rgba(255, 59, 48, 0.5);
-        animation: pulseRed 1s infinite;
+        width: 12px; height: 12px; border-radius: 50%; background: white;
+        box-shadow: 0 0 10px rgba(255, 255, 255, 0.6);
+        animation: pulseWhite 1s infinite;
     }
-    @keyframes pulseRed { 0%{transform:scale(1);} 50%{transform:scale(1.3); opacity:0.7;} 100%{transform:scale(1);} }
-    
-    .mic-active { transform: scale(1.2); color: #FF3B30 !important; }
+    @keyframes pulseWhite { 0%{transform:scale(1); opacity:1;} 50%{transform:scale(1.4); opacity:0.7;} 100%{transform:scale(1); opacity:1;} }
+
+    /* Sonar Effect on Mic Button */
+    .mic-active { 
+        transform: scale(1.3) !important; 
+        color: white !important; 
+        background: #FF3B30 !important;
+        box-shadow: 0 0 0 0 rgba(255, 59, 48, 0.7);
+        animation: sonarWave 1.5s infinite cubic-bezier(0.25, 0.8, 0.25, 1);
+    }
+    @keyframes sonarWave {
+        0% { box-shadow: 0 0 0 0 rgba(255, 59, 48, 0.7); }
+        70% { box-shadow: 0 0 0 20px rgba(255, 59, 48, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(255, 59, 48, 0); }
+    }
 
     /* --- BOTTOM NAV --- */
     .bottom-nav {
@@ -666,9 +679,11 @@
                         <input type="file" id="file-input" accept=".pdf,.doc,.docx,.txt,.zip" hidden />
                         
                         <div id="recording-overlay">
-                            <div class="recording-dot"></div>
-                            <span id="recording-timer" style="font-weight:600; font-variant-numeric:tabular-nums;">0:00</span>
-                            <div style="font-size:12px; opacity:0.8;">Release to Send</div>
+                            <div style="display:flex;align-items:center;gap:10px;">
+                                <div class="recording-dot"></div>
+                                <span id="recording-timer" style="font-weight:700; font-variant-numeric:tabular-nums; font-size:14px;">0:00</span>
+                            </div>
+                            <div style="font-size:11px; font-weight:600; opacity:0.9; text-transform:uppercase; letter-spacing:0.5px;">Recording... Release to Send</div>
                         </div>
 
                         <button class="icon-btn" id="img-btn" style="width:32px; height:32px; color:var(--text-muted);">
@@ -676,7 +691,7 @@
                         </button>
                         <textarea id="msg-input" class="chat-box" rows="1" placeholder="iMessage"></textarea>
                         
-                        <button class="icon-btn" id="mic-btn" style="width:32px; height:32px; margin-right:4px;">
+                        <button class="icon-btn" id="mic-btn" style="width:32px; height:32px; margin-right:4px; transition:all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
                             <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
                         </button>
 
@@ -1659,7 +1674,7 @@
 
                     // --- SEARCH LIST STATUS CHECK ---
                     const now = new Date();
-                    const lastActive = u.lastActive ? (u.lastActive.seconds ? new Date(u.lastActive.seconds * 1000) : new Date(u.lastActive)) : new Date(0);
+                    const lastActive = u.lastActive ? (u.lastActive.seconds ? new Date(u.lastActive.seconds * 1000) : new Date(u.lastActive)) : new Date(u.lastActive);
                     const isActuallyOnline = u.status === 'online' && (now - lastActive)/1000 < 180;
                     
                     if(isActuallyOnline) {
@@ -2061,8 +2076,13 @@
 
             mediaRecorder.start();
             isRecording = true;
+            
+            // UI Updates for Recording
             micBtn.classList.add('mic-active');
             recordingOverlay.classList.add('active');
+            
+            // Haptic Feedback (if supported)
+            if(navigator.vibrate) navigator.vibrate(100);
             
             // Timer Logic
             recordStartTime = Date.now();
@@ -2092,6 +2112,7 @@
         isRecording = false;
         clearInterval(recordInterval);
         
+        // UI Updates
         micBtn.classList.remove('mic-active');
         recordingOverlay.classList.remove('active');
 
