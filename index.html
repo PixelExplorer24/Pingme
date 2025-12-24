@@ -195,6 +195,7 @@
         -webkit-overflow-scrolling: touch;
         scroll-behavior: auto;
         transition: padding-bottom 0.3s ease; /* Smooth transition */
+        overflow-x: hidden; /* Prevent horizontal scroll due to swipe */
     }
     /* Dynamic class added via JS when typing */
     .messages-area.typing-active {
@@ -212,6 +213,7 @@
     .msg-bubble {
       max-width: 75%; padding: 10px 14px; font-size: 15px; position: relative; word-wrap: break-word;
       box-shadow: 0 1px 2px rgba(0,0,0,0.05); cursor: pointer; transition: transform 0.1s; user-select: none;
+      touch-action: pan-y; /* Allow vertical scroll, handle horizontal in JS */
     }
     .msg-bubble:active { transform: scale(0.98); }
     .msg-row.me .msg-bubble { background: var(--msg-me-bg); color: var(--msg-me-text); border-radius: 18px 4px 18px 18px; }
@@ -1850,6 +1852,9 @@
                     if(m.type === 'deleted') return;
                     toggleLike(rid, m.id, m.likes);
                 });
+                
+                // --- NEW SWIPE TO REPLY ---
+                addSwipeToReply(bubble, m);
 
                 // LONG PRESS LOGIC
                 addLongPress(bubble, () => {
@@ -2180,6 +2185,60 @@
     }
     window.hideActionSheet = () => get('actionSheetOverlay').classList.remove('active');
     get('actionSheetOverlay').onclick = (e) => { if(e.target === get('actionSheetOverlay')) hideActionSheet(); };
+
+    // --- SWIPE TO REPLY FUNCTION ---
+    function addSwipeToReply(element, messageData) {
+        let startX = 0;
+        let startY = 0;
+        let isSwiping = false;
+        let currentX = 0;
+
+        element.addEventListener('touchstart', (e) => {
+            startX = e.touches[0].clientX;
+            startY = e.touches[0].clientY;
+            element.style.transition = 'none'; // Instant move
+        }, {passive: true});
+
+        element.addEventListener('touchmove', (e) => {
+            const x = e.touches[0].clientX;
+            const y = e.touches[0].clientY;
+            const deltaX = x - startX;
+            const deltaY = y - startY;
+
+            // Check if user is scrolling vertically (ignore swipe)
+            if (Math.abs(deltaY) > Math.abs(deltaX)) return;
+
+            // Only swipe right (deltaX > 0)
+            if (deltaX > 0) {
+                // If moving more than 10px, prevent long press from firing
+                if(deltaX > 10) element.classList.remove('long-press-active'); 
+
+                if (e.cancelable) e.preventDefault(); // Stop default browser back gestures
+                
+                isSwiping = true;
+                // Add resistance (logarithmic feel) to not pull too far
+                currentX = Math.min(deltaX, 100); 
+                element.style.transform = `translateX(${currentX}px)`;
+            }
+        }, {passive: false});
+
+        element.addEventListener('touchend', (e) => {
+            if (!isSwiping) return;
+
+            // Smooth snap back
+            element.style.transition = 'transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+            element.style.transform = 'translateX(0)';
+
+            // Threshold to trigger reply
+            if (currentX > 60) {
+                 if(navigator.vibrate) navigator.vibrate(50);
+                 initReply(messageData);
+            }
+
+            isSwiping = false;
+            currentX = 0;
+        });
+    }
 
     function addLongPress(el, onLong, onClick) {
         let timer;
