@@ -268,7 +268,6 @@
     /* --- TYPING INDICATOR (FIXED POSITIONING & OVERLAP FIX) --- */
     .typing-bubble-container {
         position: absolute; 
-        /* Positioned absolute to the top of the input area (negative bottom) */
         bottom: 100%;
         left: 20px; 
         z-index: 50;
@@ -1018,6 +1017,27 @@
         t.classList.add('active'); setTimeout(() => t.classList.remove('active'), 2500);
     };
 
+    // --- TIME HELPER (Added for "Last seen X ago") ---
+    function formatTimeAgo(dateInput) {
+        if(!dateInput) return '';
+        let date = dateInput;
+        if(dateInput.seconds) date = new Date(dateInput.seconds * 1000);
+        else if(typeof dateInput === 'string') date = new Date(dateInput);
+
+        const seconds = Math.floor((new Date() - date) / 1000);
+        let interval = seconds / 31536000;
+        if (interval > 1) return Math.floor(interval) + "y ago";
+        interval = seconds / 2592000;
+        if (interval > 1) return Math.floor(interval) + "mo ago";
+        interval = seconds / 86400;
+        if (interval > 1) return Math.floor(interval) + "d ago";
+        interval = seconds / 3600;
+        if (interval > 1) return Math.floor(interval) + "h ago";
+        interval = seconds / 60;
+        if (interval > 1) return Math.floor(interval) + "m ago";
+        return "Just now";
+    }
+
     // --- AUDIO SYSTEM ---
     let audioUnlocked = false;
     function initAudio() {
@@ -1077,6 +1097,8 @@
         stopSound('snd-partner-typing');
     };
     get('back-from-friend-profile').onclick = () => showView('view-chat');
+    
+    // Updated Friend Profile View logic
     get('chat-user-header').onclick = async () => {
         showView('view-friend-profile');
         let fullData = currentPartnerData;
@@ -1092,27 +1114,40 @@
         if(fullData.photoURL) { img.src=fullData.photoURL; img.style.display='block'; txt.style.display='none'; }
         else { img.style.display='none'; txt.style.display='flex'; txt.textContent = (fullData.displayName||'U')[0]; }
         
-        // Block Logic
+        // Block Logic (Fully Updated)
         const isBlocked = currentUserData.blockedUsers?.includes(currentPartnerId);
         const btn = get('friend-block-btn');
         btn.textContent = isBlocked ? "Unblock User" : "Block User";
         btn.onclick = () => toggleBlock(currentPartnerId, !isBlocked);
     };
 
+    // --- UPDATED BLOCK LOGIC ---
     async function toggleBlock(uid, shouldBlock) {
         const ref = doc(db, USERS_PATH, currentUser.uid);
         if(shouldBlock) {
-            currentUserData.blockedUsers = currentUserData.blockedUsers || []; currentUserData.blockedUsers.push(uid);
-            await updateDoc(ref, { blockedUsers: arrayUnion(uid) }); showToast("User Blocked");
+            if(!currentUserData.blockedUsers) currentUserData.blockedUsers = [];
+            currentUserData.blockedUsers.push(uid);
+            await updateDoc(ref, { blockedUsers: arrayUnion(uid) });
+            showToast("User Blocked");
         } else {
             currentUserData.blockedUsers = currentUserData.blockedUsers.filter(x => x !== uid);
-            await updateDoc(ref, { blockedUsers: arrayRemove(uid) }); showToast("User Unblocked");
+            await updateDoc(ref, { blockedUsers: arrayRemove(uid) });
+            showToast("User Unblocked");
         }
+        
+        // Update Friend Profile Button if open
         const btn = get('friend-block-btn');
         if(currentPartnerId === uid && btn) btn.textContent = shouldBlock ? "Unblock User" : "Block User";
+        
+        // Update Chat UI immediately if open
+        if(currentPartnerId === uid && get('view-chat').classList.contains('active')) updateChatUIForBlocks(currentPartnerData);
+        
         loadChatList();
         localStorage.setItem('cached_user_data', JSON.stringify(currentUserData));
     }
+    
+    // Global Quick Unblock helper
+    window.quickUnblock = () => toggleBlock(currentPartnerId, false);
 
     // --- THEME & CACHE ---
     function checkCacheOnStartup() {
@@ -1197,6 +1232,24 @@
         const reader = new FileReader();
         reader.onload = (ev) => { try { localStorage.setItem('chat_wallpaper', ev.target.result); initWallpaper(); } catch(e){ alert("Image too large"); } };
         reader.readAsDataURL(file);
+    });
+
+    // --- HOME SEARCH LOGIC (ADDED) ---
+    get('home-search-input').addEventListener('input', (e) => {
+        const term = e.target.value.toLowerCase();
+        const cards = document.querySelectorAll('#chat-list-container .user-card');
+        
+        cards.forEach(card => {
+            const name = card.querySelector('.card-name').textContent.toLowerCase();
+            const msg = card.querySelector('.card-msg').textContent.toLowerCase();
+            const meta = (card.getAttribute('data-search-meta') || '').toLowerCase(); // Hidden data
+            
+            if(name.includes(term) || msg.includes(term) || meta.includes(term)) {
+                card.style.display = 'flex';
+            } else {
+                card.style.display = 'none';
+            }
+        });
     });
 
     // --- CALL TIMER LOGIC ---
@@ -1504,7 +1557,7 @@
         };
     };
 
-    // --- CHAT LIST ---
+    // --- CHAT LIST (UPDATED WITH REAL-TIME ACTIVE DOT) ---
     function loadChatList() {
         if(unsubscribeChats) unsubscribeChats();
         unsubscribeChats = onSnapshot(collection(db, CHATS_PATH), (snapshot) => {
@@ -1522,6 +1575,10 @@
             rooms.sort((a,b) => (b.updatedAt?.seconds || 0) - (a.updatedAt?.seconds || 0));
             localStorage.setItem('cached_chat_list', JSON.stringify(rooms));
             renderChatList(rooms);
+            
+            // Re-apply search filter
+            const term = get('home-search-input').value;
+            if(term) get('home-search-input').dispatchEvent(new Event('input'));
         });
     }
 
@@ -1574,11 +1631,27 @@
             `;
             list.appendChild(card);
             
+            // --- UPDATED ACTIVE STATUS CHECK ---
             getDoc(doc(db, USERS_PATH, pid)).then(s => {
                 if(s.exists()) {
                     const u = s.data();
+                    
+                    // Meta Data for Search
+                    const metaString = `${u.pingId || ''} ${u.email || ''} ${u.phone || ''}`;
+                    card.setAttribute('data-search-meta', metaString);
+
+                    // Name Sync
+                    if(u.displayName !== info.displayName) {
+                        const nameEl = card.querySelector('.card-name');
+                        if(nameEl) nameEl.textContent = u.displayName;
+                    }
+
+                    // Green Dot Logic (Strict 3 min)
                     const diff = (new Date() - (u.lastActive?.seconds?u.lastActive.seconds*1000:u.lastActive||0))/1000;
-                    if(u.status === 'online' && diff < 180) { const dot = get(`dot-${room.id}`); if(dot) dot.classList.add('online'); }
+                    if(u.status === 'online' && diff < 180) { 
+                        const dot = get(`dot-${room.id}`); 
+                        if(dot) dot.classList.add('online'); 
+                    }
                 }
             });
         });
@@ -1616,6 +1689,16 @@
         loadMessages(currentChatId);
         listenToRoom(currentChatId);
         
+        // Ensure blocking UI is correct on open
+        // Fetch full profile in background to verify block status
+        const partnerSnap = await getDoc(doc(db, USERS_PATH, currentPartnerId));
+        if(partnerSnap.exists()) {
+             const fullPData = partnerSnap.data();
+             updateChatUIForBlocks(fullPData);
+        } else {
+             updateChatUIForBlocks(currentPartnerData);
+        }
+
         const chatRef = doc(db, CHATS_PATH, currentChatId);
         const snap = await getDoc(chatRef);
         if (!snap.exists()) {
@@ -1627,14 +1710,18 @@
                  }, updatedAt: serverTimestamp()
              });
         }
-        updateChatUIForBlocks();
     };
 
-    function updateChatUIForBlocks() {
+    // --- UPDATED BLOCK UI IN CHAT ---
+    function updateChatUIForBlocks(partnerUser) {
         const banner = get('blocked-banner');
         const inputArea = get('input-area-wrapper');
-        if (currentUserData.blockedUsers?.includes(currentPartnerId)) {
-             banner.innerHTML = `You blocked this user. <span style="text-decoration:underline; cursor:pointer;" onclick="toggleBlock('${currentPartnerId}', false)">Unblock</span>`; 
+        
+        if (partnerUser && partnerUser.blockedUsers?.includes(currentUser.uid)) {
+             banner.textContent = "You have been blocked by this user."; 
+             banner.style.display = 'block'; inputArea.style.display = 'none';
+        } else if (currentUserData.blockedUsers?.includes(currentPartnerId)) {
+             banner.innerHTML = `You blocked this user. <span style="text-decoration:underline; cursor:pointer;" onclick="window.quickUnblock()">Unblock</span>`; 
              banner.style.display = 'block'; inputArea.style.display = 'none';
         } else {
              banner.style.display = 'none'; inputArea.style.display = 'block';
@@ -1649,6 +1736,12 @@
             if(!snap.exists()) return;
             const data = snap.data();
             
+            // Name Update Sync
+             if(data.participantInfo && data.participantInfo[currentPartnerId]) {
+                 const newInfo = data.participantInfo[currentPartnerId];
+                 get('chat-header-name').textContent = newInfo.displayName;
+             }
+
             const isPartnerTyping = data.typing && data.typing[currentPartnerId];
             const bubble = get('typing-bubble');
             if(isPartnerTyping) { 
@@ -1672,18 +1765,32 @@
             }
         });
 
+        // --- UPDATED ACTIVE STATUS LOGIC ---
         unsubscribePartnerStatus = onSnapshot(doc(db, USERS_PATH, currentPartnerId), (snap) => {
             if(snap.exists()) {
                 const u = snap.data();
-                const diff = (new Date() - (u.lastActive?.seconds?u.lastActive.seconds*1000:u.lastActive||0))/1000;
-                get('chat-header-status').textContent = (u.status === 'online' && diff < 180) ? 'Active Now' : 'Offline';
-                if(u.status==='online' && diff < 180) get('chat-header-status').style.color = '#4CD964';
-                else get('chat-header-status').style.color = 'var(--text-muted)';
+                const statusEl = get('chat-header-status');
+                
+                const now = new Date();
+                const lastActive = u.lastActive ? (u.lastActive.seconds ? new Date(u.lastActive.seconds * 1000) : new Date(u.lastActive)) : new Date(0);
+                const secondsDiff = (now - lastActive) / 1000;
+                
+                // Strict Online Check
+                if(u.status === 'online' && secondsDiff < 180) {
+                    statusEl.textContent = 'Active Now';
+                    statusEl.style.color = '#4CD964';
+                } else {
+                    statusEl.style.color = 'var(--text-muted)';
+                    if (u.lastActive) statusEl.textContent = "Last seen " + formatTimeAgo(u.lastActive);
+                    else statusEl.textContent = 'Offline';
+                }
+                
+                updateChatUIForBlocks(u);
             }
         });
     }
 
-    // --- REACTION LOGIC (NEW) ---
+    // --- REACTION LOGIC ---
     async function toggleReaction(msgId, reactionType) {
         if (!currentChatId) return;
         const msgRef = doc(db, CHATS_PATH, currentChatId, 'messages', msgId);
@@ -1695,12 +1802,10 @@
         const myReaction = currentReactions[currentUser.uid];
 
         if(myReaction === reactionType) {
-            // Remove reaction if same
              await updateDoc(msgRef, { [`reactions.${currentUser.uid}`]: deleteField() });
         } else {
-            // Add/Update reaction
             await updateDoc(msgRef, { [`reactions.${currentUser.uid}`]: reactionType });
-            playSound('snd-sweet-beep'); // Little feedback sound
+            playSound('snd-sweet-beep');
         }
     }
 
@@ -1793,7 +1898,7 @@
                         setTimeout(() => heart.remove(), 800);
                     });
 
-                    // Long Press Logic (UPDATED: Copy & Delete always available)
+                    // Long Press Logic
                     addLongPress(bubble, () => {
                         if(m.type === 'deleted') return;
                         
@@ -1825,7 +1930,6 @@
                         }
                         
                         if(isMe) createBtn("Unsend (Everyone)", "danger", () => deleteMsg(rid, m.id, 'everyone'));
-                        // "Delete for Me" available for everyone
                         createBtn("Delete for Me", "danger", () => deleteMsg(rid, m.id, 'me'));
                         
                         createBtn("Cancel", "", hideActionSheet);
@@ -1845,6 +1949,10 @@
            }
         };
     }
+    const scrollToBottom = () => {
+        const list = get('messages');
+        requestAnimationFrame(() => list.scrollTop = list.scrollHeight);
+    };
 
     async function deleteMsg(rid, mid, scope) {
         if(scope === 'everyone') {
@@ -1913,11 +2021,9 @@
     const handleFileSelect = (file, type) => {
         if(!file) return;
         
-        // Video Optimization & Limitation (Crucial for Firestore)
-        // Firestore limit is 1MB. Base64 adds ~33% overhead.
-        // We set a strict limit here to prevent "Message not sending" errors.
+        // Video Optimization
         if(type === 'video') {
-             if(file.size > 0.7 * 1024 * 1024) { // ~700KB Limit for Base64 safety
+             if(file.size > 0.7 * 1024 * 1024) { 
                  return alert("Video too large for free server (Max 700KB). Please record a shorter clip.");
              }
         }
@@ -1955,11 +2061,9 @@
     get('file-input').onchange = (e) => handleFileSelect(e.target.files[0], 'file');
 
     // Voice Recording (Optimized)
-    const micBtn = get('mic-btn');
     async function startRecording() {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            // Optimization: Set lower bitrate for audio if possible
             const options = { mimeType: 'audio/webm;codecs=opus', bitsPerSecond: 16000 };
             try { mediaRecorder = new MediaRecorder(stream, options); } 
             catch(e) { mediaRecorder = new MediaRecorder(stream); }
@@ -2001,6 +2105,7 @@
         globalNotificationUnsubscribe = onSnapshot(q, (snap) => {
             snap.docChanges().forEach(change => {
                 const d = change.doc.data();
+                // Call Notifications
                 if(change.type === 'modified' && d.callStatus) {
                     if(d.callStatus.state === 'calling' && d.callStatus.callerId !== currentUser.uid) {
                         if(Date.now() - d.callStatus.timestamp < 30000) {
@@ -2019,11 +2124,18 @@
                          get('incoming-call-modal').style.display = 'none';
                     }
                 }
+                
+                // Message Notifications (Background)
+                 if(change.type === 'modified' && d.lastMessage?.senderId !== currentUser.uid && (Date.now() - (d.updatedAt?.seconds || 0)*1000 < 5000)) {
+                     if(document.visibilityState === 'hidden' || currentChatId !== change.doc.id) {
+                         // Optional: Add browser notification logic here
+                     }
+                 }
             });
         });
     }
     
-    // --- SEARCH PAGE LOGIC ---
+    // --- SEARCH PAGE LOGIC (UPDATED WITH HISTORY) ---
     get('search-btn').onclick = async () => {
         const pid = get('search-ping-id').value.trim();
         const res = get('search-results'); res.innerHTML = 'Searching...';
@@ -2033,7 +2145,7 @@
         if(snap.empty) return (res.innerHTML = '<div style="text-align:center;">User not found</div>');
         snap.forEach(d => {
             const u = d.data();
-            if(u.uid === currentUser.uid) return;
+            if(u.uid === currentUser.uid) return (res.innerHTML = '<div style="text-align:center;">That\'s your ID!</div>');
             const div = document.createElement('div');
             div.className = 'user-card search-result-card';
             div.innerHTML = `
@@ -2041,7 +2153,7 @@
                     <img src="${u.photoURL || 'https://i.postimg.cc/RZ5FH16z/Gemini-Generated-Image-rgsqsqrgsqsqrgsq-removebg-preview.png'}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;">
                     <div>${u.displayName}</div>
                 </div>
-                <button class="btn-msg-action">Chat</button>`;
+                <button class="btn-msg-action">Message</button>`;
             div.onclick = () => { addToHistory(u); openChat(u.uid, u); };
             res.appendChild(div);
         });
@@ -2109,8 +2221,20 @@
     };
     get('auth-toggle').onclick = () => { isLoginMode=!isLoginMode; get('signup-fields').classList.toggle('hidden'); get('auth-btn').textContent=isLoginMode?'Sign In':'Sign Up'; };
     
+    // Smart Presence Logic
     const updatePresence = (s) => { if(currentUser) updateDoc(doc(db, USERS_PATH, currentUser.uid), { status: s, lastActive: serverTimestamp() }).catch(()=>{}); };
-    document.addEventListener('visibilitychange', () => updatePresence(document.visibilityState==='visible'?'online':'offline'));
+    
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+            if (backgroundDisconnectTimeout) clearTimeout(backgroundDisconnectTimeout);
+            updatePresence('online');
+            if (wakeLock !== null) wakeLockRequest();
+        } else {
+            backgroundDisconnectTimeout = setTimeout(() => { updatePresence('offline'); }, 2 * 60 * 1000); 
+        }
+    });
+    
+    window.addEventListener('beforeunload', () => { updatePresence('offline'); });
     setInterval(() => { if(currentUser && document.visibilityState==='visible') updatePresence('online'); }, 60000);
   </script>
 </body>
