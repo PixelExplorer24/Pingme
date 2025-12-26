@@ -207,7 +207,7 @@
         align-self: center; background: rgba(128,128,128,0.25); backdrop-filter: blur(4px); padding: 4px 12px;
         border-radius: 12px; font-size: 11px; font-weight: 600; color: var(--text-main); margin: 16px 0 8px;
     }
-    .msg-row { display: flex; width: 100%; margin-bottom: 2px; position: relative; align-items: flex-end;}
+    .msg-row { display: flex; width: 100%; margin-bottom: 8px; position: relative; align-items: flex-end;}
     .msg-row.me { justify-content: flex-end; }
     .msg-row.you { justify-content: flex-start; }
     
@@ -243,7 +243,7 @@
 
     .status-tick { font-weight: 900; font-size: 10px; margin-left: 2px; }
     
-    /* --- NEW SEEN AVATAR ANIMATION --- */
+    /* --- SEEN AVATAR ANIMATION --- */
     .seen-avatar {
         width: 16px; height: 16px; border-radius: 50%;
         margin-left: 4px; border: 1.5px solid var(--bg-body);
@@ -265,18 +265,17 @@
     }
     @keyframes popIn { from { transform: scale(0); } to { transform: scale(1); } }
 
-    /* --- TYPING INDICATOR (FIXED POSITIONING) --- */
+    /* --- TYPING INDICATOR (FIXED POSITIONING & OVERLAP FIX) --- */
     .typing-bubble-container {
         position: absolute; 
-        /* UPDATED FIX: Anchor to bottom of previous element instead of fixed top pixel */
-        top: auto;
-        bottom: 100%; 
+        /* Positioned absolute to the top of the input area (negative bottom) */
+        bottom: 100%;
         left: 20px; 
         z-index: 50;
         display: none; 
         animation: slideUpFade 0.3s ease-out;
         pointer-events: none;
-        margin-bottom: 6px; /* Space from input box */
+        margin-bottom: 5px; /* Added spacing from input box */
     }
     .typing-bubble-container.active { display: block; }
     @keyframes slideUpFade { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
@@ -508,6 +507,51 @@
     .incoming-actions { display: flex; gap: 10px; }
     .btn-accept { width: 40px; height: 40px; border-radius: 50%; background: #4CD964; border: none; color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; }
     .btn-reject { width: 40px; height: 40px; border-radius: 50%; background: #FF3B30; border: none; color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+
+    /* --- NEW CSS FOR UPDATE: TWIST & REACTIONS --- */
+    
+    /* Reaction Overlay on Message Bubble */
+    .reaction-overlay {
+        position: absolute; bottom: -10px; right: 8px;
+        background: var(--bg-card); border: 1px solid var(--border);
+        border-radius: 12px; padding: 2px 4px; display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1); font-size: 12px; z-index: 10;
+        min-width: 20px; height: 20px;
+        animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    /* Reaction Bar in Action Sheet */
+    .reaction-bar {
+        display: flex; gap: 15px; justify-content: center; padding: 12px;
+        background: var(--bg-input); border-radius: 16px; margin-bottom: 8px;
+    }
+    .reaction-emoji {
+        font-size: 24px; cursor: pointer; transition: transform 0.2s;
+        user-select: none;
+    }
+    .reaction-emoji:active { transform: scale(1.4); }
+
+    /* Twist Animation for Settings */
+    .twist-effect {
+        animation: twist-n-shout 0.6s cubic-bezier(0.36, 0.07, 0.19, 0.97);
+    }
+    @keyframes twist-n-shout {
+        0% { transform: rotate(0deg) scale(1); }
+        25% { transform: rotate(3deg) scale(1.02); }
+        50% { transform: rotate(-3deg) scale(1.02); }
+        75% { transform: rotate(1deg) scale(1.01); }
+        100% { transform: rotate(0deg) scale(1); }
+    }
+    
+    /* Twist Animation for Dark Mode (Full Screen Invert Feel) */
+    .twist-invert {
+        animation: invert-twist 0.8s ease-in-out;
+    }
+    @keyframes invert-twist {
+        0% { transform: rotate(0deg) scale(1); filter: invert(0); }
+        50% { transform: rotate(180deg) scale(0.5); filter: invert(0.5); }
+        100% { transform: rotate(360deg) scale(1); filter: invert(0); }
+    }
 
   </style>
 
@@ -918,9 +962,9 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, updateProfile, sendEmailVerification, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, query, collection, where, onSnapshot, serverTimestamp, increment, orderBy, limit, addDoc, arrayUnion, arrayRemove, deleteDoc, writeBatch, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-    
-    // --- CONFIG ---
+    import { getFirestore, doc, setDoc, getDoc, getDocs, updateDoc, query, collection, where, onSnapshot, serverTimestamp, increment, orderBy, limit, addDoc, arrayUnion, arrayRemove, deleteDoc, writeBatch, enableIndexedDbPersistence, deleteField } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    // --- FIREBASE CONFIG ---
     const firebaseConfig = {
       apiKey: "AIzaSyAOEmgVj-OzfVaZsNOn47WTdaCrb5h8h_s",
       authDomain: "ping-me-app-475d1.firebaseapp.com",
@@ -934,54 +978,48 @@
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
-    
-    // --- AGORA CONFIG ---
-// Using the App ID from the provided code
-const AGORA_APP_ID = "83291c0f69f64ba5a63c86e266c0b1c9"; 
 
-    // --- ENABLE OFFLINE PERSISTENCE (SERVER CONNECTIVITY UPGRADE) ---
-    enableIndexedDbPersistence(db).catch((err) => {
-        if (err.code == 'failed-precondition') {
-            console.log('Multiple tabs open, persistence can only be enabled in one tab at a a time.');
-        } else if (err.code == 'unimplemented') {
-            console.log('The current browser does not support all of the features required to enable persistence');
-        }
-    });
+    // --- AGORA CONFIG ---
+    const AGORA_APP_ID = "83291c0f69f64ba5a63c86e266c0b1c9"; 
+
+    // --- PERSISTENCE ---
+    enableIndexedDbPersistence(db).catch((err) => console.log("Persistence error:", err.code));
 
     const USERS_PATH = `artifacts/${firebaseConfig.projectId}/public/data/users`;
     const CHATS_PATH = `artifacts/${firebaseConfig.projectId}/public/data/chat_rooms`;
 
-    // --- STATE ---
+    // --- GLOBAL STATE ---
     let currentUser = null, currentUserData = null;
     let currentChatId = null, currentPartnerId = null, currentPartnerData = null;
-    let unsubscribeChats, unsubscribeMsgs, unsubscribeRoom, unsubscribePartnerStatus;
+    let unsubscribeChats, unsubscribeMsgs, unsubscribeRoom, unsubscribePartnerStatus, globalNotificationUnsubscribe;
     let isLoginMode = true, isSigningUp = false;
-    let replyTo = null, currentMsgId = null;
-    let globalNotificationUnsubscribe = null;
+    let replyTo = null;
     let typingTimeout = null, isTyping = false;
-    let isSoundEnabled = true; // Sound State
-    let msgLimit = 20; // Pagination limit
-    
-    // Background Connectivity Handles
+    let isSoundEnabled = true;
+    let msgLimit = 20;
     let backgroundDisconnectTimeout = null;
     let wakeLock = null;
 
     // --- AUDIO RECORDING STATE ---
-    let mediaRecorder = null;
-    let audioChunks = [];
-    let isRecording = false;
-    let recordStartTime = 0;
-    let recordInterval = null;
+    let mediaRecorder = null, audioChunks = [], isRecording = false, recordStartTime = 0, recordInterval = null;
 
-    // --- CALLING STATE (AGORA) ---
+    // --- CALLING STATE (AGORA FIXED) ---
     let agoraClient = null;
     let localTracks = { video: null, audio: null };
-    let remoteUsers = {};
     let isCallActive = false;
+    let callTimerInterval = null;
+    let callSeconds = 0;
+    let currentCallType = 'audio'; // 'audio' or 'video'
 
-    // --- SOUND SYSTEM & AUDIO UNLOCKER ---
+    // --- UTILS ---
+    const get = (id) => document.getElementById(id);
+    const showToast = (msg) => {
+        const t = get('toastMsg'); get('toastText').textContent = msg;
+        t.classList.add('active'); setTimeout(() => t.classList.remove('active'), 2500);
+    };
+
+    // --- AUDIO SYSTEM ---
     let audioUnlocked = false;
-    
     function initAudio() {
         if(audioUnlocked) return;
         ['notification-sound', 'snd-btn-click', 'snd-sent', 'snd-seen', 'snd-typing-click', 'snd-partner-typing', 'snd-sweet-beep', 'snd-ringtone'].forEach(id => {
@@ -992,104 +1030,28 @@ const AGORA_APP_ID = "83291c0f69f64ba5a63c86e266c0b1c9";
         document.removeEventListener('click', initAudio);
         document.removeEventListener('touchstart', initAudio);
     }
-    
     document.addEventListener('click', initAudio);
     document.addEventListener('touchstart', initAudio);
 
     const playSound = (id, loop=false) => {
-        if(!isSoundEnabled) return; // Check Global Sound State
+        if(!isSoundEnabled) return;
         const audio = document.getElementById(id);
         if (audio) {
-            if(loop && !audio.paused) return; // Don't restart loop if already playing
+            if(loop && !audio.paused) return;
             audio.loop = loop;
-            if(id === 'snd-seen') audio.volume = 0.4;
-            else if(id === 'snd-partner-typing') audio.volume = 0.6;
-            else if(id === 'snd-typing-click') audio.volume = 0.3; // Softer key click
-            else if(id === 'snd-sweet-beep') audio.volume = 0.7; // Sweet beep volume
-            else if(id === 'snd-ringtone') audio.volume = 0.8;
-            else audio.volume = 0.5;
-            
             audio.currentTime = 0; 
-            audio.play().catch(e => console.log("Sound blocked:", e));
+            // Volume adjustments
+            if(id === 'snd-ringtone') audio.volume = 0.8;
+            else if(id === 'snd-sweet-beep') audio.volume = 0.5;
+            else audio.volume = 0.5;
+            audio.play().catch(e => console.log("Sound blocked"));
         }
     };
-    
-    const stopSound = (id) => {
-        const audio = document.getElementById(id);
-        if(audio) { audio.pause(); audio.currentTime = 0; }
-    };
+    const stopSound = (id) => { const a = document.getElementById(id); if(a){ a.pause(); a.currentTime=0; }};
 
-    // --- CACHE & INSTANT LOAD LOGIC ---
-    function checkCacheOnStartup() {
-        const cachedUser = localStorage.getItem('cached_user_data');
-        if (cachedUser) {
-            try {
-                currentUserData = JSON.parse(cachedUser);
-                if(currentUserData.uid) {
-                    // Pre-render Home UI immediately
-                    document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
-                    get('view-home').classList.add('active');
-                    get('nav-chats').classList.add('active');
-                    updateHeaderUI();
-                    
-                    const cachedChats = localStorage.getItem('cached_chat_list');
-                    if(cachedChats) {
-                        const rooms = JSON.parse(cachedChats);
-                        renderChatList(rooms); // Render cached list
-                    }
-                    // Hide Splash immediately if cache exists
-                    const splash = get('splash-screen');
-                    splash.style.opacity = 0;
-                    setTimeout(() => splash.classList.add('hidden'), 500);
-                }
-            } catch(e) { console.error("Cache parse error", e); }
-        }
-    }
-    // Call immediately before Firebase auth triggers
-    checkCacheOnStartup();
-
-    // --- HELPER: TIME AGO ---
-    function formatTimeAgo(dateInput) {
-        if(!dateInput) return '';
-        // Handle Firestore Timestamp or Date String or Date Object
-        let date = dateInput;
-        if(dateInput.seconds) date = new Date(dateInput.seconds * 1000);
-        else if(typeof dateInput === 'string') date = new Date(dateInput);
-
-        const seconds = Math.floor((new Date() - date) / 1000);
-        let interval = seconds / 31536000;
-        if (interval > 1) return Math.floor(interval) + "y ago";
-        interval = seconds / 2592000;
-        if (interval > 1) return Math.floor(interval) + "mo ago";
-        interval = seconds / 86400;
-        if (interval > 1) return Math.floor(interval) + "d ago";
-        interval = seconds / 3600;
-        if (interval > 1) return Math.floor(interval) + "h ago";
-        interval = seconds / 60;
-        if (interval > 1) return Math.floor(interval) + "m ago";
-        return "Just now";
-    }
-
-    // --- UI HELPERS ---
-    const get = (id) => document.getElementById(id);
-    const showToast = (msg) => {
-        const t = get('toastMsg'); get('toastText').textContent = msg;
-        t.classList.add('active'); setTimeout(() => t.classList.remove('active'), 2500);
-    };
-    
-    // --- SCROLL HELPER ---
-    const scrollToBottom = () => {
-        const list = get('messages');
-        requestAnimationFrame(() => {
-            list.scrollTop = list.scrollHeight;
-        });
-        setTimeout(() => {
-             list.scrollTop = list.scrollHeight;
-        }, 100);
-    };
-
-    const showView = (id) => {
-        document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+    // --- NAVIGATION & UI HANDLERS (FIXED) ---
+    function showView(id) {
+        document.querySelectorAll('.view-section').forEach(e=>e.classList.remove('active'));
         get(id).classList.add('active');
         if(id === 'view-home' || id === 'view-find' || id === 'view-profile') {
            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
@@ -1097,523 +1059,384 @@ const AGORA_APP_ID = "83291c0f69f64ba5a63c86e266c0b1c9";
            if(id === 'view-find') get('nav-find').classList.add('active');
            if(id === 'view-profile') get('nav-profile').classList.add('active');
         }
+        if(id==='view-chat') wakeLockRequest();
+    }
+    async function wakeLockRequest() { try { if('wakeLock' in navigator) wakeLock=await navigator.wakeLock.request('screen'); } catch(e){} }
+
+    // Nav Listeners
+    get('profile-header-btn').onclick = () => showView('view-profile');
+    get('nav-chats').onclick = () => showView('view-home');
+    get('nav-find').onclick = () => { showView('view-find'); loadSearchHistory(); };
+    get('nav-profile').onclick = () => showView('view-profile');
+    get('back-from-find').onclick = () => showView('view-home');
+    get('back-from-profile').onclick = () => showView('view-home');
+    get('chat-back-btn').onclick = () => {
+        showView('view-home');
+        if(unsubscribeMsgs) unsubscribeMsgs();
+        if(unsubscribeRoom) unsubscribeRoom();
+        stopSound('snd-partner-typing');
+    };
+    get('back-from-friend-profile').onclick = () => showView('view-chat');
+    get('chat-user-header').onclick = async () => {
+        showView('view-friend-profile');
+        let fullData = currentPartnerData;
+        try {
+            const snap = await getDoc(doc(db, USERS_PATH, currentPartnerId));
+            if (snap.exists()) { fullData = snap.data(); currentPartnerData = { ...currentPartnerData, ...fullData }; }
+        } catch(e) {}
+        get('friend-display-name').textContent = fullData.displayName;
+        get('friend-ping-id').textContent = '@' + (fullData.pingId || 'unknown');
+        get('friend-bio').textContent = fullData.bio || 'No bio available';
+        get('friend-email').textContent = fullData.email || 'Hidden';
+        const img = get('friend-img-preview'), txt = get('friend-initial-preview');
+        if(fullData.photoURL) { img.src=fullData.photoURL; img.style.display='block'; txt.style.display='none'; }
+        else { img.style.display='none'; txt.style.display='flex'; txt.textContent = (fullData.displayName||'U')[0]; }
         
-        // Handle Wake Lock for Chat View
-        if (id === 'view-chat') requestWakeLock();
-        else releaseWakeLock();
+        // Block Logic
+        const isBlocked = currentUserData.blockedUsers?.includes(currentPartnerId);
+        const btn = get('friend-block-btn');
+        btn.textContent = isBlocked ? "Unblock User" : "Block User";
+        btn.onclick = () => toggleBlock(currentPartnerId, !isBlocked);
     };
 
-    // --- DARK MODE LOGIC ---
+    async function toggleBlock(uid, shouldBlock) {
+        const ref = doc(db, USERS_PATH, currentUser.uid);
+        if(shouldBlock) {
+            currentUserData.blockedUsers = currentUserData.blockedUsers || []; currentUserData.blockedUsers.push(uid);
+            await updateDoc(ref, { blockedUsers: arrayUnion(uid) }); showToast("User Blocked");
+        } else {
+            currentUserData.blockedUsers = currentUserData.blockedUsers.filter(x => x !== uid);
+            await updateDoc(ref, { blockedUsers: arrayRemove(uid) }); showToast("User Unblocked");
+        }
+        const btn = get('friend-block-btn');
+        if(currentPartnerId === uid && btn) btn.textContent = shouldBlock ? "Unblock User" : "Block User";
+        loadChatList();
+        localStorage.setItem('cached_user_data', JSON.stringify(currentUserData));
+    }
+
+    // --- THEME & CACHE ---
+    function checkCacheOnStartup() {
+        const cachedUser = localStorage.getItem('cached_user_data');
+        if (cachedUser) {
+            try {
+                currentUserData = JSON.parse(cachedUser);
+                if(currentUserData.uid) {
+                    document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+                    get('view-home').classList.add('active');
+                    get('nav-chats').classList.add('active');
+                    updateHeaderUI();
+                    const cachedChats = localStorage.getItem('cached_chat_list');
+                    if(cachedChats) renderChatList(JSON.parse(cachedChats));
+                    get('splash-screen').style.opacity = 0;
+                    setTimeout(() => get('splash-screen').classList.add('hidden'), 500);
+                }
+            } catch(e) {}
+        }
+    }
+    checkCacheOnStartup();
+
     function initTheme() {
         const savedTheme = localStorage.getItem('theme');
-        if(savedTheme === 'dark') {
-            document.documentElement.setAttribute('data-theme', 'dark');
-            get('theme-toggle').checked = true;
-        } else {
-            document.documentElement.removeAttribute('data-theme');
-            get('theme-toggle').checked = false;
-        }
-
-        // Init Sound State
-        const savedSound = localStorage.getItem('sound_enabled');
-        if(savedSound === 'false') {
-            isSoundEnabled = false;
-            get('sound-toggle').checked = false;
-        } else {
-            isSoundEnabled = true;
-            get('sound-toggle').checked = true;
-        }
-        
-        // Init Wallpaper
+        if(savedTheme === 'dark') { document.documentElement.setAttribute('data-theme', 'dark'); get('theme-toggle').checked = true; } 
+        else { document.documentElement.removeAttribute('data-theme'); get('theme-toggle').checked = false; }
+        if(localStorage.getItem('sound_enabled') === 'false') { isSoundEnabled = false; get('sound-toggle').checked = false; }
+        else { isSoundEnabled = true; get('sound-toggle').checked = true; }
         initWallpaper();
     }
     
-    // --- WALLPAPER LOGIC ---
     function initWallpaper() {
         const savedBg = localStorage.getItem('chat_wallpaper');
         const mainView = get('view-chat').querySelector('main');
-        
         if (savedBg) {
             if(savedBg.startsWith('#') || savedBg.startsWith('rgb')) {
-                // Solid Color
-                mainView.style.backgroundImage = 'none';
-                mainView.style.background = savedBg;
+                mainView.style.backgroundImage = 'none'; mainView.style.background = savedBg;
             } else {
-                // Image (Data URL)
-                mainView.style.background = 'none'; // clear
-                mainView.style.backgroundImage = `url(${savedBg})`;
+                mainView.style.background = 'none'; mainView.style.backgroundImage = `url(${savedBg})`;
                 mainView.style.backgroundSize = 'cover';
                 mainView.style.backgroundPosition = 'center';
             }
-        } else {
-            // Reset to default css var
-            mainView.style.background = '';
-            mainView.style.backgroundImage = '';
-        }
+        } else { mainView.style.background = ''; mainView.style.backgroundImage = ''; }
     }
     
+    // Theme Listeners (Updated for Twist Effect)
+    get('theme-toggle').addEventListener('change', (e) => {
+        // Apply twist animation
+        document.body.classList.add('twist-invert');
+        setTimeout(() => document.body.classList.remove('twist-invert'), 800);
+
+        if(e.target.checked) { document.documentElement.setAttribute('data-theme', 'dark'); localStorage.setItem('theme', 'dark'); }
+        else { document.documentElement.removeAttribute('data-theme'); localStorage.setItem('theme', 'light'); }
+    });
+    
+    // Sound Listeners (Updated for Twist Effect)
+    get('sound-toggle').addEventListener('change', (e) => { 
+        // Apply different twist animation
+        const label = e.target.closest('.switch');
+        if(label) {
+            label.classList.add('twist-effect');
+            setTimeout(() => label.classList.remove('twist-effect'), 600);
+        }
+        
+        isSoundEnabled = e.target.checked; 
+        localStorage.setItem('sound_enabled', isSoundEnabled); 
+        if(isSoundEnabled) playSound('snd-btn-click');
+    });
+    
+    // Wallpaper
     get('wallpaper-btn').onclick = () => {
         openActionSheet([
             { text: "Choose Solid Color", action: () => { get('bg-color-input').click(); hideActionSheet(); } },
             { text: "Upload Image", action: () => { get('bg-img-input').click(); hideActionSheet(); } },
-            { text: "Reset to Default", class: "danger", action: () => { 
-                localStorage.removeItem('chat_wallpaper'); 
-                initWallpaper();
-                showToast("Wallpaper Reset");
-                hideActionSheet();
-            }},
+            { text: "Reset to Default", class: "danger", action: () => { localStorage.removeItem('chat_wallpaper'); initWallpaper(); showToast("Wallpaper Reset"); hideActionSheet(); }},
             { text: "Cancel", action: hideActionSheet }
         ]);
     };
-    
-    get('bg-color-input').addEventListener('input', (e) => {
-        const color = e.target.value;
-        localStorage.setItem('chat_wallpaper', color);
-        initWallpaper();
-    });
-    
+    get('bg-color-input').addEventListener('input', (e) => { localStorage.setItem('chat_wallpaper', e.target.value); initWallpaper(); });
     get('bg-img-input').addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if(!file) return;
-        
-        if(file.size > 2 * 1024 * 1024) {
-            alert("Image too large (Max 2MB for wallpaper)");
-            return;
-        }
-
+        const file = e.target.files[0]; if(!file) return;
         const reader = new FileReader();
-        reader.onload = (ev) => {
-             const dataUrl = ev.target.result;
-             try {
-                 localStorage.setItem('chat_wallpaper', dataUrl);
-                 initWallpaper();
-                 showToast("Wallpaper Updated");
-             } catch(err) {
-                 alert("Image too large to save. Try a smaller image.");
-             }
-        };
+        reader.onload = (ev) => { try { localStorage.setItem('chat_wallpaper', ev.target.result); initWallpaper(); } catch(e){ alert("Image too large"); } };
         reader.readAsDataURL(file);
-        // clear input
-        get('bg-img-input').value = '';
     });
 
-    
-    get('theme-toggle').addEventListener('change', (e) => {
-        if(e.target.checked) {
-            document.documentElement.setAttribute('data-theme', 'dark');
-            localStorage.setItem('theme', 'dark');
-        } else {
-            document.documentElement.removeAttribute('data-theme');
-            localStorage.setItem('theme', 'light');
-        }
-    });
-
-    // Sound Toggle Listener
-    get('sound-toggle').addEventListener('change', (e) => {
-        isSoundEnabled = e.target.checked;
-        localStorage.setItem('sound_enabled', isSoundEnabled);
-        showToast(isSoundEnabled ? "Sounds On" : "Sounds Off");
-    });
-
-    // --- HOME SEARCH LOGIC ---
-    get('home-search-input').addEventListener('input', (e) => {
-        const term = e.target.value.toLowerCase();
-        const cards = document.querySelectorAll('#chat-list-container .user-card');
-        
-        cards.forEach(card => {
-            const name = card.querySelector('.card-name').textContent.toLowerCase();
-            const msg = card.querySelector('.card-msg').textContent.toLowerCase();
-            const meta = (card.getAttribute('data-search-meta') || '').toLowerCase(); // Hidden data (PingID, etc)
-            
-            if(name.includes(term) || msg.includes(term) || meta.includes(term)) {
-                card.style.display = 'flex';
-            } else {
-                card.style.display = 'none';
-            }
-        });
-    });
-
-    // --- PINCH TO ZOOM IMAGE VIEWER LOGIC ---
-    const lightboxImg = get('lightbox-img');
-    const lightbox = get('lightbox');
-    let scale = 1, pointX = 0, pointY = 0, startX = 0, startY = 0, isDragging = false, startDist = 0;
-
-    function resetZoom() {
-        scale = 1; pointX = 0; pointY = 0;
-        lightboxImg.style.transform = `translate(0px, 0px) scale(1)`;
+    // --- CALL TIMER LOGIC ---
+    function startCallTimer() {
+        callSeconds = 0;
+        clearInterval(callTimerInterval);
+        const statusEl = get('call-status-text');
+        callTimerInterval = setInterval(() => {
+            callSeconds++;
+            const m = Math.floor(callSeconds / 60);
+            const s = callSeconds % 60;
+            statusEl.textContent = `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+        }, 1000);
     }
+    function stopCallTimer() { clearInterval(callTimerInterval); return callSeconds; }
 
-    window.viewImg = (src) => { 
-        lightboxImg.src = src; 
-        resetZoom();
-        lightbox.classList.add('active'); 
-    };
-    get('lightbox-close').onclick = () => get('lightbox').classList.remove('active');
-
-    lightbox.addEventListener('touchstart', (e) => {
-        if (e.touches.length === 2) {
-            e.preventDefault(); 
-            startDist = Math.hypot(
-                e.touches[0].pageX - e.touches[1].pageX,
-                e.touches[0].pageY - e.touches[1].pageY
-            );
-        } else if (e.touches.length === 1) {
-            startX = e.touches[0].pageX - pointX;
-            startY = e.touches[0].pageY - pointY;
-            isDragging = true;
-        }
-    });
-
-    lightbox.addEventListener('touchmove', (e) => {
-        e.preventDefault();
-        if (e.touches.length === 2) {
-            const dist = Math.hypot(
-                e.touches[0].pageX - e.touches[1].pageX,
-                e.touches[0].pageY - e.touches[1].pageY
-            );
-            const delta = dist / startDist;
-            scale = Math.min(Math.max(1, scale * delta), 4);
-            startDist = dist;
-            lightboxImg.style.transform = `translate(${pointX}px, ${pointY}px) scale(${scale})`;
-        } else if (e.touches.length === 1 && isDragging && scale > 1) {
-            pointX = e.touches[0].pageX - startX;
-            pointY = e.touches[0].pageY - startY;
-            lightboxImg.style.transform = `translate(${pointX}px, ${pointY}px) scale(${scale})`;
-        }
-    });
-
-    lightbox.addEventListener('touchend', () => {
-        isDragging = false;
-        if (scale < 1) resetZoom();
-    });
-
-    function requestNotificationPermission() {
-        if ("Notification" in window) {
-            if (Notification.permission !== "granted" && Notification.permission !== "denied") {
-                Notification.requestPermission().then(permission => {
-                    if (permission === "granted") console.log("Notification permission granted!");
-                });
-            }
-        }
-    }
-
-    // --- WAKE LOCK API (KEEPS SCREEN ON) ---
-    async function requestWakeLock() {
-        try {
-            if ('wakeLock' in navigator) {
-                wakeLock = await navigator.wakeLock.request('screen');
-                wakeLock.addEventListener('release', () => {
-                    // console.log('Screen Wake Lock released');
-                });
-            }
-        } catch (err) {
-            // Wake Lock is optional enhancement
-            console.log(`${err.name}, ${err.message}`);
-        }
-    }
-    
-    function releaseWakeLock() {
-        if(wakeLock) {
-            wakeLock.release().then(() => wakeLock = null);
-        }
-    }
-    
-    // Re-request wake lock if visibility changes back to visible
-    document.addEventListener('visibilitychange', async () => {
-        if (wakeLock !== null && document.visibilityState === 'visible') {
-            await requestWakeLock();
-        }
-    });
-
-    // --- AGORA CALLING LOGIC IMPLEMENTATION ---
-
+    // --- AGORA LOGIC (FIXED: PERMISSIONS) ---
     async function checkPermissions() {
         try {
+            // Explicitly request permissions to trigger browser popup on PC
             const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-            stream.getTracks().forEach(track => track.stop()); // Stop immediately, just checking
+            // Stop tracks immediately after check
+            stream.getTracks().forEach(track => track.stop());
             return true;
         } catch(e) {
-            alert("Camera and Microphone permissions are required to make calls. Please enable them in your browser settings.");
+            console.error("Permission Error:", e);
+            alert("Please allow Camera and Microphone permissions in your browser settings to make calls.");
             return false;
         }
     }
 
-    // Initialize Agora Client
     function initAgora() {
-        if(!agoraClient) {
-            agoraClient = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
-            
-            agoraClient.on("user-published", async (user, mediaType) => {
-                await agoraClient.subscribe(user, mediaType);
-                if (mediaType === "video") {
-                    user.videoTrack.play("remote-video");
-                }
-                if (mediaType === "audio") {
-                    user.audioTrack.play();
-                }
-            });
-
-            agoraClient.on("user-unpublished", (user) => {
-                // Remote user left
-                if(document.getElementById("remote-video").innerHTML) {
-                     showToast("Partner disconnected");
-                     endCall();
-                }
-            });
-        }
+        if(agoraClient) return;
+        agoraClient = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
+        agoraClient.on("user-published", async (user, mediaType) => {
+            await agoraClient.subscribe(user, mediaType);
+            if (mediaType === "video") { user.videoTrack.play("remote-video"); }
+            if (mediaType === "audio") { user.audioTrack.play(); }
+        });
+        agoraClient.on("user-left", () => { showToast("Partner left the call"); endCall('ended_remote'); });
     }
 
+    // Start Outgoing Call
     async function startCall(type) {
-        if(!AGORA_APP_ID) { alert("Agora App ID missing in code."); return; }
-        const perm = await checkPermissions();
-        if(!perm) return;
-
-        // 1. Show Call UI
+        // Check permissions FIRST before showing UI
+        if(!await checkPermissions()) return;
+        
+        currentCallType = type;
         get('view-call').classList.add('active');
         get('call-status-text').textContent = "Calling...";
         get('call-partner-name-display').textContent = currentPartnerData.displayName;
         get('local-video').style.display = type === 'video' ? 'block' : 'none';
-
-        // 2. Initialize Agora
+        updateCallControlIcons();
         initAgora();
-        
-        try {
-            // 3. Join Channel (Channel Name = Chat ID)
-            await agoraClient.join(AGORA_APP_ID, currentChatId, null, currentUser.uid);
 
-            // 4. Create Local Tracks
-            if(type === 'video') {
-                localTracks.audio = await AgoraRTC.createMicrophoneAudioTrack();
+        try {
+            const uid = currentUser.uid;
+            await agoraClient.join(AGORA_APP_ID, currentChatId, null, uid);
+            localTracks.audio = await AgoraRTC.createMicrophoneAudioTrack();
+            if (type === 'video') {
                 localTracks.video = await AgoraRTC.createCameraVideoTrack();
                 localTracks.video.play("local-video");
                 await agoraClient.publish([localTracks.audio, localTracks.video]);
-            } else {
-                localTracks.audio = await AgoraRTC.createMicrophoneAudioTrack();
-                await agoraClient.publish([localTracks.audio]);
-            }
+            } else { await agoraClient.publish([localTracks.audio]); }
             
             isCallActive = true;
+            playSound('snd-ringtone', true); 
 
-            // 5. Signal the other user via Firestore
             await updateDoc(doc(db, CHATS_PATH, currentChatId), {
-                callStatus: {
-                    state: 'calling',
-                    type: type,
-                    callerId: currentUser.uid,
-                    timestamp: Date.now()
-                }
+                callStatus: { state: 'calling', type: type, callerId: currentUser.uid, timestamp: Date.now() }
             });
 
-        } catch(e) {
-            console.error(e);
-            alert("Call failed to start: " + e.message);
-            endCall();
-        }
+            setTimeout(() => {
+                if(isCallActive && get('call-status-text').textContent === "Calling...") {
+                    showToast("No answer"); endCall('missed');
+                }
+            }, 45000); 
+        } catch(e) { console.error(e); endCall('error'); }
     }
 
+    // Accept Incoming Call
     async function acceptIncomingCall(callInfo) {
-        const perm = await checkPermissions();
-        if(!perm) return;
-
+        if(!await checkPermissions()) return;
         stopSound('snd-ringtone');
         get('incoming-call-modal').style.display = 'none';
-        get('view-call').classList.add('active');
-        get('call-status-text').textContent = "Connecting...";
         
-        // Fetch partner data if not in current chat view
-        let partnerName = "Caller";
-        if(currentChatId === callInfo.chatId && currentPartnerData) {
-            partnerName = currentPartnerData.displayName;
-        } else {
-             // Basic fallback, ideally we fetch user profile
-             partnerName = "Incoming Call";
-        }
-        get('call-partner-name-display').textContent = partnerName;
-        get('local-video').style.display = callInfo.type === 'video' ? 'block' : 'none';
-
+        currentCallType = callInfo.type;
+        get('view-call').classList.add('active');
+        get('call-partner-name-display').textContent = get('incoming-call-name').textContent; 
+        get('local-video').style.display = currentCallType === 'video' ? 'block' : 'none';
+        updateCallControlIcons();
         initAgora();
 
         try {
             await agoraClient.join(AGORA_APP_ID, callInfo.chatId, null, currentUser.uid);
-            
-            if(callInfo.type === 'video') {
-                localTracks.audio = await AgoraRTC.createMicrophoneAudioTrack();
+            localTracks.audio = await AgoraRTC.createMicrophoneAudioTrack();
+            if (currentCallType === 'video') {
                 localTracks.video = await AgoraRTC.createCameraVideoTrack();
                 localTracks.video.play("local-video");
                 await agoraClient.publish([localTracks.audio, localTracks.video]);
-            } else {
-                localTracks.audio = await AgoraRTC.createMicrophoneAudioTrack();
-                await agoraClient.publish([localTracks.audio]);
-            }
+            } else { await agoraClient.publish([localTracks.audio]); }
 
             isCallActive = true;
-            
-            // Update status to ongoing
-            await updateDoc(doc(db, CHATS_PATH, callInfo.chatId), {
-                'callStatus.state': 'ongoing'
-            });
-
-        } catch(e) {
-            console.error(e);
-            endCall();
-        }
+            startCallTimer();
+            await updateDoc(doc(db, CHATS_PATH, callInfo.chatId), { 'callStatus.state': 'ongoing' });
+        } catch(e) { console.error(e); endCall('error'); }
     }
 
-    async function endCall() {
+    // FIX 4: Call End with Logging
+    async function endCall(reason = 'ended_local') {
+        stopSound('snd-ringtone');
+        const duration = stopCallTimer();
+        const m = Math.floor(duration / 60);
+        const s = duration % 60;
+        const timeStr = `${m}:${s.toString().padStart(2,'0')}`;
+
         if(localTracks.audio) { localTracks.audio.close(); localTracks.audio = null; }
         if(localTracks.video) { localTracks.video.close(); localTracks.video = null; }
-        
-        if(agoraClient) {
-            await agoraClient.leave();
-        }
-        
+        if(agoraClient) await agoraClient.leave();
+
         isCallActive = false;
         get('view-call').classList.remove('active');
         get('local-video').innerHTML = '';
         get('remote-video').innerHTML = '';
+        get('btn-toggle-cam').style.background = 'rgba(255,255,255,0.2)';
+
+        if(!currentChatId) return;
+
+        let sysMsg = '';
+        if (reason === 'missed') sysMsg = '📞 Missed Call';
+        else if (reason === 'rejected') sysMsg = '📞 Call Rejected';
+        else if (duration > 0) sysMsg = `📞 Call ended • ${timeStr}`;
+        else sysMsg = '📞 Call ended';
+
+        await updateDoc(doc(db, CHATS_PATH, currentChatId), { callStatus: { state: 'ended', timestamp: Date.now() } });
         
-        // Update Signal
-        if(currentChatId) {
-            await updateDoc(doc(db, CHATS_PATH, currentChatId), {
-                callStatus: { state: 'ended', timestamp: Date.now() }
-            });
+        if (reason === 'missed' || reason === 'rejected' || reason === 'ended_local') {
+             await addDoc(collection(db, CHATS_PATH, currentChatId, 'messages'), {
+                 text: sysMsg, type: 'text', senderId: currentUser.uid, timestamp: serverTimestamp(), status: 'sent', isSystem: true
+             });
+             await updateDoc(doc(db, CHATS_PATH, currentChatId), {
+                 lastMessage: { text: sysMsg, type: 'text', timestamp: serverTimestamp(), senderId: currentUser.uid },
+                 updatedAt: serverTimestamp()
+             });
         }
     }
 
-    // Call Button Listeners
-    get('btn-start-audio-call').onclick = () => startCall('audio');
-    get('btn-start-video-call').onclick = () => startCall('video');
-    
-    get('btn-end-call').onclick = endCall;
-    
+    // FIX 2: Switch Audio <-> Video logic
+    get('btn-toggle-cam').onclick = async () => {
+        if (!isCallActive) return;
+        if (localTracks.video) {
+            const isMuted = localTracks.video.muted;
+            await localTracks.video.setMuted(!isMuted);
+            const btn = get('btn-toggle-cam');
+            if (!isMuted) { btn.style.background = '#fff'; btn.style.color = '#000'; } 
+            else { btn.style.background = 'rgba(255,255,255,0.2)'; btn.style.color = '#fff'; }
+        } else {
+            try {
+                localTracks.video = await AgoraRTC.createCameraVideoTrack();
+                localTracks.video.play("local-video");
+                await agoraClient.publish([localTracks.video]);
+                get('local-video').style.display = 'block';
+                currentCallType = 'video';
+                get('btn-toggle-cam').style.background = 'rgba(255,255,255,0.2)';
+                get('btn-toggle-cam').style.color = '#fff';
+            } catch (e) { showToast("Camera access failed"); }
+        }
+    };
+
     get('btn-toggle-mic').onclick = async () => {
         if(localTracks.audio) {
             const muted = localTracks.audio.muted;
             await localTracks.audio.setMuted(!muted);
-            get('btn-toggle-mic').style.background = !muted ? '#fff' : 'rgba(255,255,255,0.2)';
-            get('btn-toggle-mic').style.color = !muted ? '#000' : '#fff';
-        }
-    };
-    
-    get('btn-toggle-cam').onclick = async () => {
-        if(localTracks.video) {
-            const muted = localTracks.video.muted;
-            await localTracks.video.setMuted(!muted);
-            get('btn-toggle-cam').style.background = !muted ? '#fff' : 'rgba(255,255,255,0.2)';
-            get('btn-toggle-cam').style.color = !muted ? '#000' : '#fff';
+            const btn = get('btn-toggle-mic');
+            btn.style.background = !muted ? '#fff' : 'rgba(255,255,255,0.2)';
+            btn.style.color = !muted ? '#000' : '#fff';
         }
     };
 
-    get('btn-reject-incoming').onclick = () => {
+    function updateCallControlIcons() {
+        get('btn-toggle-mic').style.background = 'rgba(255,255,255,0.2)'; get('btn-toggle-mic').style.color = '#fff';
+        get('btn-toggle-cam').style.background = currentCallType === 'video' ? 'rgba(255,255,255,0.2)' : '#fff';
+        get('btn-toggle-cam').style.color = currentCallType === 'video' ? '#fff' : '#000'; 
+    }
+
+    get('btn-start-audio-call').onclick = () => startCall('audio');
+    get('btn-start-video-call').onclick = () => startCall('video');
+    get('btn-end-call').onclick = () => endCall('ended_local');
+
+    // Rejection Logic
+    get('btn-reject-incoming').onclick = async () => {
         stopSound('snd-ringtone');
         get('incoming-call-modal').style.display = 'none';
-        // Optionally update DB to say rejected
+        const callChatId = get('incoming-call-modal').getAttribute('data-chat-id');
+        if(callChatId) {
+            await updateDoc(doc(db, CHATS_PATH, callChatId), { callStatus: { state: 'rejected', timestamp: Date.now() } });
+            await addDoc(collection(db, CHATS_PATH, callChatId, 'messages'), {
+                 text: "📞 Call Rejected", type: 'text', senderId: currentUser.uid, timestamp: serverTimestamp()
+            });
+        }
     };
 
-    // --- AUTHENTICATION ---
+    // --- AUTH ---
     onAuthStateChanged(auth, async (user) => {
         const splash = get('splash-screen');
         if (user) {
-            initTheme(); // Ensure theme loads on login
+            initTheme();
             if (!user.emailVerified && !isSigningUp) {
                 await signOut(auth);
-                showToast("Please verify your email.");
-                showView('view-auth'); splash.style.opacity = 0; setTimeout(()=>splash.classList.add('hidden'),500);
+                showToast("Verify email first.");
+                showView('view-auth'); 
+                splash.style.opacity = 0; setTimeout(()=>splash.classList.add('hidden'),500);
                 return;
             }
             if(isSigningUp) return;
             currentUser = user;
-            
-            // Check cache again to be sure, or fetch fresh
             if(!currentUserData) await loadUserProfile(user.uid);
-            else loadUserProfile(user.uid); // Fetch fresh in background
-            
+            else loadUserProfile(user.uid);
             showView('view-home');
             loadChatList();
             updatePresence('online');
-            requestNotificationPermission(); 
             listenGlobalMessages();
             splash.style.opacity = 0; setTimeout(()=>splash.classList.add('hidden'),500);
         } else {
             currentUser = null; currentUserData = null;
             localStorage.removeItem('cached_user_data');
-            localStorage.removeItem('cached_chat_list');
-            initTheme(); // Ensure theme loads even if logged out
             showView('view-auth');
             splash.style.opacity = 0; setTimeout(()=>splash.classList.add('hidden'),500);
         }
     });
 
-    get('auth-toggle').addEventListener('click', () => {
-        isLoginMode = !isLoginMode;
-        get('signup-fields').classList.toggle('hidden');
-        get('auth-btn').textContent = isLoginMode ? 'Sign In' : 'Sign Up';
-        get('auth-toggle').innerHTML = isLoginMode ? `Don't have an account? <span style="color:var(--text-main); font-weight:600;">Sign Up</span>` : `Already have an account? <span style="color:var(--text-main); font-weight:600;">Sign In</span>`;
-    });
-
-    get('auth-btn').addEventListener('click', async () => {
-        const email = get('auth-email').value.trim();
-        const pass = get('auth-pass').value.trim();
-        const name = get('auth-name').value.trim();
-        const errBox = get('auth-error');
-        
-        if(!email || !pass) return (errBox.textContent = "All fields required", errBox.style.display = 'block');
-        
-        get('auth-btn').textContent = "Please wait...";
-        get('auth-btn').disabled = true;
-        
-        try {
-            if(isLoginMode) {
-                await signInWithEmailAndPassword(auth, email, pass);
-            } else {
-                if(!name) throw new Error("Name required");
-                isSigningUp = true;
-                const cred = await createUserWithEmailAndPassword(auth, email, pass);
-                
-                const cleanName = name.replace(/[^a-zA-Z0-9]/g, '').toLowerCase().substring(0, 4);
-                const randomId = cleanName + Math.floor(1000 + Math.random() * 9000);
-                
-                const newUser = {
-                    uid: cred.user.uid, displayName: name, email: email,
-                    pingId: randomId,
-                    photoURL: null, bio: '', phone: '', createdAt: serverTimestamp(),
-                    status: 'offline', blockedUsers: []
-                };
-                await setDoc(doc(db, USERS_PATH, cred.user.uid), newUser);
-                await updateProfile(cred.user, { displayName: name });
-                await sendEmailVerification(cred.user);
-                await signOut(auth);
-                isSigningUp = false;
-                alert("Account created! Check email to verify.");
-                location.reload();
-            }
-        } catch(e) {
-            errBox.textContent = e.message;
-            errBox.style.display = 'block';
-            get('auth-btn').textContent = isLoginMode ? 'Sign In' : 'Sign Up';
-            get('auth-btn').disabled = false;
-        }
-    });
-
-    get('forgot-pass-btn').onclick = async () => {
-        const email = get('auth-email').value;
-        if(!email) return showToast("Enter your email address");
-        try { await sendPasswordResetEmail(auth, email); showToast("Reset link sent"); } 
-        catch(e) { showToast(e.message); }
-    };
-
-    // --- USER PROFILE & DATA ---
+    // --- PROFILE & DATA (FIXED) ---
     async function loadUserProfile(uid) {
-        // Try getting fresh data
         const snap = await getDoc(doc(db, USERS_PATH, uid));
         if (snap.exists()) {
              currentUserData = snap.data();
-             // Save to cache
              localStorage.setItem('cached_user_data', JSON.stringify(currentUserData));
         } else {
-            const baseName = currentUser.displayName ? currentUser.displayName.replace(/[^a-zA-Z0-9]/g, '').toLowerCase().substring(0, 4) : 'user';
+            const baseName = currentUser.displayName ? currentUser.displayName.replace(/[^a-zA-Z0-9]/g, '').substring(0, 4) : 'user';
             const fallbackId = baseName + Math.floor(1000 + Math.random() * 9000);
-            
             currentUserData = { uid: uid, displayName: currentUser.displayName, blockedUsers: [], pingId: fallbackId };
             await setDoc(doc(db, USERS_PATH, uid), currentUserData);
         }
@@ -1625,7 +1448,7 @@ const AGORA_APP_ID = "83291c0f69f64ba5a63c86e266c0b1c9";
         const name = currentUserData.displayName || 'User';
         const photo = currentUserData.photoURL;
         if(photo) { get('header-avatar-img').src=photo; get('header-avatar-img').style.display='block'; get('header-avatar-text').style.display='none'; }
-        else { get('header-avatar-img').style.display='none'; get('header-avatar-text').textContent=name[0].toUpperCase(); get('header-avatar-text').style.display='block'; }
+        else { get('header-avatar-img').style.display='none'; get('header-avatar-text').textContent=name[0]; get('header-avatar-text').style.display='block'; }
         get('current-user-display-name').textContent = name;
         get('my-ping-id').textContent = '@' + currentUserData.pingId;
         get('edit-name').value = name;
@@ -1634,364 +1457,57 @@ const AGORA_APP_ID = "83291c0f69f64ba5a63c86e266c0b1c9";
         get('edit-email').value = currentUser.email;
         if(photo) { get('profile-img-preview').src = photo; get('profile-img-preview').style.display='block'; get('profile-initial-preview').style.display='none'; }
     }
-
-    // --- NAVIGATION ---
-    get('profile-header-btn').onclick = () => showView('view-profile');
-    get('nav-chats').onclick = () => showView('view-home');
-    get('nav-find').onclick = () => { showView('view-find'); loadSearchHistory(); };
-    get('nav-profile').onclick = () => showView('view-profile');
-    get('back-from-find').onclick = () => showView('view-home');
-    get('back-from-profile').onclick = () => showView('view-home');
-    get('chat-back-btn').onclick = () => {
-        showView('view-home');
-        if(unsubscribeMsgs) unsubscribeMsgs();
-        if(unsubscribeRoom) unsubscribeRoom();
+    
+    // Save Profile Fix
+    get('save-profile-btn').onclick = async () => {
+        const btn = get('save-profile-btn'); btn.textContent = 'Saving...';
+        const newName = get('edit-name').value, newBio = get('edit-bio').value, newPhone = get('edit-phone').value;
+        await updateDoc(doc(db, USERS_PATH, currentUser.uid), { displayName: newName, bio: newBio, phone: newPhone });
         
-        // Stop typing sound when leaving chat
-        stopSound('snd-partner-typing');
-    };
-    
-    get('logout-btn').onclick = async () => { 
-        updatePresence('offline'); 
-        await signOut(auth); 
-        window.location.reload(); 
-    };
-    
-    get('back-from-friend-profile').onclick = () => showView('view-chat');
-    
-    get('chat-user-header').onclick = async () => {
-        showView('view-friend-profile');
-        let fullData = currentPartnerData;
-        try {
-            const snap = await getDoc(doc(db, USERS_PATH, currentPartnerId));
-            if (snap.exists()) {
-                fullData = snap.data();
-                currentPartnerData = { ...currentPartnerData, ...fullData };
-            }
-        } catch(e) { console.log("Could not fetch full profile"); }
+        // Sync to chats
+        const q = query(collection(db, CHATS_PATH), where("participants", "array-contains", currentUser.uid));
+        const snaps = await getDocs(q);
+        const batch = writeBatch(db);
+        snaps.forEach(d => {
+            batch.update(doc(db, CHATS_PATH, d.id), { [`participantInfo.${currentUser.uid}.displayName`]: newName });
+        });
+        await batch.commit();
 
-        get('friend-display-name').textContent = fullData.displayName;
-        get('friend-ping-id').textContent = '@' + (fullData.pingId || 'unknown');
-        get('friend-bio').textContent = fullData.bio || 'No bio available';
-        get('friend-email').textContent = fullData.email || 'Hidden';
-        
-        const img = get('friend-img-preview');
-        const txt = get('friend-initial-preview');
-        if(fullData.photoURL) { img.src=fullData.photoURL; img.style.display='block'; txt.style.display='none'; }
-        else { img.style.display='none'; txt.style.display='flex'; txt.textContent = (fullData.displayName||'U')[0]; }
-
-        const isBlocked = currentUserData.blockedUsers?.includes(currentPartnerId);
-        const btn = get('friend-block-btn');
-        btn.textContent = isBlocked ? "Unblock User" : "Block User";
-        btn.onclick = () => toggleBlock(currentPartnerId, !isBlocked);
-    };
-
-    async function toggleBlock(uid, shouldBlock) {
-        const ref = doc(db, USERS_PATH, currentUser.uid);
-        if(shouldBlock) {
-            if(!currentUserData.blockedUsers) currentUserData.blockedUsers = [];
-            currentUserData.blockedUsers.push(uid);
-            await updateDoc(ref, { blockedUsers: arrayUnion(uid) });
-            showToast("User Blocked");
-        } else {
-            currentUserData.blockedUsers = currentUserData.blockedUsers.filter(x => x !== uid);
-            await updateDoc(ref, { blockedUsers: arrayRemove(uid) });
-            showToast("User Unblocked");
-        }
-        const btn = get('friend-block-btn');
-        if(currentPartnerId === uid && btn) btn.textContent = shouldBlock ? "Unblock User" : "Block User";
-        if(currentPartnerId === uid && get('view-chat').classList.contains('active')) updateChatUIForBlocks(currentPartnerData);
-        loadChatList();
-        // Update cache
+        currentUserData.displayName = newName; currentUserData.bio = newBio; currentUserData.phone = newPhone;
         localStorage.setItem('cached_user_data', JSON.stringify(currentUserData));
-    }
+        updateHeaderUI(); showToast("Profile Saved"); btn.textContent = 'Save Changes';
+    };
+    
+    // Photo Upload Fix with Optimization
+    get('profile-file-input').onchange = async (e) => {
+        const f = e.target.files[0]; if(!f) return;
+        const reader = new FileReader();
+        reader.readAsDataURL(f);
+        reader.onload = (ev) => {
+            const img = new Image(); img.src = ev.target.result;
+            img.onload = async () => {
+                const cvs = document.createElement('canvas'); cvs.width=300; cvs.height=300;
+                cvs.getContext('2d').drawImage(img,0,0,300,300);
+                const url = cvs.toDataURL('image/jpeg',0.8);
+                showToast("Uploading...");
+                await updateDoc(doc(db, USERS_PATH, currentUser.uid), { photoURL: url });
+                
+                const q = query(collection(db, CHATS_PATH), where("participants", "array-contains", currentUser.uid));
+                const snaps = await getDocs(q);
+                const batch = writeBatch(db);
+                snaps.forEach(d => { batch.update(doc(db, CHATS_PATH, d.id), { [`participantInfo.${currentUser.uid}.photoURL`]: url }); });
+                await batch.commit();
 
-    // --- CHAT ROOM LOGIC ---
-    async function openChat(partnerId, partnerInfo) {
-        currentPartnerId = partnerId;
-        currentPartnerData = partnerInfo || { displayName: 'User', photoURL: null };
-        const ids = [currentUser.uid, currentPartnerId].sort();
-        currentChatId = ids.join('_');
+                currentUserData.photoURL = url; localStorage.setItem('cached_user_data', JSON.stringify(currentUserData));
+                updateHeaderUI(); showToast("Photo Updated");
+            };
+        };
+    };
 
-        get('chat-header-name').textContent = currentPartnerData.displayName;
-        const img = get('chat-header-img');
-        const txt = get('chat-header-initial');
-        if(currentPartnerData.photoURL) { 
-            img.src = currentPartnerData.photoURL; img.style.display = 'block'; txt.style.display = 'none'; 
-        } else { 
-            img.style.display = 'none'; txt.style.display = 'flex'; txt.textContent = (currentPartnerData.displayName || 'U')[0]; 
-        }
-        
-        get('chat-header-status').textContent = 'Connecting...';
-        showView('view-chat');
-        
-        msgLimit = 20; // Reset pagination limit on new chat
-        loadMessages(currentChatId);
-        listenToRoom(currentChatId);
-
-        const chatRef = doc(db, CHATS_PATH, currentChatId);
-        try {
-            const snap = await getDoc(chatRef);
-            if (!snap.exists()) {
-                await setDoc(chatRef, {
-                    participants: [currentUser.uid, currentPartnerId],
-                    participantInfo: {
-                        [currentUser.uid]: { displayName: currentUserData.displayName, photoURL: currentUserData.photoURL },
-                        [currentPartnerId]: { displayName: currentPartnerData.displayName, photoURL: currentPartnerData.photoURL }
-                    },
-                    updatedAt: serverTimestamp()
-                });
-            } else {
-                // Ensure participantInfo is up to date when opening
-                const data = snap.data();
-                const myInfo = data.participantInfo ? data.participantInfo[currentUser.uid] : null;
-                if(!myInfo || myInfo.displayName !== currentUserData.displayName || myInfo.photoURL !== currentUserData.photoURL) {
-                     await updateDoc(chatRef, {
-                        [`participantInfo.${currentUser.uid}`]: { 
-                            displayName: currentUserData.displayName, 
-                            photoURL: currentUserData.photoURL 
-                        }
-                     });
-                }
-            }
-        } catch(e) { console.error(e); }
-    }
-    window.openChat = openChat;
-
-    function listenToRoom(rid) {
-        if(unsubscribeRoom) unsubscribeRoom();
-        if(unsubscribePartnerStatus) unsubscribePartnerStatus();
-        
-        const rRef = doc(db, CHATS_PATH, rid);
-        updateDoc(rRef, { hiddenFor: arrayRemove(currentUser.uid) }).catch(()=>{});
-
-        // Listen for Partner Typing & Room Updates (Name changes)
-        unsubscribeRoom = onSnapshot(rRef, (snap) => {
-            if(!snap.exists()) return;
-            const data = snap.data();
-            
-            // --- REAL-TIME NAME UPDATE IN CHAT HEADER ---
-            // Check if partner's info updated in the chat room document
-            if(data.participantInfo && data.participantInfo[currentPartnerId]) {
-                 const newInfo = data.participantInfo[currentPartnerId];
-                 // Update global var
-                 currentPartnerData.displayName = newInfo.displayName;
-                 currentPartnerData.photoURL = newInfo.photoURL;
-                 
-                 // Update UI
-                 get('chat-header-name').textContent = newInfo.displayName;
-                 const img = get('chat-header-img');
-                 const txt = get('chat-header-initial');
-                 if(newInfo.photoURL) { 
-                    img.src = newInfo.photoURL; img.style.display = 'block'; txt.style.display = 'none'; 
-                 } else { 
-                    img.style.display = 'none'; txt.style.display = 'flex'; txt.textContent = (newInfo.displayName || 'U')[0]; 
-                 }
-            }
-
-            // Show bubble if partner is typing
-            const isPartnerTyping = data.typing && data.typing[currentPartnerId];
-            const bubble = get('typing-bubble');
-            const msgArea = get('messages');
-
-            if(isPartnerTyping) {
-                bubble.classList.add('active');
-                // Dynamic spacing activation
-                msgArea.classList.add('typing-active');
-                scrollToBottom();
-                playSound('snd-partner-typing', true); 
-            } else {
-                bubble.classList.remove('active');
-                // Dynamic spacing deactivation
-                msgArea.classList.remove('typing-active');
-                stopSound('snd-partner-typing');
-            }
-            
-            // CALLING LOGIC: Check if call ended
-             if(data.callStatus && data.callStatus.state === 'ended' && isCallActive) {
-                 endCall();
-             }
-        });
-
-        // --- UPDATED LOGIC FOR REAL-TIME STATUS ACCURACY ---
-        unsubscribePartnerStatus = onSnapshot(doc(db, USERS_PATH, currentPartnerId), (snap) => {
-             if(snap.exists()) {
-                 const u = snap.data();
-                 const statusEl = get('chat-header-status');
-                 
-                 // Logic to determine if truly online based on heartbeat (2-3 min threshold)
-                 const now = new Date();
-                 const lastActive = u.lastActive ? (u.lastActive.seconds ? new Date(u.lastActive.seconds * 1000) : new Date(u.lastActive)) : new Date(0);
-                 const secondsDiff = (now - lastActive) / 1000;
-                 
-                 // Strict Check: Must be 'online' AND heartbeat within last 3 minutes (180s)
-                 const isReallyOnline = u.status === 'online' && secondsDiff < 180; 
-
-                 if(isReallyOnline) { 
-                     statusEl.textContent = 'Active Now'; 
-                     statusEl.style.color = '#4CD964'; 
-                 }
-                 else { 
-                     statusEl.style.color = 'var(--text-muted)';
-                     if (u.lastActive) statusEl.textContent = "Last seen " + formatTimeAgo(u.lastActive);
-                     else statusEl.textContent = 'Offline'; 
-                 }
-                 updateChatUIForBlocks(u);
-             }
-        });
-    }
-
-    // --- TYPING HANDLER ---
-    const msgInput = get('msg-input');
-    async function updateTypingStatus(status) {
-        if(!currentChatId) return;
-        try {
-            await updateDoc(doc(db, CHATS_PATH, currentChatId), {
-                [`typing.${currentUser.uid}`]: status
-            });
-        } catch(e) { console.log("Typing error", e); }
-    }
-
-    msgInput.addEventListener('keydown', () => {
-        // --- NEW SOUND: KEY CLICK ---
-        playSound('snd-typing-click');
-    });
-
-    msgInput.addEventListener('input', () => {
-        // If there's text, show send button, hide mic
-        const hasText = msgInput.value.trim().length > 0;
-        get('mic-btn').style.display = hasText ? 'none' : 'flex';
-        get('send-btn').style.display = hasText ? 'flex' : 'none';
-
-        if(!isTyping) {
-            isTyping = true;
-            updateTypingStatus(true);
-        }
-        clearTimeout(typingTimeout);
-        typingTimeout = setTimeout(() => {
-            isTyping = false;
-            updateTypingStatus(false);
-        }, 2000); 
-    });
-
-    function updateChatUIForBlocks(partnerUser) {
-        const banner = get('blocked-banner');
-        const inputArea = get('input-area-wrapper');
-        
-        if (partnerUser.blockedUsers?.includes(currentUser.uid)) {
-             banner.textContent = "You have been blocked by this user."; 
-             banner.style.display = 'block'; inputArea.style.display = 'none';
-        } else if (currentUserData.blockedUsers?.includes(currentPartnerId)) {
-             banner.innerHTML = `You blocked this user. <span style="text-decoration:underline; cursor:pointer;" onclick="window.quickUnblock()">Unblock</span>`; 
-             banner.style.display = 'block'; inputArea.style.display = 'none';
-             window.quickUnblock = () => toggleBlock(currentPartnerId, false);
-        } else {
-             banner.style.display = 'none'; inputArea.style.display = 'block';
-        }
-    }
-
-    async function toggleLike(rid, mid, currentLikes) {
-        const uid = currentUser.uid;
-        if(currentLikes && currentLikes.includes(uid)) await updateDoc(doc(db, CHATS_PATH, rid, 'messages', mid), { likes: arrayRemove(uid) });
-        else await updateDoc(doc(db, CHATS_PATH, rid, 'messages', mid), { likes: arrayUnion(uid) });
-    }
-
-    // --- CHAT LIST (UPDATED WITH LOCAL CACHE & META DATA) ---
-    function renderChatList(rooms) {
-        const list = get('chat-list-container');
-        list.innerHTML = '';
-        
-        if(!currentUserData) return; // Wait for user data
-
-        rooms.forEach(room => {
-            const pid = room.participants.find(id => id !== currentUserData.uid);
-            // Safety check if partner ID exists
-            if (!pid) return;
-
-            // Use info stored in room document if available (faster & synced), else fallback
-            const info = room.participantInfo?.[pid] || { displayName: 'User', photoURL: null };
-            
-            let lastTxt = room.lastMessage?.text || 'No messages';
-            if(room.lastMessage?.type === 'image') lastTxt = '📷 Photo';
-            if(room.lastMessage?.type === 'video') lastTxt = '🎥 Video';
-            if(room.lastMessage?.type === 'file') lastTxt = '📄 File';
-            if(room.lastMessage?.type === 'audio') lastTxt = '🎤 Voice Message';
-            if(room.lastMessage?.type === 'deleted') lastTxt = '🚫 Message deleted';
-
-            // Handle timestamp format (Firestore vs Local Storage)
-            let time = '';
-            if(room.lastMessage?.timestamp) {
-                let d;
-                if(room.lastMessage.timestamp.seconds) d = new Date(room.lastMessage.timestamp.seconds * 1000);
-                else d = new Date(room.lastMessage.timestamp);
-                time = d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-            }
-            
-            const card = document.createElement('div');
-            card.className = 'user-card';
-            // Attach ID to card for search
-            card.setAttribute('data-uid', pid);
-            
-            card.innerHTML = `
-               <div class="avatar-wrapper">
-                  <div class="avatar">${info.photoURL ? `<img src="${info.photoURL}">` : (info.displayName?info.displayName[0].toUpperCase():'U')}</div>
-                  <div class="status-dot" id="dot-${room.id}"></div>
-               </div>
-               <div class="card-info">
-                  <div class="card-top"><span class="card-name">${info.displayName}</span><span class="card-time">${time}</span></div>
-                  <div class="card-msg">${lastTxt}</div>
-               </div>
-            `;
-            
-            const isBlocked = currentUserData.blockedUsers?.includes(pid);
-            const blockText = isBlocked ? "Unblock User" : "Block User";
-            
-            addLongPress(card, () => {
-                openActionSheet([
-                     { text: "Delete Chat (For me)", class: "danger", action: () => deleteChatForMe(room.id) },
-                     { text: blockText, class: isBlocked ? "" : "danger", action: () => { toggleBlock(pid, !isBlocked); hideActionSheet(); } },
-                     { text: "Cancel", action: hideActionSheet }
-                ]);
-            }, () => openChat(pid, info));
-
-            list.appendChild(card);
-            
-            // Fetch status and extra data for search (PingID, Phone)
-            // Also triggers a passive update if name changed in User DB but not Room DB
-            getDoc(doc(db, USERS_PATH, pid)).then(s => {
-                if(s.exists()) {
-                    const u = s.data();
-                    
-                    // --- REAL-TIME LIST NAME SYNC CHECK ---
-                    // If name in Users collection differs from Room collection cache, update card text immediately
-                    if(u.displayName !== info.displayName) {
-                         const nameEl = card.querySelector('.card-name');
-                         if(nameEl) nameEl.textContent = u.displayName;
-                    }
-
-                    // --- SEARCH LIST STATUS CHECK ---
-                    const now = new Date();
-                    const lastActive = u.lastActive ? (u.lastActive.seconds ? new Date(u.lastActive.seconds * 1000) : new Date(u.lastActive)) : new Date(u.lastActive);
-                    const isActuallyOnline = u.status === 'online' && (now - lastActive)/1000 < 180;
-                    
-                    if(isActuallyOnline) {
-                        const dot = get(`dot-${room.id}`);
-                        if(dot) dot.classList.add('online');
-                    }
-                    // Attach meta data for search
-                    const metaString = `${u.pingId || ''} ${u.email || ''} ${u.phone || ''}`;
-                    card.setAttribute('data-search-meta', metaString);
-                }
-            }).catch(e=>{});
-        });
-
-        if(rooms.length === 0) list.innerHTML = `<div style="text-align:center; padding:50px 20px; color:var(--text-muted);">No chats.<br>Go to <b>Search</b> to find friends.</div>`;
-    }
-
+    // --- CHAT LIST ---
     function loadChatList() {
         if(unsubscribeChats) unsubscribeChats();
-        const ref = collection(db, CHATS_PATH);
-        unsubscribeChats = onSnapshot(ref, (snapshot) => {
+        unsubscribeChats = onSnapshot(collection(db, CHATS_PATH), (snapshot) => {
             const rooms = [];
             snapshot.forEach(d => {
                 const room = d.data();
@@ -2004,217 +1520,346 @@ const AGORA_APP_ID = "83291c0f69f64ba5a63c86e266c0b1c9";
                 }
             });
             rooms.sort((a,b) => (b.updatedAt?.seconds || 0) - (a.updatedAt?.seconds || 0));
-
-            // Save to LocalStorage for instant load next time
             localStorage.setItem('cached_chat_list', JSON.stringify(rooms));
-            
-            // Render UI
             renderChatList(rooms);
+        });
+    }
+
+    function renderChatList(rooms) {
+        const list = get('chat-list-container');
+        list.innerHTML = '';
+        if(rooms.length === 0) list.innerHTML = `<div style="text-align:center; padding:50px 20px; color:var(--text-muted);">No chats.<br>Go to <b>Search</b> to find friends.</div>`;
+        
+        rooms.forEach(room => {
+            const pid = room.participants.find(id => id !== currentUser.uid);
+            if (!pid) return;
+            const info = room.participantInfo?.[pid] || { displayName: 'User' };
             
-            // Re-apply search filter if there's text in the box (in case of updates)
-            const currentSearch = get('home-search-input').value;
-            if(currentSearch) {
-                 const event = new Event('input');
-                 get('home-search-input').dispatchEvent(event);
+            let lastTxt = room.lastMessage?.text || 'No messages';
+            if(room.lastMessage?.type === 'image') lastTxt = '📷 Photo';
+            if(room.lastMessage?.type === 'video') lastTxt = '🎥 Video';
+            if(room.lastMessage?.type === 'file') lastTxt = '📄 File';
+            if(room.lastMessage?.type === 'audio') lastTxt = '🎤 Voice';
+            if(room.lastMessage?.type === 'deleted') lastTxt = '🚫 Deleted';
+            
+            let time = '';
+            if(room.lastMessage?.timestamp) {
+                let d; if(room.lastMessage.timestamp.seconds) d = new Date(room.lastMessage.timestamp.seconds * 1000); else d = new Date(room.lastMessage.timestamp);
+                time = d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+            }
+            
+            const card = document.createElement('div');
+            card.className = 'user-card';
+            card.setAttribute('data-uid', pid);
+
+            // Long Press Logic
+            addLongPress(card, () => {
+                const isBlocked = currentUserData.blockedUsers?.includes(pid);
+                openActionSheet([
+                     { text: "Delete Chat (For me)", class: "danger", action: () => deleteChatForMe(room.id) },
+                     { text: isBlocked?"Unblock":"Block", class: isBlocked?"":"danger", action: () => { toggleBlock(pid, !isBlocked); hideActionSheet(); } },
+                     { text: "Cancel", action: hideActionSheet }
+                ]);
+            }, () => openChat(pid, info));
+
+            card.innerHTML = `
+               <div class="avatar-wrapper">
+                  <div class="avatar">${info.photoURL ? `<img src="${info.photoURL}">` : (info.displayName?info.displayName[0].toUpperCase():'U')}</div>
+                  <div class="status-dot" id="dot-${room.id}"></div>
+               </div>
+               <div class="card-info">
+                  <div class="card-top"><span class="card-name">${info.displayName}</span><span class="card-time">${time}</span></div>
+                  <div class="card-msg">${lastTxt}</div>
+               </div>
+            `;
+            list.appendChild(card);
+            
+            getDoc(doc(db, USERS_PATH, pid)).then(s => {
+                if(s.exists()) {
+                    const u = s.data();
+                    const diff = (new Date() - (u.lastActive?.seconds?u.lastActive.seconds*1000:u.lastActive||0))/1000;
+                    if(u.status === 'online' && diff < 180) { const dot = get(`dot-${room.id}`); if(dot) dot.classList.add('online'); }
+                }
+            });
+        });
+    }
+
+    async function deleteChatForMe(rid) {
+        await updateDoc(doc(db, CHATS_PATH, rid), { hiddenFor: arrayUnion(currentUser.uid) });
+        hideActionSheet(); showToast("Chat Deleted");
+    }
+
+    function addLongPress(el, onLong, onClick) {
+        let timer;
+        const start = () => { timer = setTimeout(() => { if(navigator.vibrate) navigator.vibrate(50); el.classList.add('long-press-active'); onLong(); }, 500); };
+        const end = () => { clearTimeout(timer); el.classList.remove('long-press-active'); };
+        el.addEventListener('touchstart', start, {passive:true}); el.addEventListener('touchend', end); el.addEventListener('touchmove', end);
+        el.addEventListener('mousedown', start); el.addEventListener('mouseup', end);
+        if(onClick) el.addEventListener('click', onClick);
+    }
+
+    // --- CHAT ROOM ---
+    window.openChat = async (partnerId, partnerInfo) => {
+        currentPartnerId = partnerId;
+        currentPartnerData = partnerInfo || { displayName: 'User' };
+        currentChatId = [currentUser.uid, currentPartnerId].sort().join('_');
+
+        get('chat-header-name').textContent = currentPartnerData.displayName;
+        get('chat-header-img').src = currentPartnerData.photoURL || '';
+        get('chat-header-img').style.display = currentPartnerData.photoURL ? 'block' : 'none';
+        get('chat-header-initial').style.display = currentPartnerData.photoURL ? 'none' : 'block';
+        get('chat-header-initial').textContent = (currentPartnerData.displayName||'U')[0];
+        get('chat-header-status').textContent = 'Connecting...';
+        
+        showView('view-chat');
+        msgLimit = 20;
+        loadMessages(currentChatId);
+        listenToRoom(currentChatId);
+        
+        const chatRef = doc(db, CHATS_PATH, currentChatId);
+        const snap = await getDoc(chatRef);
+        if (!snap.exists()) {
+             await setDoc(chatRef, {
+                 participants: [currentUser.uid, currentPartnerId],
+                 participantInfo: {
+                     [currentUser.uid]: { displayName: currentUserData.displayName, photoURL: currentUserData.photoURL },
+                     [currentPartnerId]: { displayName: currentPartnerData.displayName, photoURL: currentPartnerData.photoURL }
+                 }, updatedAt: serverTimestamp()
+             });
+        }
+        updateChatUIForBlocks();
+    };
+
+    function updateChatUIForBlocks() {
+        const banner = get('blocked-banner');
+        const inputArea = get('input-area-wrapper');
+        if (currentUserData.blockedUsers?.includes(currentPartnerId)) {
+             banner.innerHTML = `You blocked this user. <span style="text-decoration:underline; cursor:pointer;" onclick="toggleBlock('${currentPartnerId}', false)">Unblock</span>`; 
+             banner.style.display = 'block'; inputArea.style.display = 'none';
+        } else {
+             banner.style.display = 'none'; inputArea.style.display = 'block';
+        }
+    }
+
+    function listenToRoom(rid) {
+        if(unsubscribeRoom) unsubscribeRoom();
+        if(unsubscribePartnerStatus) unsubscribePartnerStatus();
+        
+        unsubscribeRoom = onSnapshot(doc(db, CHATS_PATH, rid), (snap) => {
+            if(!snap.exists()) return;
+            const data = snap.data();
+            
+            const isPartnerTyping = data.typing && data.typing[currentPartnerId];
+            const bubble = get('typing-bubble');
+            if(isPartnerTyping) { 
+                bubble.classList.add('active'); get('messages').classList.add('typing-active'); scrollToBottom(); 
+                playSound('snd-partner-typing', true);
+            } else { 
+                bubble.classList.remove('active'); get('messages').classList.remove('typing-active'); 
+                stopSound('snd-partner-typing');
+            }
+            
+            if(data.callStatus) {
+                if(data.callStatus.state === 'ongoing' && get('call-status-text').textContent === "Calling...") {
+                    stopSound('snd-ringtone'); startCallTimer();
+                }
+                if(data.callStatus.state === 'ended' && isCallActive) {
+                    showToast("Call ended"); endCall('ended_remote');
+                }
+                if(data.callStatus.state === 'rejected' && isCallActive && get('call-status-text').textContent === "Calling...") {
+                    showToast("Call rejected"); endCall('rejected');
+                }
+            }
+        });
+
+        unsubscribePartnerStatus = onSnapshot(doc(db, USERS_PATH, currentPartnerId), (snap) => {
+            if(snap.exists()) {
+                const u = snap.data();
+                const diff = (new Date() - (u.lastActive?.seconds?u.lastActive.seconds*1000:u.lastActive||0))/1000;
+                get('chat-header-status').textContent = (u.status === 'online' && diff < 180) ? 'Active Now' : 'Offline';
+                if(u.status==='online' && diff < 180) get('chat-header-status').style.color = '#4CD964';
+                else get('chat-header-status').style.color = 'var(--text-muted)';
             }
         });
     }
 
-    // --- CHAT ROOM MESSAGES (UPDATED PAGINATION & ORDERING) ---
+    // --- REACTION LOGIC (NEW) ---
+    async function toggleReaction(msgId, reactionType) {
+        if (!currentChatId) return;
+        const msgRef = doc(db, CHATS_PATH, currentChatId, 'messages', msgId);
+        const snap = await getDoc(msgRef);
+        if(!snap.exists()) return;
+        
+        const data = snap.data();
+        const currentReactions = data.reactions || {};
+        const myReaction = currentReactions[currentUser.uid];
+
+        if(myReaction === reactionType) {
+            // Remove reaction if same
+             await updateDoc(msgRef, { [`reactions.${currentUser.uid}`]: deleteField() });
+        } else {
+            // Add/Update reaction
+            await updateDoc(msgRef, { [`reactions.${currentUser.uid}`]: reactionType });
+            playSound('snd-sweet-beep'); // Little feedback sound
+        }
+    }
+
     function loadMessages(rid, isLoadMore = false) {
         if(unsubscribeMsgs) unsubscribeMsgs();
-        
-        // QUERY: Get latest [msgLimit] messages, Ordered DESC (Newest First)
-        // We will reverse client side to show Oldest -> Newest
-        const ref = collection(db, CHATS_PATH, rid, 'messages');
-        const q = query(ref, orderBy('timestamp', 'desc'), limit(msgLimit));
-        
+        const q = query(collection(db, CHATS_PATH, rid, 'messages'), orderBy('timestamp', 'desc'), limit(msgLimit));
         const list = get('messages');
-        
-        // Save previous scroll height to maintain position on load more
-        let prevScrollHeight = 0;
-        if(isLoadMore) prevScrollHeight = list.scrollHeight;
-        
-        let isFirstLoad = true;
-        
+        let prevScrollHeight = 0; if(isLoadMore) prevScrollHeight = list.scrollHeight;
+
         unsubscribeMsgs = onSnapshot(q, (snap) => {
             const wasAtBottom = (list.scrollHeight - list.scrollTop) <= (list.clientHeight + 150);
             
-            // "SEEN" Sound Logic: Check for changes in existing messages that become seen
-            if (!isFirstLoad && !isLoadMore) {
-                snap.docChanges().forEach(change => {
-                    if (change.type === 'modified') {
-                        const d = change.doc.data();
-                        // If I sent the message, and it just turned to 'seen', play sound
-                        if (d.senderId === currentUser.uid && d.status === 'seen') {
-                            playSound('snd-seen'); // --- NEW SOUND: DING ---
-                        }
-                    }
-                    // --- NEW SWEET BEEP LOGIC FOR INCOMING MESSAGES ---
-                    if (change.type === 'added') {
-                        const d = change.doc.data();
-                        // If message is NOT from me (from friend)
-                        if (d.senderId !== currentUser.uid) {
-                            playSound('snd-sweet-beep'); // Play Sweet Chime
-                        }
-                    }
-                });
-            }
-            
+            snap.docChanges().forEach(change => {
+                if(change.type==='added' && change.doc.data().senderId !== currentUser.uid) playSound('snd-sweet-beep');
+                if(change.type==='modified' && change.doc.data().senderId === currentUser.uid && change.doc.data().status==='seen') playSound('snd-seen');
+            });
+
             list.innerHTML = '';
             const msgs = [];
-            snap.forEach(d => msgs.push({id: d.id, ...d.data()}));
-            
-            // Reverse array because query was DESC, but we render ASC (Top to Bottom)
+            snap.forEach(d => msgs.push({id:d.id, ...d.data()}));
             msgs.reverse();
             
             let lastDate = null;
-            
-            msgs.forEach((m, i) => {
+            msgs.forEach(m => {
                 if(m.deletedFor && m.deletedFor.includes(currentUser.uid)) return;
-
+                
                 if(m.senderId !== currentUser.uid && m.status !== 'seen') {
                     updateDoc(doc(db, CHATS_PATH, rid, 'messages', m.id), { status: 'seen' });
                 }
 
                 const date = m.timestamp ? new Date(m.timestamp.seconds * 1000) : new Date();
                 const dStr = date.toDateString();
-                if(dStr !== lastDate) {
-                    list.innerHTML += `<div class="date-separator">${dStr}</div>`;
-                    lastDate = dStr;
-                }
+                if(dStr !== lastDate) { list.innerHTML += `<div class="date-separator">${dStr}</div>`; lastDate = dStr; }
 
                 const isMe = m.senderId === currentUser.uid;
                 const row = document.createElement('div');
                 row.className = `msg-row ${isMe ? 'me' : 'you'}`;
                 
                 let content = m.text;
-                if(m.type === 'image') content = `<img src="${m.text}" class="chat-img" onclick="window.viewImg('${m.text}')" onload="if(${isFirstLoad} || ${wasAtBottom}) scrollToBottom()">`;
+                if(m.type === 'image') content = `<img src="${m.text}" class="chat-img" onclick="viewImg('${m.text}')">`;
                 else if(m.type === 'video') content = `<video src="${m.text}" class="chat-video" controls playsinline></video>`;
                 else if(m.type === 'audio') content = `<audio src="${m.text}" class="chat-audio" controls controlsList="nodownload"></audio>`;
-                else if(m.type === 'file') {
-                    const ext = m.fileName ? m.fileName.split('.').pop().toUpperCase() : 'FILE';
-                    content = `<a href="${m.text}" download="${m.fileName || 'file'}" class="file-attachment">
-                        <div class="file-icon">${ext}</div>
-                        <div class="file-name">${m.fileName || 'Document'}</div>
-                    </a>`;
-                }
+                else if(m.type === 'file') content = `<a href="${m.text}" download class="file-attachment"><div class="file-icon">FILE</div><div class="file-name">${m.fileName||'File'}</div></a>`;
+                else if(m.type === 'deleted') content = '<span style="font-style:italic; opacity:0.6;">🚫 Deleted</span>';
 
-                if(m.type === 'deleted') { content = '<span style="font-style:italic; opacity:0.6;">🚫 Message deleted</span>'; }
-                
-                let replyHTML = '';
-                if(m.replyTo) {
-                    replyHTML = `<div style="border-left:2px solid var(--primary); padding-left:6px; margin-bottom:4px; font-size:11px; opacity:0.8;">
-                       <div style="font-weight:700">${m.replyTo.name}</div>
-                       <div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis">${m.replyTo.text}</div>
-                    </div>`;
-                }
-                
-                const isLiked = m.likes && m.likes.length > 0;
-                const heartHTML = isLiked ? `<div class="heart-reaction">❤️</div>` : '';
-
-                let statusHTML = '';
-                if(isMe && m.type !== 'deleted') {
-                    if(m.status === 'seen') {
-                         // --- NEW SEEN AVATAR LOGIC ---
-                         const pPic = currentPartnerData.photoURL;
-                         if(pPic) {
-                             statusHTML = `<img src="${pPic}" class="seen-avatar" alt="Seen">`;
-                         } else {
-                             const init = (currentPartnerData.displayName || 'U')[0].toUpperCase();
-                             statusHTML = `<div class="seen-avatar" style="background:var(--text-muted); display:inline-flex; align-items:center; justify-content:center; color:white; font-size:8px;">${init}</div>`;
-                         }
-                    }
-                    else if (m.status === 'delivered') statusHTML = '<span class="status-tick">✓✓</span>';
-                    else statusHTML = '<span class="status-tick">✓</span>';
-                }
-
-                row.innerHTML = `
-                   <div class="msg-bubble">
-                      ${replyHTML}
-                      ${content}
-                      ${heartHTML}
-                      <div class="msg-meta">
-                        ${date.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
-                        ${statusHTML}
-                      </div>
-                   </div>
-                `;
-                
-                const bubble = row.querySelector('.msg-bubble');
-                bubble.addEventListener('dblclick', (e) => {
-                    e.stopPropagation();
-                    if(m.type === 'deleted') return;
-                    toggleLike(rid, m.id, m.likes);
-                });
-
-                // LONG PRESS LOGIC
-                addLongPress(bubble, () => {
-                    if(m.type === 'deleted') return;
-                    
-                    const opts = [];
-                    // 1. Reply
-                    opts.push({ text: "Reply", action: () => initReply(m) });
-
-                    // 2. Copy/View
-                    if(m.type === 'text') {
-                        opts.push({ text: "Copy Text", action: () => { 
-                            navigator.clipboard.writeText(m.text); 
-                            showToast("Copied"); 
-                            hideActionSheet(); 
-                        }});
-                    } else if (m.type === 'image') {
-                         opts.push({ text: "View Image", action: () => { 
-                            viewImg(m.text);
-                            hideActionSheet(); 
-                        }});
+                // System Message Styling (Call Logs)
+                if(m.text.includes('📞')) {
+                    row.className = 'msg-row';
+                    row.style.justifyContent = 'center';
+                    content = `<div style="background:rgba(128,128,128,0.2); padding:5px 12px; border-radius:12px; font-size:12px; margin:4px 0;">${m.text}</div>`;
+                    row.innerHTML = content;
+                } else {
+                    let statusHTML = '';
+                    if(isMe && m.type !== 'deleted') {
+                         if(m.status === 'seen') {
+                             const pPic = currentPartnerData.photoURL;
+                             statusHTML = pPic ? `<img src="${pPic}" class="seen-avatar">` : `<div class="seen-avatar" style="background:#8E8E93;color:#fff;display:flex;align-items:center;justify-content:center;font-size:8px;">${(currentPartnerData.displayName||'U')[0]}</div>`;
+                         } else if (m.status === 'delivered') statusHTML = '<span class="status-tick">✓✓</span>';
+                         else statusHTML = '<span class="status-tick">✓</span>';
                     }
                     
-                    // 3. Unsend (Sender only)
-                    if(isMe) {
-                        opts.push({ text: "Unsend (Everyone)", class:"danger", action: () => deleteMsg(rid, m.id, 'everyone') });
+                    let replyHTML = '';
+                    if(m.replyTo) {
+                        replyHTML = `<div style="border-left:2px solid var(--primary); padding-left:6px; margin-bottom:4px; font-size:11px; opacity:0.8;">
+                           <div style="font-weight:700">${m.replyTo.name}</div>
+                           <div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis">${m.replyTo.text}</div>
+                        </div>`;
+                    }
+                    
+                    // Reaction Rendering
+                    let reactionHTML = '';
+                    if(m.reactions && Object.keys(m.reactions).length > 0) {
+                        const reactionTypes = Object.values(m.reactions);
+                        const distinct = [...new Set(reactionTypes)].slice(0, 3);
+                        reactionHTML = `<div class="reaction-overlay">${distinct.join('')}${reactionTypes.length > 1 ? '<span style="font-size:9px;margin-left:2px;font-weight:700;">'+reactionTypes.length+'</span>' : ''}</div>`;
                     }
 
-                    // 4. Delete for Me
-                    opts.push({ text: "Delete for Me", class:"danger", action: () => deleteMsg(rid, m.id, 'me') });
-
-                    // 5. Cancel
-                    opts.push({ text: "Cancel", action: hideActionSheet });
+                    row.innerHTML = `<div class="msg-bubble">${replyHTML}${content}<div class="msg-meta">${date.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}${statusHTML}</div>${reactionHTML}</div>`;
                     
-                    openActionSheet(opts);
-                });
-                
+                    const bubble = row.querySelector('.msg-bubble');
+                    
+                    // Double Click to Heart
+                    bubble.addEventListener('dblclick', (e) => {
+                        e.stopPropagation(); e.preventDefault();
+                        if(m.type === 'deleted') return;
+                        toggleReaction(m.id, '❤️');
+                        const heart = document.createElement('div');
+                        heart.className = 'heart-reaction'; heart.textContent = '❤️';
+                        bubble.appendChild(heart);
+                        setTimeout(() => heart.remove(), 800);
+                    });
+
+                    // Long Press Logic (UPDATED: Copy & Delete always available)
+                    addLongPress(bubble, () => {
+                        if(m.type === 'deleted') return;
+                        
+                        const sheet = get('actionSheetContent'); sheet.innerHTML = '';
+                        
+                        // Reaction Bar
+                        const rBar = document.createElement('div');
+                        rBar.className = 'reaction-bar';
+                        ['❤️','👍','😂','😢','😡','🙏'].forEach(emoji => {
+                            const sp = document.createElement('span'); 
+                            sp.className = 'reaction-emoji'; sp.textContent = emoji;
+                            sp.onclick = () => { toggleReaction(m.id, emoji); hideActionSheet(); };
+                            rBar.appendChild(sp);
+                        });
+                        sheet.appendChild(rBar);
+                        
+                        const createBtn = (text, cls, action) => {
+                            const btn = document.createElement('button'); btn.className = `sheet-btn ${cls||''}`;
+                            btn.textContent = text; btn.onclick = action; sheet.appendChild(btn);
+                        };
+                        
+                        createBtn("Reply", "", () => initReply(m));
+                        // Added Copy Option for Text
+                        if(m.type === 'text') {
+                             createBtn("Copy Text", "", () => {
+                                 navigator.clipboard.writeText(m.text).then(() => showToast("Copied"));
+                                 hideActionSheet();
+                             });
+                        }
+                        
+                        if(isMe) createBtn("Unsend (Everyone)", "danger", () => deleteMsg(rid, m.id, 'everyone'));
+                        // "Delete for Me" available for everyone
+                        createBtn("Delete for Me", "danger", () => deleteMsg(rid, m.id, 'me'));
+                        
+                        createBtn("Cancel", "", hideActionSheet);
+                        get('actionSheetOverlay').classList.add('active');
+                    });
+                }
                 list.appendChild(row);
             });
             
-            // SCROLL POSITION HANDLING
-            if (isLoadMore) {
-                // Restore scroll position to where user was
-                list.scrollTop = list.scrollHeight - prevScrollHeight;
-            } else if (isFirstLoad || wasAtBottom) {
-                 scrollToBottom();
-            }
-            isFirstLoad = false;
+            if (isLoadMore) list.scrollTop = list.scrollHeight - prevScrollHeight;
+            else if (wasAtBottom) scrollToBottom();
         });
-
-        // INFINITE SCROLL LISTENER
+        
         list.onscroll = () => {
-           // If scrolled to top AND we have loaded exactly the limit (meaning there might be more)
            if(list.scrollTop === 0 && list.children.length >= msgLimit) {
-               msgLimit += 20; // Increase limit
-               loadMessages(rid, true); // Reload with flag to preserve position
+               msgLimit += 20; loadMessages(rid, true);
            }
         };
     }
 
-    // --- MESSAGE SENDING ---
+    async function deleteMsg(rid, mid, scope) {
+        if(scope === 'everyone') {
+             await updateDoc(doc(db, CHATS_PATH, rid, 'messages', mid), { type: 'deleted', text: 'deleted' });
+             await updateDoc(doc(db, CHATS_PATH, rid), { 'lastMessage.type': 'deleted', 'lastMessage.text': 'deleted' });
+        } else {
+             await updateDoc(doc(db, CHATS_PATH, rid, 'messages', mid), { deletedFor: arrayUnion(currentUser.uid) });
+        }
+        hideActionSheet(); showToast("Message Deleted");
+    }
+
+    // --- MESSAGING & INPUTS ---
     function initReply(m) {
         let txt = m.text;
-        if(m.type === 'image') txt = '📷 Photo';
-        else if(m.type === 'video') txt = '🎥 Video';
-        else if(m.type === 'file') txt = '📄 File';
-        else if(m.type === 'audio') txt = '🎤 Voice Message';
-        
+        if(m.type !== 'text') txt = `[${m.type}]`;
         replyTo = { id: m.id, text: txt, name: m.senderId===currentUser.uid?'You':currentPartnerData.displayName };
         get('replyToName').textContent = replyTo.name;
         get('replyTextPreview').textContent = replyTo.text;
@@ -2226,310 +1871,203 @@ const AGORA_APP_ID = "83291c0f69f64ba5a63c86e266c0b1c9";
 
     async function sendMsg(txt, type='text', fileName=null) {
         if(!txt) return;
-
-        const list = get('messages');
-        const tempRow = document.createElement('div');
-        tempRow.className = 'msg-row me'; 
-        const tempId = 'temp_' + Date.now();
-        tempRow.id = tempId;
-
-        let displayContent = txt;
-        if(type === 'image') displayContent = `<img src="${txt}" class="chat-img" style="opacity: 0.7;">`; 
-        else if(type === 'video') displayContent = `<video src="${txt}" class="chat-video" style="opacity:0.7;"></video>`;
-        else if(type === 'audio') displayContent = `<div style="padding:10px;">Sending Voice...</div>`;
-        else if(type === 'file') displayContent = `<div class="file-attachment" style="opacity:0.7;"><div class="file-icon">...</div><div class="file-name">${fileName}</div></div>`;
-
-        let replyMarkup = '';
-        if(replyTo) {
-             replyMarkup = `<div style="border-left:2px solid var(--primary); padding-left:6px; margin-bottom:4px; font-size:11px; opacity:0.8;">
-                 <div style="font-weight:700">${replyTo.name}</div>
-                 <div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis">${replyTo.text}</div>
-             </div>`;
-        }
-        tempRow.innerHTML = `<div class="msg-bubble">${replyMarkup}${displayContent}<div class="msg-meta">Sending...<span class="status-tick" style="opacity:0.5">✓</span></div></div>`;
-        list.appendChild(tempRow);
-        scrollToBottom(); 
-
-        try {
-            let initialStatus = 'sent';
-            const partnerSnap = await getDoc(doc(db, USERS_PATH, currentPartnerId));
-            if(partnerSnap.exists() && partnerSnap.data().status === 'online') initialStatus = 'delivered';
-
-            const payload = {
-                senderId: currentUser.uid, text: txt, type: type,
-                status: initialStatus, deletedFor: [], likes: [], timestamp: serverTimestamp(),
-                fileName: fileName // Added filename field
-            };
-            if(replyTo) { payload.replyTo = replyTo; get('cancelReply').click(); }
-            
-            await addDoc(collection(db, CHATS_PATH, currentChatId, 'messages'), payload);
-            await setDoc(doc(db, CHATS_PATH, currentChatId), {
-                participants: [currentUser.uid, currentPartnerId],
-                participantInfo: { 
-                    [currentUser.uid]: { displayName: currentUserData.displayName, photoURL: currentUserData.photoURL },
-                    [currentPartnerId]: { displayName: currentPartnerData.displayName, photoURL: currentPartnerData.photoURL }
-                },
-                lastMessage: payload, updatedAt: serverTimestamp(), hiddenFor: arrayRemove(currentPartnerId)
-            }, {merge: true});
-            
-            // --- NEW SOUND: SENT PING ---
-            playSound('snd-sent');
-
-            clearTimeout(typingTimeout);
-            isTyping = false;
-            updateTypingStatus(false);
-
-        } catch (error) {
-            console.error("Message failed:", error);
-            const errRow = document.getElementById(tempId);
-            if(errRow) {
-                const meta = errRow.querySelector('.msg-meta');
-                if(meta) meta.innerHTML = '<span style="color:#FF3B30; font-weight:bold;">Error ❌</span>';
-                showToast("Message failed to send");
-            }
-        }
+        const payload = {
+            senderId: currentUser.uid, text: txt, type: type, timestamp: serverTimestamp(), status: 'sent', reactions: {}, deletedFor: [], fileName: fileName
+        };
+        if(replyTo) { payload.replyTo = replyTo; get('cancelReply').click(); }
+        
+        await addDoc(collection(db, CHATS_PATH, currentChatId, 'messages'), payload);
+        await updateDoc(doc(db, CHATS_PATH, currentChatId), {
+            lastMessage: payload, updatedAt: serverTimestamp()
+        });
+        
+        playSound('snd-sent');
+        // Reset typing
+        isTyping = false; updateTypingStatus(false);
     }
-
-    get('send-btn').onclick = () => { 
-        const t = get('msg-input').value.trim(); 
-        if(t) { 
-            playSound('snd-btn-click'); // --- NEW SOUND: BUTTON CLICK ---
-            sendMsg(t); 
-            get('msg-input').value=''; 
-            get('msg-input').focus(); 
-            // Reset Mic Button
-            get('mic-btn').style.display = 'flex';
-            get('send-btn').style.display = 'none';
-        } 
-    };
-
-    get('msg-input').addEventListener('focus', () => { setTimeout(scrollToBottom, 300); });
-    get('msg-input').addEventListener('keydown', (e) => {
-        if(e.key === 'Enter' && !e.shiftKey) { 
-            e.preventDefault(); 
-            get('send-btn').click(); 
-        }
-    });
     
-    // --- ATTACHMENT HANDLING ---
-    get('img-btn').onclick = () => {
-        openActionSheet([
-            { text: "Photo", action: () => { get('img-input').click(); hideActionSheet(); } },
-            { text: "Video", action: () => { get('video-input').click(); hideActionSheet(); } },
-            { text: "Document", action: () => { get('file-input').click(); hideActionSheet(); } },
-            { text: "Cancel", action: hideActionSheet }
-        ]);
-    };
+    // Typing Status
+    async function updateTypingStatus(status) {
+        if(currentChatId) updateDoc(doc(db, CHATS_PATH, currentChatId), { [`typing.${currentUser.uid}`]: status }).catch(()=>{});
+    }
+    
+    get('msg-input').addEventListener('input', () => {
+        const hasText = get('msg-input').value.trim().length > 0;
+        get('mic-btn').style.display = hasText ? 'none' : 'flex';
+        get('send-btn').style.display = hasText ? 'flex' : 'none';
+        if(!isTyping) { isTyping = true; updateTypingStatus(true); }
+        clearTimeout(typingTimeout);
+        typingTimeout = setTimeout(() => { isTyping = false; updateTypingStatus(false); }, 2000); 
+    });
+    get('msg-input').addEventListener('keydown', (e) => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); get('send-btn').click(); } else playSound('snd-typing-click'); });
+    get('send-btn').onclick = () => { const t = get('msg-input').value.trim(); if(t){ playSound('snd-btn-click'); sendMsg(t); get('msg-input').value=''; get('mic-btn').style.display='flex'; get('send-btn').style.display='none'; } };
 
-    // Helper for file reading
+    // Attachments with Optimization Logic
+    get('img-btn').onclick = () => openActionSheet([
+        { text: "Photo", action: () => { get('img-input').click(); hideActionSheet(); } },
+        { text: "Video", action: () => { get('video-input').click(); hideActionSheet(); } },
+        { text: "Document", action: () => { get('file-input').click(); hideActionSheet(); } },
+        { text: "Cancel", action: hideActionSheet }
+    ]);
+
     const handleFileSelect = (file, type) => {
         if(!file) return;
-        // Check size (Limit to 750KB because Firestore doc max is 1MB and Base64 increases size by ~33%)
-        if(file.size > 750 * 1024) {
-            alert("File is too large for free server. Please select a file smaller than 750KB.");
-            return;
+        
+        // Video Optimization & Limitation (Crucial for Firestore)
+        // Firestore limit is 1MB. Base64 adds ~33% overhead.
+        // We set a strict limit here to prevent "Message not sending" errors.
+        if(type === 'video') {
+             if(file.size > 0.7 * 1024 * 1024) { // ~700KB Limit for Base64 safety
+                 return alert("Video too large for free server (Max 700KB). Please record a shorter clip.");
+             }
         }
+        
+        // File Limit
+        if(type === 'file' && file.size > 1024 * 1024) return alert("File too large (Max 1MB)");
 
         showToast("Processing...");
         const reader = new FileReader();
         reader.readAsDataURL(file);
         reader.onload = (ev) => {
-            const dataUrl = ev.target.result;
-            // For images, we compress as before
             if(type === 'image') {
-                const img = new Image(); img.src = dataUrl;
-                img.onload = async () => {
-                    const cvs = document.createElement('canvas');
-                    const scale = Math.min(800/img.width, 800/img.height, 1);
-                    cvs.width = img.width*scale; cvs.height = img.height*scale;
-                    cvs.getContext('2d').drawImage(img,0,0,cvs.width,cvs.height);
-                    sendMsg(cvs.toDataURL('image/jpeg', 0.7), 'image');
+                const img = new Image(); img.src = ev.target.result;
+                img.onload = () => {
+                    const cvs = document.createElement('canvas'); 
+                    const ctx = cvs.getContext('2d');
+                    const MAX_SIZE = 1024;
+                    let w = img.width; let h = img.height;
+                    
+                    if (w > h) { if (w > MAX_SIZE) { h *= MAX_SIZE / w; w = MAX_SIZE; } }
+                    else { if (h > MAX_SIZE) { w *= MAX_SIZE / h; h = MAX_SIZE; } }
+
+                    cvs.width = w; cvs.height = h;
+                    ctx.drawImage(img, 0, 0, w, h);
+                    const optimizedData = cvs.toDataURL('image/jpeg', 0.6);
+                    sendMsg(optimizedData, 'image');
                 };
             } else {
-                // For video/files, send raw base64
-                sendMsg(dataUrl, type, file.name);
+                sendMsg(ev.target.result, type, file.name);
             }
         };
     };
+    get('img-input').onchange = (e) => handleFileSelect(e.target.files[0], 'image');
+    get('video-input').onchange = (e) => handleFileSelect(e.target.files[0], 'video');
+    get('file-input').onchange = (e) => handleFileSelect(e.target.files[0], 'file');
 
-    get('img-input').onchange = (e) => { handleFileSelect(e.target.files[0], 'image'); get('img-input').value=''; };
-    get('video-input').onchange = (e) => { handleFileSelect(e.target.files[0], 'video'); get('video-input').value=''; };
-    get('file-input').onchange = (e) => { handleFileSelect(e.target.files[0], 'file'); get('file-input').value=''; };
-
-    // --- VOICE RECORDING LOGIC (HOLD TO RECORD) ---
+    // Voice Recording (Optimized)
     const micBtn = get('mic-btn');
-    const recordingOverlay = get('recording-overlay');
-    const timerDisplay = get('recording-timer');
-
     async function startRecording() {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            mediaRecorder = new MediaRecorder(stream);
+            // Optimization: Set lower bitrate for audio if possible
+            const options = { mimeType: 'audio/webm;codecs=opus', bitsPerSecond: 16000 };
+            try { mediaRecorder = new MediaRecorder(stream, options); } 
+            catch(e) { mediaRecorder = new MediaRecorder(stream); }
+            
             audioChunks = [];
-
-            mediaRecorder.ondataavailable = (event) => {
-                if(event.data.size > 0) audioChunks.push(event.data);
-            };
-
-            mediaRecorder.start();
-            isRecording = true;
-            
-            // UI Updates for Recording
-            micBtn.classList.add('mic-active');
-            recordingOverlay.classList.add('active');
-            
-            // Haptic Feedback (if supported)
-            if(navigator.vibrate) navigator.vibrate(100);
-            
-            // Timer Logic
+            mediaRecorder.ondataavailable = (e) => { if(e.data.size > 0) audioChunks.push(e.data); };
+            mediaRecorder.start(); isRecording = true;
+            micBtn.classList.add('mic-active'); get('recording-overlay').classList.add('active');
             recordStartTime = Date.now();
-            timerDisplay.textContent = '0:00';
             recordInterval = setInterval(() => {
-                const diff = Math.floor((Date.now() - recordStartTime) / 1000);
-                const m = Math.floor(diff / 60);
-                const s = diff % 60;
-                timerDisplay.textContent = `${m}:${s.toString().padStart(2, '0')}`;
-                
-                // Safety: Stop after 60s
-                if(diff >= 60) stopRecordingAndSend(); 
+                const diff = Math.floor((Date.now() - recordStartTime)/1000);
+                get('recording-timer').textContent = `0:${diff.toString().padStart(2,'0')}`;
+                if(diff>=60) stopRecordingAndSend();
             }, 1000);
-            
-            playSound('snd-typing-click'); // Start sound
-
-        } catch (err) {
-            console.error(err);
-            alert("Microphone permission denied.");
-        }
+            playSound('snd-typing-click');
+        } catch(e) { alert("Mic permission needed"); }
     }
-
     function stopRecordingAndSend() {
         if (!mediaRecorder || !isRecording) return;
-        
-        mediaRecorder.stop();
-        isRecording = false;
-        clearInterval(recordInterval);
-        
-        // UI Updates
-        micBtn.classList.remove('mic-active');
-        recordingOverlay.classList.remove('active');
-
+        mediaRecorder.stop(); isRecording = false; clearInterval(recordInterval);
+        micBtn.classList.remove('mic-active'); get('recording-overlay').classList.remove('active');
         mediaRecorder.onstop = () => {
-            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-            
-            // Prevent accidental short taps
-            if (Date.now() - recordStartTime < 1000) {
-                showToast("Hold longer to record");
-                return;
-            }
-
-            const reader = new FileReader();
-            reader.readAsDataURL(audioBlob);
-            reader.onloadend = () => {
-                const base64Audio = reader.result;
-                sendMsg(base64Audio, 'audio');
-            };
+            if (Date.now() - recordStartTime < 1000) return showToast("Hold longer");
+            const reader = new FileReader(); reader.readAsDataURL(new Blob(audioChunks, { type: 'audio/webm' }));
+            reader.onloadend = () => sendMsg(reader.result, 'audio');
         };
+        mediaRecorder.stream.getTracks().forEach(t => t.stop());
+    }
+    micBtn.addEventListener('touchstart', (e)=>{ e.preventDefault(); startRecording(); });
+    micBtn.addEventListener('touchend', (e)=>{ e.preventDefault(); stopRecordingAndSend(); });
+    micBtn.addEventListener('mousedown', (e)=>{ e.preventDefault(); startRecording(); });
+    micBtn.addEventListener('mouseup', (e)=>{ e.preventDefault(); stopRecordingAndSend(); });
+
+    // --- GLOBAL LISTENERS ---
+    function listenGlobalMessages() {
+        if(globalNotificationUnsubscribe) globalNotificationUnsubscribe();
+        const q = query(collection(db, CHATS_PATH), where("participants", "array-contains", currentUser.uid));
         
-        // Stop all tracks to release mic
-        mediaRecorder.stream.getTracks().forEach(track => track.stop());
-    }
-
-    // Touch Events for Mobile (Hold)
-    micBtn.addEventListener('touchstart', (e) => {
-        e.preventDefault(); 
-        startRecording();
-    });
-
-    micBtn.addEventListener('touchend', (e) => {
-        e.preventDefault();
-        stopRecordingAndSend();
-    });
-
-    // Mouse Events for Desktop (Click and Hold)
-    micBtn.addEventListener('mousedown', (e) => {
-        e.preventDefault();
-        startRecording();
-    });
-
-    micBtn.addEventListener('mouseup', (e) => {
-        e.preventDefault();
-        stopRecordingAndSend();
-    });
-    
-    // Safety if mouse leaves button while holding
-    micBtn.addEventListener('mouseleave', (e) => {
-        if(isRecording) stopRecordingAndSend();
-    });
-
-
-    // --- HELPER: ACTION SHEET ---
-    function openActionSheet(buttons) {
-        const sheet = get('actionSheetContent');
-        sheet.innerHTML = '<div class="sheet-header">Select Option</div>';
-        buttons.forEach(b => {
-            const btn = document.createElement('button');
-            btn.className = `sheet-btn ${b.class || ''}`;
-            btn.textContent = b.text;
-            btn.onclick = b.action;
-            sheet.appendChild(btn);
+        globalNotificationUnsubscribe = onSnapshot(q, (snap) => {
+            snap.docChanges().forEach(change => {
+                const d = change.doc.data();
+                if(change.type === 'modified' && d.callStatus) {
+                    if(d.callStatus.state === 'calling' && d.callStatus.callerId !== currentUser.uid) {
+                        if(Date.now() - d.callStatus.timestamp < 30000) {
+                            playSound('snd-ringtone', true);
+                            const callerInfo = d.participantInfo?.[d.callStatus.callerId] || { displayName: 'Unknown' };
+                            get('incoming-call-name').textContent = callerInfo.displayName;
+                            get('incoming-call-type').textContent = `Incoming ${d.callStatus.type} Call...`;
+                            get('incoming-call-avatar').src = callerInfo.photoURL || 'https://i.postimg.cc/RZ5FH16z/Gemini-Generated-Image-rgsqsqrgsqsqrgsq-removebg-preview.png';
+                            get('incoming-call-modal').style.display = 'flex';
+                            get('incoming-call-modal').setAttribute('data-chat-id', change.doc.id);
+                            get('btn-accept-incoming').onclick = () => acceptIncomingCall({ chatId: change.doc.id, type: d.callStatus.type });
+                        }
+                    }
+                    if(d.callStatus.state === 'ended' || d.callStatus.state === 'rejected') {
+                         stopSound('snd-ringtone');
+                         get('incoming-call-modal').style.display = 'none';
+                    }
+                }
+            });
         });
-        get('actionSheetOverlay').classList.add('active');
-    }
-    window.hideActionSheet = () => get('actionSheetOverlay').classList.remove('active');
-    get('actionSheetOverlay').onclick = (e) => { if(e.target === get('actionSheetOverlay')) hideActionSheet(); };
-
-    function addLongPress(el, onLong, onClick) {
-        let timer;
-        const start = () => { timer = setTimeout(() => { if(navigator.vibrate) navigator.vibrate(50); el.classList.add('long-press-active'); onLong(); }, 500); };
-        const end = () => { clearTimeout(timer); el.classList.remove('long-press-active'); };
-        el.addEventListener('touchstart', start, {passive:true}); el.addEventListener('touchend', end); el.addEventListener('touchmove', end);
-        el.addEventListener('mousedown', start); el.addEventListener('mouseup', end);
-        if(onClick) el.addEventListener('click', onClick);
     }
     
-    // --- SEARCH PAGE (GLOBAL FIND) ---
+    // --- SEARCH PAGE LOGIC ---
     get('search-btn').onclick = async () => {
         const pid = get('search-ping-id').value.trim();
         const res = get('search-results'); res.innerHTML = 'Searching...';
-        
         const q = query(collection(db, USERS_PATH), where("pingId", "==", pid));
         const snap = await getDocs(q);
-        
         res.innerHTML = '';
-        if(snap.empty) return (res.innerHTML = '<div style="text-align:center;color:var(--text-muted);">User not found.<br>Check PingID exactly (e.g. rahim1234)</div>');
-        
+        if(snap.empty) return (res.innerHTML = '<div style="text-align:center;">User not found</div>');
         snap.forEach(d => {
             const u = d.data();
-            if(u.uid === currentUser.uid) return (res.innerHTML = '<div style="text-align:center;">That\'s your ID!</div>');
-            
+            if(u.uid === currentUser.uid) return;
             const div = document.createElement('div');
             div.className = 'user-card search-result-card';
             div.innerHTML = `
-                <div style="display:flex; align-items:center; gap:12px;">
-                    <div class="avatar" style="width:40px; height:40px;">
-                        ${u.photoURL ? `<img src="${u.photoURL}">` : u.displayName[0].toUpperCase()}
-                    </div>
-                    <div style="font-weight:600; font-size:15px;">${u.displayName}</div>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <img src="${u.photoURL || 'https://i.postimg.cc/RZ5FH16z/Gemini-Generated-Image-rgsqsqrgsqsqrgsq-removebg-preview.png'}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;">
+                    <div>${u.displayName}</div>
                 </div>
-                <button class="btn-msg-action">Message</button>
-            `;
+                <button class="btn-msg-action">Chat</button>`;
             div.onclick = () => { addToHistory(u); openChat(u.uid, u); };
             res.appendChild(div);
         });
     };
+    
+    // Updated History Logic
     function addToHistory(u) {
         const k = `history_${currentUser.uid}`;
         let h = JSON.parse(localStorage.getItem(k)||'[]');
-        h = h.filter(x => x.uid !== u.uid); h.unshift(u);
+        h = h.filter(x => x.uid !== u.uid); 
+        h.unshift({ uid: u.uid, displayName: u.displayName, photoURL: u.photoURL }); 
         localStorage.setItem(k, JSON.stringify(h.slice(0,5)));
     }
+    
+    // Updated History Renderer
     window.loadSearchHistory = () => {
         const k = `history_${currentUser.uid}`;
         const h = JSON.parse(localStorage.getItem(k)||'[]');
         const list = get('history-list'); list.innerHTML = '';
         h.forEach(u => {
             const el = document.createElement('div');
-            el.innerHTML = `<div class="avatar" style="width:50px;height:50px;margin-bottom:4px;">${u.displayName[0]}</div><div style="font-size:10px;text-align:center;">${u.displayName.split(' ')[0]}</div>`;
+            const imgHTML = u.photoURL 
+                ? `<img src="${u.photoURL}" style="width:50px;height:50px;border-radius:50%;object-fit:cover;margin-bottom:4px;border:1px solid var(--border);">`
+                : `<div class="avatar" style="width:50px;height:50px;margin-bottom:4px;">${u.displayName[0]}</div>`;
+                
+            el.innerHTML = `${imgHTML}<div style="font-size:10px;text-align:center;">${u.displayName.split(' ')[0]}</div>`;
             el.onclick = () => openChat(u.uid, u);
             list.appendChild(el);
         });
@@ -2537,241 +2075,43 @@ const AGORA_APP_ID = "83291c0f69f64ba5a63c86e266c0b1c9";
     };
     get('clear-history-btn').onclick = () => { localStorage.removeItem(`history_${currentUser.uid}`); loadSearchHistory(); };
 
-    // --- PROFILE SAVE & REAL-TIME SYNC ---
-    get('save-profile-btn').onclick = async () => {
-        const btn = get('save-profile-btn'); 
-        btn.textContent = 'Saving...';
-        const newName = get('edit-name').value;
-        const newBio = get('edit-bio').value;
-        const newPhone = get('edit-phone').value;
-        const newPhoto = currentUserData.photoURL; // already updated by image input
-
-        // 1. Update User Document
-        await updateDoc(doc(db, USERS_PATH, currentUser.uid), {
-            displayName: newName, bio: newBio, phone: newPhone
-        });
-        
-        // 2. Update all Chat Rooms where I am a participant (For real-time name change for others)
-        const q = query(collection(db, CHATS_PATH), where("participants", "array-contains", currentUser.uid));
-        const snaps = await getDocs(q);
-        
-        // Use batch for better performance (though standard loop works too)
-        const batch = writeBatch(db);
-        snaps.forEach(d => {
-            const ref = doc(db, CHATS_PATH, d.id);
-            // Update the specific key for my UID in the participantInfo map
-            batch.update(ref, {
-                [`participantInfo.${currentUser.uid}.displayName`]: newName,
-                [`participantInfo.${currentUser.uid}.photoURL`]: newPhoto
+    // --- HELPER UI ---
+    window.viewImg = (src) => { get('lightbox-img').src=src; get('lightbox').classList.add('active'); };
+    get('lightbox-close').onclick = () => get('lightbox').classList.remove('active');
+    
+    function openActionSheet(buttons) {
+        const sheet = get('actionSheetContent'); 
+        if(buttons) {
+            sheet.innerHTML = '<div class="sheet-header">Select Option</div>';
+            buttons.forEach(b => {
+                const btn = document.createElement('button'); btn.className = `sheet-btn ${b.class||''}`;
+                btn.textContent = b.text; btn.onclick = b.action; sheet.appendChild(btn);
             });
-        });
-        await batch.commit();
-
-        // Update local state and cache
-        currentUserData.displayName = newName;
-        currentUserData.bio = newBio;
-        currentUserData.phone = newPhone;
-        localStorage.setItem('cached_user_data', JSON.stringify(currentUserData));
-        
-        updateHeaderUI();
-        showToast("Profile Saved");
-        btn.textContent = 'Save Changes';
+        }
+        get('actionSheetOverlay').classList.add('active');
+    }
+    window.hideActionSheet = () => get('actionSheetOverlay').classList.remove('active');
+    get('actionSheetOverlay').onclick = (e) => { if(e.target===get('actionSheetOverlay')) hideActionSheet(); };
+    
+    // --- LOGOUT & PRESENCE ---
+    get('logout-btn').onclick = () => signOut(auth).then(()=>location.reload());
+    
+    get('auth-btn').onclick = () => {
+        const e = get('auth-email').value, p = get('auth-pass').value;
+        if(isLoginMode) signInWithEmailAndPassword(auth, e, p).catch(alert);
+        else createUserWithEmailAndPassword(auth, e, p).then(c => {
+            const name = get('auth-name').value;
+            setDoc(doc(db, USERS_PATH, c.user.uid), { 
+                uid: c.user.uid, displayName: name, email: e, 
+                pingId: name.substr(0,4)+Math.floor(Math.random()*9000), status:'online'
+            }).then(()=>location.reload());
+        }).catch(alert);
     };
+    get('auth-toggle').onclick = () => { isLoginMode=!isLoginMode; get('signup-fields').classList.toggle('hidden'); get('auth-btn').textContent=isLoginMode?'Sign In':'Sign Up'; };
     
-    get('profile-file-input').onchange = async (e) => {
-        const f = e.target.files[0]; if(!f) return;
-        const reader = new FileReader();
-        reader.readAsDataURL(f);
-        reader.onload = (ev) => {
-            const img = new Image(); img.src = ev.target.result;
-            img.onload = async () => {
-                const cvs = document.createElement('canvas'); cvs.width=300; cvs.height=300;
-                cvs.getContext('2d').drawImage(img,0,0,300,300);
-                const url = cvs.toDataURL('image/jpeg',0.8);
-                
-                // Update local state temporarily so save button picks it up if clicked later
-                // But generally users want immediate photo update.
-                // Let's update photo immediately in DB + Chats
-                
-                showToast("Uploading...");
-                await updateDoc(doc(db, USERS_PATH, currentUser.uid), { photoURL: url });
-                
-                // Sync to chats
-                const q = query(collection(db, CHATS_PATH), where("participants", "array-contains", currentUser.uid));
-                const snaps = await getDocs(q);
-                const batch = writeBatch(db);
-                snaps.forEach(d => {
-                    batch.update(doc(db, CHATS_PATH, d.id), {
-                        [`participantInfo.${currentUser.uid}.photoURL`]: url
-                    });
-                });
-                await batch.commit();
-
-                // Update local state and cache
-                currentUserData.photoURL = url;
-                localStorage.setItem('cached_user_data', JSON.stringify(currentUserData));
-                updateHeaderUI();
-                showToast("Photo Updated");
-            };
-        };
-    };
-
-    // --- GLOBAL PRESENCE & NOTIFICATIONS (UPDATED WITH CALL ALERT) ---
-    function updatePresence(status) {
-        if(currentUser) updateDoc(doc(db, USERS_PATH, currentUser.uid), { status: status, lastActive: serverTimestamp() }).catch(()=>{});
-    }
-    
-    // Smart Presence Logic: Don't disconnect immediately on minimize
-    document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') {
-            // Came back to foreground
-            if (backgroundDisconnectTimeout) clearTimeout(backgroundDisconnectTimeout);
-            updatePresence('online');
-            // Force reconnect if needed
-            if (wakeLock !== null) requestWakeLock();
-        } else {
-            // Gone to background - wait 2 mins before marking offline
-            backgroundDisconnectTimeout = setTimeout(() => {
-                updatePresence('offline');
-            }, 2 * 60 * 1000); 
-        }
-    });
-    
-    // --- FORCE OFFLINE ON WINDOW CLOSE ---
-    window.addEventListener('beforeunload', () => {
-        updatePresence('offline');
-    });
-    
-    setInterval(() => {
-        if(currentUser && document.visibilityState === 'visible') {
-            updatePresence('online');
-        }
-    }, 60000);
-
-    function listenGlobalMessages() {
-        if(globalNotificationUnsubscribe) globalNotificationUnsubscribe();
-        const q = query(collection(db, CHATS_PATH), where("participants", "array-contains", currentUser.uid));
-        globalNotificationUnsubscribe = onSnapshot(q, (snap) => {
-            snap.docChanges().forEach(change => {
-                if(change.type === 'modified') {
-                    const d = change.doc.data();
-                    
-                    // --- CALL SIGNALING LOGIC (GLOBAL) ---
-                    if(d.callStatus && d.callStatus.state === 'calling' && d.callStatus.callerId !== currentUser.uid) {
-                        // Check timestamp validity (30 seconds)
-                        if(Date.now() - d.callStatus.timestamp < 30000) {
-                            // Show Incoming Call Modal
-                            playSound('snd-ringtone', true);
-                            const callerId = d.callStatus.callerId;
-                            // Fallback caller info if participant info missing
-                            const callerInfo = d.participantInfo && d.participantInfo[callerId] ? d.participantInfo[callerId] : { displayName: 'Unknown' };
-                            
-                            get('incoming-call-name').textContent = callerInfo.displayName;
-                            get('incoming-call-type').textContent = `Incoming ${d.callStatus.type} Call...`;
-                            get('incoming-call-avatar').src = callerInfo.photoURL || 'https://i.postimg.cc/RZ5FH16z/Gemini-Generated-Image-rgsqsqrgsqsqrgsq-removebg-preview.png';
-                            
-                            get('incoming-call-modal').style.display = 'flex';
-                            
-                            // Attach accept listener with current chat ID and call type
-                            get('btn-accept-incoming').onclick = () => {
-                                acceptIncomingCall({
-                                    chatId: change.doc.id,
-                                    type: d.callStatus.type
-                                });
-                            };
-                        }
-                    }
-                    else if (d.callStatus && d.callStatus.state === 'ended') {
-                        stopSound('snd-ringtone');
-                        get('incoming-call-modal').style.display = 'none';
-                    }
-
-                    // --- MESSAGE NOTIFICATION LOGIC ---
-                    if(d.lastMessage?.senderId !== currentUser.uid && (Date.now() - (d.updatedAt?.seconds || 0)*1000 < 5000)) {
-                         if(document.visibilityState === 'hidden' || currentChatId !== change.doc.id) {
-                             if(isSoundEnabled) {
-                                 const audio = document.getElementById('snd-sweet-beep');
-                                 if(audio) {
-                                     audio.currentTime = 0;
-                                     audio.play().catch(e => console.log("Audio permission needed first interaction"));
-                                 }
-                             }
-                             const senderId = d.lastMessage.senderId;
-                             const senderProfile = d.participantInfo && d.participantInfo[senderId] ? d.participantInfo[senderId] : { displayName: 'Friend' };
-                             const title = senderProfile.displayName;
-
-                             let bodyTxt = d.lastMessage.text;
-                             if(d.lastMessage.type === 'image') bodyTxt = '📷 Sent a photo';
-                             else if(d.lastMessage.type === 'video') bodyTxt = '🎥 Sent a video';
-                             else if(d.lastMessage.type === 'file') bodyTxt = '📄 Sent a file';
-                             else if(d.lastMessage.type === 'audio') bodyTxt = '🎤 Sent a voice message';
-
-                             if (Notification.permission === "granted") {
-                                 const notif = new Notification(title, {
-                                     body: bodyTxt,
-                                     icon: senderProfile.photoURL || 'https://i.postimg.cc/RZ5FH16z/Gemini-Generated-Image-rgsqsqrgsqsqrgsq-removebg-preview.png',
-                                     tag: 'new-msg',
-                                     renotify: true,
-                                     vibrate: [200, 100, 200],
-                                     requireInteraction: false
-                                 });
-                                 notif.onclick = () => { window.focus(); notif.close(); };
-                             }
-                         }
-                    }
-                }
-            });
-        });
-    }
-    
-    // --- DELETION LOGIC ---
-    async function deleteMsg(rid, mid, scope) {
-        if(scope === 'everyone') {
-             await updateDoc(doc(db, CHATS_PATH, rid, 'messages', mid), { type: 'deleted', text: 'deleted' });
-             await updateDoc(doc(db, CHATS_PATH, rid), { 'lastMessage.type': 'deleted', 'lastMessage.text': 'deleted' });
-             showToast("Unsent");
-        } else {
-             await updateDoc(doc(db, CHATS_PATH, rid, 'messages', mid), { deletedFor: arrayUnion(currentUser.uid) });
-             showToast("Deleted");
-        }
-        hideActionSheet();
-    }
-    
-    async function deleteChatForMe(rid) {
-        await updateDoc(doc(db, CHATS_PATH, rid), { hiddenFor: arrayUnion(currentUser.uid) });
-        hideActionSheet(); showToast("Chat Deleted");
-    }
-
-    // --- INSTALL LOGIC ---
-    let deferredPrompt;
-    const installBanner = document.getElementById('install-banner');
-    const installBtn = document.getElementById('install-btn');
-
-    window.addEventListener('beforeinstallprompt', (e) => {
-        e.preventDefault();
-        deferredPrompt = e;
-        installBanner.style.display = 'flex';
-    });
-
-    installBtn.addEventListener('click', async () => {
-        if (deferredPrompt) {
-            deferredPrompt.prompt();
-            const { outcome } = await deferredPrompt.userChoice;
-            deferredPrompt = null;
-            if (outcome === 'accepted') {
-                installBanner.style.display = 'none';
-            }
-        }
-    });
-
-    window.addEventListener('appinstalled', () => {
-        installBanner.style.display = 'none';
-    });
-    
-    if (window.matchMedia('(display-mode: standalone)').matches) {
-        installBanner.style.display = 'none';
-    }
-
+    const updatePresence = (s) => { if(currentUser) updateDoc(doc(db, USERS_PATH, currentUser.uid), { status: s, lastActive: serverTimestamp() }).catch(()=>{}); };
+    document.addEventListener('visibilitychange', () => updatePresence(document.visibilityState==='visible'?'online':'offline'));
+    setInterval(() => { if(currentUser && document.visibilityState==='visible') updatePresence('online'); }, 60000);
   </script>
 </body>
 </html>
