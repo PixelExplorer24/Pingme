@@ -195,12 +195,13 @@
         gap: 2px; 
         padding-bottom: 20px; /* Reduced initial padding */
         -webkit-overflow-scrolling: touch;
-        scroll-behavior: auto;
-        transition: padding-bottom 0.3s ease; /* Smooth transition */
+        scroll-behavior: smooth; /* Ensure smooth scrolling for latest message */
+        transition: padding-bottom 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94); /* Smooth dynamic distance */
     }
-    /* Dynamic class added via JS when typing */
+    
+    /* Dynamic class added via JS when typing to create distance */
     .messages-area.typing-active {
-        padding-bottom: 80px; /* Expands to fit bubble */
+        padding-bottom: 90px !important; /* Forces content up to show bubble without overlap */
     }
 
     .date-separator {
@@ -275,7 +276,7 @@
         display: none; 
         animation: slideUpFade 0.3s ease-out;
         pointer-events: none;
-        margin-bottom: 5px; /* Added spacing from input box */
+        margin-bottom: 8px; /* Spacing from input box */
     }
     .typing-bubble-container.active { display: block; }
     @keyframes slideUpFade { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
@@ -396,7 +397,7 @@
     input:checked + .slider { background: var(--primary); }
     input:checked + .slider:before { transform: translateX(20px); }
 
-    /* --- AUTH --- */
+    /* --- AUTH & SPRING LOADER --- */
     .auth-wrap {
       padding: 40px 30px; display: flex; flex-direction: column; align-items: center; justify-content: center;
       height: 100%; text-align: center; overflow-y: auto;
@@ -411,8 +412,19 @@
       width: 100%; padding: 16px; margin-top: 16px; border-radius: 16px; border: none;
       background: var(--primary-grad); color: white; font-size: 16px; font-weight: 600;
       box-shadow: 0 8px 20px rgba(255, 45, 85, 0.25); cursor: pointer; transition: transform 0.1s;
+      display: flex; align-items: center; justify-content: center;
     }
     .btn-primary:active { transform: scale(0.98); }
+    
+    /* Spring Loader for Button */
+    .spring-spinner {
+        width: 24px; height: 24px; border-radius: 50%;
+        border: 3px solid rgba(255,255,255,0.3);
+        border-top-color: white;
+        animation: spring-spin 0.8s cubic-bezier(0.6, -0.28, 0.735, 0.045) infinite;
+    }
+    @keyframes spring-spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
 
     /* --- ACTION SHEET --- */
     .overlay {
@@ -1011,12 +1023,31 @@
     let callSeconds = 0;
     let currentCallType = 'audio'; // 'audio' or 'video'
 
+    // --- PWA INSTALL STATE ---
+    let deferredPrompt;
+
     // --- UTILS ---
     const get = (id) => document.getElementById(id);
     const showToast = (msg) => {
         const t = get('toastMsg'); get('toastText').textContent = msg;
         t.classList.add('active'); setTimeout(() => t.classList.remove('active'), 2500);
     };
+
+    // Auto-Scroll Feature
+    function scrollToBottom() {
+        const list = get('messages');
+        setTimeout(() => {
+            list.scrollTo({ top: list.scrollHeight, behavior: 'smooth' });
+        }, 100);
+    }
+
+    // --- SYSTEM NOTIFICATIONS ---
+    function sendSystemNotification(title, body) {
+        if (!("Notification" in window)) return;
+        if (Notification.permission === "granted") {
+            new Notification(title, { body: body, icon: 'https://i.postimg.cc/RZ5FH16z/Gemini-Generated-Image-rgsqsqrgsqsqrgsq-removebg-preview.png' });
+        }
+    }
 
     // --- AUDIO SYSTEM ---
     let audioUnlocked = false;
@@ -1026,6 +1057,12 @@
             const el = document.getElementById(id);
             if(el) { el.volume = 0; el.play().then(() => { el.pause(); el.currentTime = 0; }).catch(() => {}); }
         });
+        
+        // Request Notification Permission on first interaction
+        if ("Notification" in window && Notification.permission !== "granted") {
+            Notification.requestPermission();
+        }
+
         audioUnlocked = true;
         document.removeEventListener('click', initAudio);
         document.removeEventListener('touchstart', initAudio);
@@ -1613,6 +1650,10 @@
         
         showView('view-chat');
         msgLimit = 20;
+        
+        // Auto Scroll on Open (Ensures latest message is seen)
+        scrollToBottom();
+
         loadMessages(currentChatId);
         listenToRoom(currentChatId);
         
@@ -1651,11 +1692,17 @@
             
             const isPartnerTyping = data.typing && data.typing[currentPartnerId];
             const bubble = get('typing-bubble');
+            const msgsArea = get('messages');
+            
             if(isPartnerTyping) { 
-                bubble.classList.add('active'); get('messages').classList.add('typing-active'); scrollToBottom(); 
+                bubble.classList.add('active'); 
+                // Dynamic distance logic: Add padding and scroll
+                msgsArea.classList.add('typing-active'); 
+                scrollToBottom(); 
                 playSound('snd-partner-typing', true);
             } else { 
-                bubble.classList.remove('active'); get('messages').classList.remove('typing-active'); 
+                bubble.classList.remove('active'); 
+                msgsArea.classList.remove('typing-active'); 
                 stopSound('snd-partner-typing');
             }
             
@@ -1836,7 +1883,7 @@
             });
             
             if (isLoadMore) list.scrollTop = list.scrollHeight - prevScrollHeight;
-            else if (wasAtBottom) scrollToBottom();
+            else if (wasAtBottom || !isLoadMore) scrollToBottom(); // Auto scroll logic for new msgs
         });
         
         list.onscroll = () => {
@@ -2001,22 +2048,40 @@
         globalNotificationUnsubscribe = onSnapshot(q, (snap) => {
             snap.docChanges().forEach(change => {
                 const d = change.doc.data();
-                if(change.type === 'modified' && d.callStatus) {
-                    if(d.callStatus.state === 'calling' && d.callStatus.callerId !== currentUser.uid) {
-                        if(Date.now() - d.callStatus.timestamp < 30000) {
-                            playSound('snd-ringtone', true);
-                            const callerInfo = d.participantInfo?.[d.callStatus.callerId] || { displayName: 'Unknown' };
-                            get('incoming-call-name').textContent = callerInfo.displayName;
-                            get('incoming-call-type').textContent = `Incoming ${d.callStatus.type} Call...`;
-                            get('incoming-call-avatar').src = callerInfo.photoURL || 'https://i.postimg.cc/RZ5FH16z/Gemini-Generated-Image-rgsqsqrgsqsqrgsq-removebg-preview.png';
-                            get('incoming-call-modal').style.display = 'flex';
-                            get('incoming-call-modal').setAttribute('data-chat-id', change.doc.id);
-                            get('btn-accept-incoming').onclick = () => acceptIncomingCall({ chatId: change.doc.id, type: d.callStatus.type });
+                if(change.type === 'modified') {
+                    // Call Notification logic
+                    if(d.callStatus) {
+                        if(d.callStatus.state === 'calling' && d.callStatus.callerId !== currentUser.uid) {
+                            if(Date.now() - d.callStatus.timestamp < 30000) {
+                                playSound('snd-ringtone', true);
+                                const callerInfo = d.participantInfo?.[d.callStatus.callerId] || { displayName: 'Unknown' };
+                                get('incoming-call-name').textContent = callerInfo.displayName;
+                                get('incoming-call-type').textContent = `Incoming ${d.callStatus.type} Call...`;
+                                get('incoming-call-avatar').src = callerInfo.photoURL || 'https://i.postimg.cc/RZ5FH16z/Gemini-Generated-Image-rgsqsqrgsqsqrgsq-removebg-preview.png';
+                                get('incoming-call-modal').style.display = 'flex';
+                                get('incoming-call-modal').setAttribute('data-chat-id', change.doc.id);
+                                get('btn-accept-incoming').onclick = () => acceptIncomingCall({ chatId: change.doc.id, type: d.callStatus.type });
+                                
+                                // System Notification for Call
+                                if(document.visibilityState === 'hidden') {
+                                    sendSystemNotification("Incoming Call", `Call from ${callerInfo.displayName}`);
+                                }
+                            }
+                        }
+                        if(d.callStatus.state === 'ended' || d.callStatus.state === 'rejected') {
+                             stopSound('snd-ringtone');
+                             get('incoming-call-modal').style.display = 'none';
                         }
                     }
-                    if(d.callStatus.state === 'ended' || d.callStatus.state === 'rejected') {
-                         stopSound('snd-ringtone');
-                         get('incoming-call-modal').style.display = 'none';
+
+                    // Message Notification Logic
+                    if(d.lastMessage && d.lastMessage.senderId !== currentUser.uid) {
+                        const msgTime = d.lastMessage.timestamp ? (d.lastMessage.timestamp.seconds * 1000) : Date.now();
+                        // Only notify if message is recent (< 2 seconds old to prevent spam on load)
+                        if (Date.now() - msgTime < 2000 && document.visibilityState === 'hidden') {
+                             const senderName = d.participantInfo?.[d.lastMessage.senderId]?.displayName || 'PingMe User';
+                             sendSystemNotification(senderName, d.lastMessage.text);
+                        }
                     }
                 }
             });
@@ -2097,21 +2162,57 @@
     get('logout-btn').onclick = () => signOut(auth).then(()=>location.reload());
     
     get('auth-btn').onclick = () => {
+        // Sign-in Spring Loader Logic
+        const btn = get('auth-btn');
+        const originalText = btn.textContent;
+        btn.innerHTML = '<div class="spring-spinner"></div>';
+        btn.disabled = true;
+
         const e = get('auth-email').value, p = get('auth-pass').value;
-        if(isLoginMode) signInWithEmailAndPassword(auth, e, p).catch(alert);
-        else createUserWithEmailAndPassword(auth, e, p).then(c => {
-            const name = get('auth-name').value;
-            setDoc(doc(db, USERS_PATH, c.user.uid), { 
-                uid: c.user.uid, displayName: name, email: e, 
-                pingId: name.substr(0,4)+Math.floor(Math.random()*9000), status:'online'
-            }).then(()=>location.reload());
-        }).catch(alert);
+        if(isLoginMode) {
+            signInWithEmailAndPassword(auth, e, p)
+                .catch((err) => {
+                    alert(err.message);
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                });
+        } else {
+            createUserWithEmailAndPassword(auth, e, p).then(c => {
+                const name = get('auth-name').value;
+                setDoc(doc(db, USERS_PATH, c.user.uid), { 
+                    uid: c.user.uid, displayName: name, email: e, 
+                    pingId: name.substr(0,4)+Math.floor(Math.random()*9000), status:'online'
+                }).then(()=>location.reload());
+            }).catch((err) => {
+                alert(err.message);
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            });
+        }
     };
     get('auth-toggle').onclick = () => { isLoginMode=!isLoginMode; get('signup-fields').classList.toggle('hidden'); get('auth-btn').textContent=isLoginMode?'Sign In':'Sign Up'; };
     
     const updatePresence = (s) => { if(currentUser) updateDoc(doc(db, USERS_PATH, currentUser.uid), { status: s, lastActive: serverTimestamp() }).catch(()=>{}); };
     document.addEventListener('visibilitychange', () => updatePresence(document.visibilityState==='visible'?'online':'offline'));
     setInterval(() => { if(currentUser && document.visibilityState==='visible') updatePresence('online'); }, 60000);
+
+    // --- PWA INSTALL HANDLER ---
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        // Show install banner
+        get('install-banner').style.display = 'flex';
+    });
+
+    get('install-btn').onclick = async () => {
+        if (deferredPrompt) {
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            console.log(`User response to the install prompt: ${outcome}`);
+            deferredPrompt = null;
+            get('install-banner').style.display = 'none';
+        }
+    };
   </script>
 </body>
 </html>
