@@ -17,6 +17,21 @@
   
   <script src="https://download.agora.io/sdk/release/AgoraRTC_N-4.18.2.js"></script>
 
+  <!-- ONESIGNAL SDK (ADDED FOR PUSH NOTIFICATIONS) -->
+  <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+  <script>
+    window.OneSignalDeferred = window.OneSignalDeferred || [];
+    OneSignalDeferred.push(function(OneSignal) {
+      OneSignal.init({
+        appId: "6557f7d6-f574-4212-bfa1-629a9e1864be",
+        safari_web_id: "web.onesignal.auto.6557f7d6-f574-4212-bfa1-629a9e1864be",
+        notifyButton: {
+          enable: true,
+        },
+      });
+    });
+  </script>
+
   <style>
     /* --- MODERN CSS VARIABLES & RESET --- */
     :root {
@@ -994,6 +1009,39 @@
     // --- AGORA CONFIG ---
     const AGORA_APP_ID = "83291c0f69f64ba5a63c86e266c0b1c9"; 
 
+    // --- ONE SIGNAL (PUSH NOTIFICATION LOGIC) ---
+    async function sendPushNotification(targetUid, title, msg) {
+        // Warning: Exposing API Keys in client-side code is risky.
+        // It is recommended to move this to a secure backend function.
+        // Implemented here as requested for client-side functionality.
+        const ONE_SIGNAL_APP_ID = "6557f7d6-f574-4212-bfa1-629a9e1864be";
+        const ONE_SIGNAL_API_KEY = "os_v2_app_mvl7pvxvorbbfp5bmknj4gdexzq76zku4wweaquukcst6zkr4g2iyy5msdkwurvtlnd4ncgbxjr4rtwblj4pwndbhgv3zr5s3sber2i"; 
+
+        const options = {
+            method: 'POST',
+            headers: {
+                'accept': 'application/json',
+                'Authorization': `Basic ${ONE_SIGNAL_API_KEY}`,
+                'content-type': 'application/json'
+            },
+            body: JSON.stringify({
+                app_id: ONE_SIGNAL_APP_ID,
+                include_aliases: { "external_id": [targetUid] },
+                target_channel: "push",
+                headings: { "en": title },
+                contents: { "en": msg }
+            })
+        };
+
+        try {
+            await fetch('https://onesignal.com/api/v1/notifications', options);
+            console.log("Push Notification Sent to", targetUid);
+        } catch (err) {
+            console.error("Push Failed", err);
+        }
+    }
+
+
     // --- PERSISTENCE ---
     enableIndexedDbPersistence(db).catch((err) => console.log("Persistence error:", err.code));
 
@@ -1305,6 +1353,9 @@
             await updateDoc(doc(db, CHATS_PATH, currentChatId), {
                 callStatus: { state: 'calling', type: type, callerId: currentUser.uid, timestamp: Date.now() }
             });
+            
+            // SEND PUSH NOTIFICATION FOR CALL
+            sendPushNotification(currentPartnerId, "Incoming Call", "Video/Audio Call from " + currentUserData.displayName);
 
             setTimeout(() => {
                 if(isCallActive && get('call-status-text').textContent === "Calling...") {
@@ -1441,6 +1492,12 @@
         const splash = get('splash-screen');
         if (user) {
             initTheme();
+            
+            // ONE SIGNAL LOGIN (USER MAPPING)
+            window.OneSignalDeferred.push(function(OneSignal) {
+                OneSignal.login(user.uid);
+            });
+
             if (!user.emailVerified && !isSigningUp) {
                 await signOut(auth);
                 showToast("Verify email first.");
@@ -1458,6 +1515,11 @@
             listenGlobalMessages();
             splash.style.opacity = 0; setTimeout(()=>splash.classList.add('hidden'),500);
         } else {
+            // ONE SIGNAL LOGOUT
+            window.OneSignalDeferred.push(function(OneSignal) {
+                OneSignal.logout();
+            });
+            
             currentUser = null; currentUserData = null;
             localStorage.removeItem('cached_user_data');
             showView('view-auth');
@@ -1928,6 +1990,15 @@
             lastMessage: payload, updatedAt: serverTimestamp()
         });
         
+        // SEND PUSH NOTIFICATION FOR MESSAGE
+        let pushBody = txt;
+        if(type === 'image') pushBody = "Sent a photo";
+        else if(type === 'video') pushBody = "Sent a video";
+        else if(type === 'audio') pushBody = "Sent a voice message";
+        else if(type === 'file') pushBody = "Sent a file";
+
+        sendPushNotification(currentPartnerId, currentUserData.displayName, pushBody);
+        
         playSound('snd-sent');
         // Reset typing
         isTyping = false; updateTypingStatus(false);
@@ -2062,7 +2133,7 @@
                                 get('incoming-call-modal').setAttribute('data-chat-id', change.doc.id);
                                 get('btn-accept-incoming').onclick = () => acceptIncomingCall({ chatId: change.doc.id, type: d.callStatus.type });
                                 
-                                // System Notification for Call
+                                // System Notification for Call (Browser level fallback)
                                 if(document.visibilityState === 'hidden') {
                                     sendSystemNotification("Incoming Call", `Call from ${callerInfo.displayName}`);
                                 }
