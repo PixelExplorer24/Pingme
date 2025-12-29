@@ -128,35 +128,31 @@
     }
     @keyframes slideDown { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
-    /* --- HEADER --- */
-        /* --- HEADER (UPDATED) --- */
-    header.app {
-      display: flex; 
-      align-items: center; 
-      justify-content: space-between; 
-      
-      /* ফিক্সড height: 60px সরিয়ে auto করা হয়েছে যাতে নচ অনুযায়ী বড় হতে পারে */
-      height: auto;
-      min-height: 60px; 
-      
-      z-index: 50; 
-      flex-shrink: 0;
-      
-      /* ডানে-বামে প্যাডিং */
-      padding-left: 16px;
-      padding-right: 16px;
-      padding-bottom: 12px;
+/* --- HEADER (FIXED FOR NOTCH) --- */
+header.app {
+  display: flex; 
+  align-items: center; 
+  justify-content: space-between; 
+  
+  /* উচ্চতা অটো রাখা হয়েছে যাতে প্যাডিং অনুযায়ী বড় হয় */
+  height: auto;
+  min-height: 60px; 
+  width: 100%;
+  
+  z-index: 50; 
+  flex-shrink: 0;
+  
+  /* ডানে-বামে এবং নিচে প্যাডিং */
+  padding-left: 16px;
+  padding-right: 16px;
+  padding-bottom: 15px;
 
-      /* এটিই আসল পরিবর্তন: নচ বা ডাইনামিক আইল্যান্ড থেকে নিরাপদ দূরত্ব বজায় রাখবে */
-      padding-top: calc(env(safe-area-inset-top) + 12px);
-    }
-    .header-title { font-weight: 700; font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .icon-btn {
-      background: transparent; border: none; color: var(--primary); 
-      width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-      transition: background 0.2s; cursor: pointer; padding: 0;
-    }
-    .icon-btn:active { background: rgba(0,0,0,0.05); }
+  /* আসল পরিবর্তন এখানে: */
+  /* max() ফাংশন ব্যবহার করা হয়েছে। এটি নচ ডিটেক্ট করলে সেই মাপ নেবে, */
+  /* আর না করলে অন্তত 35px জায়গা ছেড়ে দেবে যাতে ক্যামেরার নিচে লেখা না যায়। */
+  padding-top: max(35px, calc(env(safe-area-inset-top) + 15px));
+}
+
 
     /* --- LISTS --- */
     .list-container {
