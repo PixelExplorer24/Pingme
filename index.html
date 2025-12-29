@@ -547,6 +547,31 @@
   </style>
 
 </head>
+<script>
+
+  window.OneSignalDeferred = window.OneSignalDeferred || [];
+
+  window.OneSignalDeferred.push(function(OneSignal) {
+
+    OneSignal.init({
+
+      appId: "6557f7d6-f574-4212-bfa1-629a9e1864be", // OneSignal ওয়েবসাইট থেকে পাওয়া ID
+
+      safari_web_id: "web.onesignal.auto.xxxxx", // (অপশনাল) অ্যাপল ডিভাইসের জন্য
+
+      notifyButton: {
+
+        enable: true, // এটি স্ক্রিনে একটি লাল ঘণ্টা আইকন দেখাবে সাবস্ক্রাইব করার জন্য
+
+      },
+
+      allowLocalhostAsSecureOrigin: true, // লোকালহোস্টে টেস্ট করার জন্য
+
+    });
+
+  });
+
+</script>
 <body>
 
   <audio id="notification-sound" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto" hidden crossorigin="anonymous"></audio>
@@ -2099,13 +2124,17 @@
         const e = get('auth-email').value, p = get('auth-pass').value;
         if(isLoginMode) {
             signInWithEmailAndPassword(auth, e, p)
-                .catch((err) => {
+                .then((c) => {window.OneSignalDeferred.push(function(OneSignal) {
+            OneSignal.login(c.user.uid);
+        });
                     alert(err.message);
                     btn.innerHTML = originalText;
                     btn.disabled = false;
                 });
         } else {
-            createUserWithEmailAndPassword(auth, e, p).then(c => {
+            createUserWithEmailAndPassword(auth, e, p).then(c => {window.OneSignalDeferred.push(function(OneSignal) {
+        OneSignal.login(c.user.uid);
+    });
                 const name = get('auth-name').value;
                 setDoc(doc(db, USERS_PATH, c.user.uid), { 
                     uid: c.user.uid, displayName: name, email: e, 
