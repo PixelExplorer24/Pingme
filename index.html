@@ -7,7 +7,10 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="theme-color" content="#ffffff"> <link rel="manifest" id="my-manifest">
+  
+  <!-- UPDATED: Dynamic Theme Color Meta Tag for Status Bar -->
+  <meta name="theme-color" content="#ffffff" id="theme-color-meta"> 
+  <link rel="manifest" id="my-manifest">
 
   <title>PingMe Premium</title>
   
@@ -80,6 +83,13 @@
 
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
     
+    /* UPDATED FIX: Ensure inputs are selectable, clickable and handle touches better */
+    input, textarea {
+        user-select: text !important;
+        -webkit-user-select: text !important;
+        touch-action: manipulation; /* Improves touch response on mobile */
+    }
+
     html, body {
       height: 100%; height: 100dvh;
       margin: 0; padding: 0;
@@ -318,6 +328,7 @@
     .input-wrapper {
       display: flex; align-items: flex-end; gap: 8px; background: var(--bg-input);
       border-radius: 24px; padding: 6px 6px 6px 12px; border: 1px solid transparent; transition: border 0.2s;
+      cursor: text; /* UPDATED: Indicates area is clickable */
     }
     .input-wrapper:focus-within { border-color: var(--primary); background: var(--bg-card); }
     textarea.chat-box, input.chat-box {
@@ -580,6 +591,13 @@
         100% { transform: rotate(360deg) scale(1); filter: invert(0); }
     }
 
+    /* --- NEW UPDATE: REMOVE HEADER BORDER/SHADOW --- */
+    header.app, header.glass-panel {
+        border-bottom: none !important;
+        box-shadow: none !important;
+        border-top: none !important;
+    }
+
   </style>
 
   <script>
@@ -719,7 +737,7 @@
 
       <div id="view-home" class="view-section">
           <header class="app glass-panel">
-             <div class="header-title" style="font-size:22px; font-weight:800;">Chats</div>
+             <div class="header-title" style="font-size:24px; font-weight:bold; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; letter-spacing: -0.5px; color: var(--primary);">Pingme</div>
              <button class="icon-btn" id="profile-header-btn">
                 <div class="avatar" style="width:34px; height:34px;">
                     <img id="header-avatar-img" src="" style="display:none;">
@@ -1144,7 +1162,13 @@
            if(id === 'view-find') get('nav-find').classList.add('active');
            if(id === 'view-profile') get('nav-profile').classList.add('active');
         }
-        if(id==='view-chat') wakeLockRequest();
+        
+        // Force focus fix for input when chat view is opened
+        if(id==='view-chat') {
+            wakeLockRequest();
+            // Optional: Auto focus input on mobile
+            // setTimeout(() => get('msg-input').focus(), 300);
+        }
     }
     async function wakeLockRequest() { try { if('wakeLock' in navigator) wakeLock=await navigator.wakeLock.request('screen'); } catch(e){} }
 
@@ -1220,10 +1244,41 @@
     }
     checkCacheOnStartup();
 
+    // UPDATED: Helper for meta color
+    function updateMetaThemeColor(isDark) {
+        const metaTag = document.getElementById('theme-color-meta');
+        // Dark mode: status bar black (matches body), Light mode: status bar white
+        const color = isDark ? '#000000' : '#ffffff'; 
+        if (metaTag) metaTag.setAttribute('content', color);
+    }
+
+    // UPDATED: AUTO THEME DETECTION & INIT
     function initTheme() {
         const savedTheme = localStorage.getItem('theme');
-        if(savedTheme === 'dark') { document.documentElement.setAttribute('data-theme', 'dark'); get('theme-toggle').checked = true; } 
-        else { document.documentElement.removeAttribute('data-theme'); get('theme-toggle').checked = false; }
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        
+        let isDark = false;
+
+        if(savedTheme === 'dark') { 
+            isDark = true;
+        } else if (savedTheme === 'light') { 
+            isDark = false;
+        } else {
+            // Auto dark mode based on system
+            isDark = prefersDark;
+        }
+
+        if(isDark) {
+            document.documentElement.setAttribute('data-theme', 'dark');
+            get('theme-toggle').checked = true;
+        } else {
+            document.documentElement.removeAttribute('data-theme');
+            get('theme-toggle').checked = false;
+        }
+
+        // Apply status bar color immediately
+        updateMetaThemeColor(isDark);
+
         if(localStorage.getItem('sound_enabled') === 'false') { isSoundEnabled = false; get('sound-toggle').checked = false; }
         else { isSoundEnabled = true; get('sound-toggle').checked = true; }
         initWallpaper();
@@ -1243,14 +1298,21 @@
         } else { mainView.style.background = ''; mainView.style.backgroundImage = ''; }
     }
     
-    // Theme Listeners (Updated for Twist Effect)
+    // UPDATED: Theme Listeners
     get('theme-toggle').addEventListener('change', (e) => {
         // Apply twist animation
         document.body.classList.add('twist-invert');
         setTimeout(() => document.body.classList.remove('twist-invert'), 800);
 
-        if(e.target.checked) { document.documentElement.setAttribute('data-theme', 'dark'); localStorage.setItem('theme', 'dark'); }
-        else { document.documentElement.removeAttribute('data-theme'); localStorage.setItem('theme', 'light'); }
+        const isDark = e.target.checked;
+        if(isDark) { 
+            document.documentElement.setAttribute('data-theme', 'dark'); 
+            localStorage.setItem('theme', 'dark'); 
+        } else { 
+            document.documentElement.removeAttribute('data-theme'); 
+            localStorage.setItem('theme', 'light'); 
+        }
+        updateMetaThemeColor(isDark);
     });
     
     // Sound Listeners (Updated for Twist Effect)
@@ -1489,6 +1551,9 @@
 
     // --- AUTH ---
     onAuthStateChanged(auth, async (user) => {
+        // Prevent sign out logic from running if we are in the middle of sign up
+        if (isSigningUp) return;
+
         const splash = get('splash-screen');
         if (user) {
             initTheme();
@@ -1498,14 +1563,14 @@
                 OneSignal.login(user.uid);
             });
 
-            if (!user.emailVerified && !isSigningUp) {
+            if (!user.emailVerified) {
                 await signOut(auth);
-                showToast("Verify email first.");
+                showToast("Please verify your email to login.");
                 showView('view-auth'); 
                 splash.style.opacity = 0; setTimeout(()=>splash.classList.add('hidden'),500);
                 return;
             }
-            if(isSigningUp) return;
+            
             currentUser = user;
             if(!currentUserData) await loadUserProfile(user.uid);
             else loadUserProfile(user.uid);
@@ -1624,6 +1689,21 @@
         });
     }
 
+    // HOME SEARCH FILTER LOGIC
+    get('home-search-input').addEventListener('input', (e) => {
+        const term = e.target.value.toLowerCase();
+        document.querySelectorAll('#chat-list-container .user-card').forEach(card => {
+             const name = card.querySelector('.card-name').textContent.toLowerCase();
+             const msg = card.querySelector('.card-msg').textContent.toLowerCase();
+             
+             if(name.includes(term) || msg.includes(term)) {
+                 card.style.display = 'flex';
+             } else {
+                 card.style.display = 'none';
+             }
+        });
+    });
+
     function renderChatList(rooms) {
         const list = get('chat-list-container');
         list.innerHTML = '';
@@ -1713,6 +1793,13 @@
         showView('view-chat');
         msgLimit = 20;
         
+        // UPDATED: FIX INPUT FOCUS ON CHAT OPEN
+        setTimeout(() => {
+            const input = get('msg-input');
+            input.focus();
+            input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 400);
+
         // Auto Scroll on Open (Ensures latest message is seen)
         scrollToBottom();
 
@@ -2232,8 +2319,8 @@
     // --- LOGOUT & PRESENCE ---
     get('logout-btn').onclick = () => signOut(auth).then(()=>location.reload());
     
+    // UPDATED: AUTH LOGIC WITH PROPER EMAIL VERIFICATION FLOW
     get('auth-btn').onclick = () => {
-        // Sign-in Spring Loader Logic
         const btn = get('auth-btn');
         const originalText = btn.textContent;
         btn.innerHTML = '<div class="spring-spinner"></div>';
@@ -2248,14 +2335,30 @@
                     btn.disabled = false;
                 });
         } else {
-            createUserWithEmailAndPassword(auth, e, p).then(c => {
+            // FIX: Set Flag so onAuthStateChanged doesn't interfere
+            isSigningUp = true; 
+
+            createUserWithEmailAndPassword(auth, e, p).then(async (c) => {
                 const name = get('auth-name').value;
-                setDoc(doc(db, USERS_PATH, c.user.uid), { 
+                
+                await setDoc(doc(db, USERS_PATH, c.user.uid), { 
                     uid: c.user.uid, displayName: name, email: e, 
                     pingId: name.substr(0,4)+Math.floor(Math.random()*9000), status:'online'
-                }).then(()=>location.reload());
+                });
+
+                // SEND EMAIL BEFORE SIGN OUT
+                await sendEmailVerification(c.user);
+                alert(`Account created! A verification email has been sent to ${e}. Please verify before logging in.`);
+                
+                // SIGN OUT MANUALLY
+                await signOut(auth);
+                
+                isSigningUp = false; // Reset flag
+                location.reload();
+
             }).catch((err) => {
                 alert(err.message);
+                isSigningUp = false; // Reset flag on error
                 btn.innerHTML = originalText;
                 btn.disabled = false;
             });
