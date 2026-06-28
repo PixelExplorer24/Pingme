@@ -1,4 +1,4 @@
-<!DOCTYPE html PUBLIC "-//WAPFORUM//DTD XHTML Mobile 1.0//EN" "http://www.wapforum.org/DTD/xhtml-mobile10.dtd">
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML Mobile 1.0//EN" "http://www.wapforum.org/DTD/xhtml-mobile10.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
@@ -29,13 +29,13 @@
         .sec-header { background-color: #d8dfea; color: #3b5998; padding: 4px 6px; font-weight: bold; border-top: 1px solid #3b5998; border-bottom: 1px solid #cccccc; font-size: 13px; text-align: left; }
         .content { padding: 6px; text-align: left; } 
         
-        input[type="text"], input[type="password"] { width: 90%; max-width: 300px; padding: 6px; border: 1px solid #8496ba; margin-bottom: 4px; font-size: 13px; box-sizing: border-box; }
+        input[type="text"], input[type="password"], input[type="email"] { width: 90%; max-width: 300px; padding: 6px; border: 1px solid #8496ba; margin-bottom: 4px; font-size: 13px; box-sizing: border-box; }
         .btn { background-color: #3b5998; color: #ffffff; border: 1px solid #29447e; padding: 6px 10px; font-weight: bold; cursor: pointer; font-size: 12px; }
         .btn-sec { background-color: #f8f8f8; color: #3b5998; border: 1px solid #cccccc; padding: 6px 10px; cursor: pointer; font-size: 12px; }
         
         .login-wrapper { display: flex; justify-content: center; align-items: center; min-height: calc(100vh - 100px); padding: 10px; }
         .login-box { width: 100%; max-width: 280px; background-color: #f7f7f7; border: 1px solid #cccccc; padding: 15px; text-align: center; }
-        .login-box input[type="text"], .login-box input[type="password"] { width: 100%; padding: 6px; margin-top: 3px; margin-bottom: 10px; }
+        .login-box input[type="text"], .login-box input[type="password"], .login-box input[type="email"] { width: 100%; padding: 6px; margin-top: 3px; margin-bottom: 10px; }
         .login-box .btn, .login-box .btn-sec { width: 48%; margin-top: 5px; }
 
         .msg-row { padding: 5px 0; border-bottom: 1px dashed #cccccc; word-wrap: break-word; position: relative; }
@@ -65,25 +65,28 @@
         .chat-send-btn { background-color: #0084ff; color: white; border: none; border-radius: 20px; padding: 10px 15px; font-weight: bold; font-size: 14px; width: 100%; margin-top: 6px; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         .chat-send-btn:active { background-color: #006bce; }
         .chat-bottom-area { background-color: #f0f2f5; padding: 8px; border: 1px solid #ccc; border-top: none; text-align: center; }
+        
+        .more-btn { text-align: center; padding: 8px; background: #e9ebee; border: 1px solid #ccc; margin: 10px 0; font-weight: bold; }
+        .more-btn a { display: block; color: #3b5998; }
     </style>
 </head>
 <body>
 
     <div class="top-header">
-        <a onclick="showPage('home')">PingMe</a>
+        <a href="javascript:void(0);" onclick="showPage('home')">PingMe</a>
     </div>
 
     <div id="sys-notification" class="alert-box hidden"></div>
 
-    <!-- ন্যাভিগেশন বার আপডেট করা হয়েছে -->
+    <!-- ন্যাভিগেশন বার -->
     <div id="nav-bar" class="nav-bar hidden">
-        <a id="nav-home" onclick="showPage('home')">Home</a> | 
-        <a id="nav-profile" onclick="showPage('profile')">Profile</a> | 
-        <a id="nav-friends" onclick="showPage('friends')">Friends</a> | 
+        <a id="nav-home" href="javascript:void(0);" onclick="showPage('home')">Home</a> | 
+        <a id="nav-profile" href="javascript:void(0);" onclick="showPage('profile')">Profile</a> | 
+        <a id="nav-friends" href="javascript:void(0);" onclick="showPage('friends')">Friends</a> | 
         <!-- Chat এবং Refresh বাটনের পাশে নোটিফিকেশন স্পেস -->
-        <a id="nav-inbox" onclick="showPage('inbox')">Chat</a> | 
-        <a id="nav-find-friend" onclick="showPage('find-friend')">Find Friend</a> | 
-        <a onclick="refreshCurrentPage()">Refresh</a> 
+        <a id="nav-inbox" href="javascript:void(0);" onclick="showPage('inbox')">Chat</a> | 
+        <a id="nav-find-friend" href="javascript:void(0);" onclick="showPage('find-friend')">Find Friend</a> | 
+        <a href="javascript:void(0);" onclick="refreshCurrentPage()">Refresh</a> 
         <span id="nav-latest-sender" class="new-badge hidden" style="margin-left: 5px;"></span>
     </div>
 
@@ -91,17 +94,19 @@
     <div id="page-login" class="content">
         <div class="login-wrapper">
             <div class="login-box">
-                <div style="margin-bottom: 15px; font-size: 16px; font-weight: bold; color: #3b5998;">Welcome to PingMe</div>
-                <div style="text-align: left; font-weight: bold; font-size: 12px;">Email:</div>
-                <input type="text" id="auth-email" placeholder="example@email.com" />
-                <div style="text-align: left; font-weight: bold; font-size: 12px;">Password:</div>
-                <input type="password" id="auth-pass" placeholder="******" />
-                <div style="display: flex; justify-content: space-between;">
-                    <input type="button" class="btn" value="Log In" onclick="login()" />
-                    <input type="button" class="btn-sec" value="Sign Up" onclick="signup()" />
-                </div>
+                <form id="login-form" onsubmit="login(); return false;" action="#">
+                    <div style="margin-bottom: 15px; font-size: 16px; font-weight: bold; color: #3b5998;">Welcome to PingMe</div>
+                    <div style="text-align: left; font-weight: bold; font-size: 12px;">Email:</div>
+                    <input type="text" id="auth-email" placeholder="example@email.com" required="required" />
+                    <div style="text-align: left; font-weight: bold; font-size: 12px;">Password:</div>
+                    <input type="password" id="auth-pass" placeholder="******" required="required" />
+                    <div style="display: flex; justify-content: space-between;">
+                        <input type="submit" class="btn" value="Log In" />
+                        <input type="button" class="btn-sec" value="Sign Up" onclick="signup()" />
+                    </div>
+                </form>
                 <div class="divider"></div>
-                <div style="font-size: 12px;"><a onclick="showPage('forget-password')">Forgot Password?</a></div>
+                <div style="font-size: 12px;"><a href="javascript:void(0);" onclick="showPage('forget-password')">Forgot Password?</a></div>
             </div>
         </div>
     </div>
@@ -110,11 +115,13 @@
     <div id="page-forget-password" class="content hidden">
         <div class="login-wrapper">
             <div class="login-box">
-                <div style="margin-bottom: 10px; font-size: 14px; font-weight: bold; color: #3b5998;">Reset Password</div>
-                <input type="text" id="reset-email" placeholder="Email address" style="width: 100%; box-sizing: border-box; padding: 6px; margin-bottom: 10px;" />
-                <input type="button" class="btn" value="Send Link" onclick="resetPassword()" style="width: 100%;" />
+                <form id="reset-form" onsubmit="resetPassword(); return false;" action="#">
+                    <div style="margin-bottom: 10px; font-size: 14px; font-weight: bold; color: #3b5998;">Reset Password</div>
+                    <input type="email" id="reset-email" placeholder="Email address" style="width: 100%; box-sizing: border-box; padding: 6px; margin-bottom: 10px;" required="required" />
+                    <input type="submit" class="btn" value="Send Link" style="width: 100%;" />
+                </form>
                 <div class="divider"></div>
-                <a onclick="showPage('login')" style="font-size: 12px;">&laquo; Back to Login</a>
+                <a href="javascript:void(0);" onclick="showPage('login')" style="font-size: 12px;">&laquo; Back to Login</a>
             </div>
         </div>
     </div>
@@ -137,6 +144,17 @@
             <div style="margin-top: 10px;">
                 <input type="button" class="btn-sec" value="Log Out" onclick="logout()" style="color: red; border-color: red;" />
             </div>
+        </div>
+    </div>
+
+    <!-- অন্য ইউজারের প্রোফাইল দেখার পেজ -->
+    <div id="page-view-profile" class="hidden">
+        <div class="sec-header">
+            <a href="javascript:void(0);" onclick="showPage('find-friend')">&laquo; Back</a> | User Profile
+        </div>
+        <div class="content">
+            <div class="profile-info" id="view-profile-details">Loading User Details...</div>
+            <div id="view-profile-actions"></div>
         </div>
     </div>
 
@@ -166,6 +184,9 @@
         <div id="all-users-list" class="content">
             <span style="color:#808080;">Loading all users...</span>
         </div>
+        <div id="load-more-container" class="more-btn hidden">
+            <a href="javascript:void(0);" onclick="loadMoreUsers()">[More...]</a>
+        </div>
     </div>
 
     <!-- Chat (Inbox) পেইজ -->
@@ -180,21 +201,21 @@
     <div id="page-chat" class="hidden">
         <div class="sec-header" style="display: flex; justify-content: space-between; align-items: center;">
             <div>
-                <a onclick="showPage('inbox')">&laquo; Back</a> | 
+                <a href="javascript:void(0);" onclick="showPage('inbox')">&laquo; Back</a> | 
                 <b id="chat-header-name" style="font-size:14px;">Partner</b> 
                 <span id="chat-online-status" class="online-dot hidden">[● Active]</span>
             </div>
-            <a onclick="toggleOptions('chat-main-opt')" class="dot-btn">[⋮]</a>
+            <a href="javascript:void(0);" onclick="toggleOptions('chat-main-opt')" class="dot-btn">[⋮]</a>
         </div>
         
         <div id="chat-main-opt" class="options-menu hidden">
-            <a onclick="deleteChatCurrent()">[Delete Chat]</a> &nbsp;|&nbsp; 
-            <a onclick="blockUserCurrent()">[Block User]</a>
+            <a href="javascript:void(0);" onclick="deleteChatCurrent()">[Delete Chat]</a> &nbsp;|&nbsp; 
+            <a href="javascript:void(0);" onclick="blockUserCurrent()">[Block User]</a>
         </div>
 
         <!-- চ্যাট হিস্ট্রি -->
         <div style="text-align: center; padding: 5px; background-color: #d8dfea; border-left: 1px solid #ccc; border-right: 1px solid #ccc;">
-            <a id="older-msg-btn" onclick="loadMessages(true)" class="hidden" style="font-size: 11px; font-weight: bold;">[Older Messages]</a>
+            <a id="older-msg-btn" href="javascript:void(0);" onclick="loadMessages(true)" class="hidden" style="font-size: 11px; font-weight: bold;">[Older Messages]</a>
         </div>
         <div id="chat-history" class="content" style="background-color: #f7f7f7; border: 1px solid #ccc; border-top: none; min-height: 150px; max-height: 50vh; overflow-y: auto;">
             <div style="text-align:center; color:#808080; padding: 10px;">Loading...</div>
@@ -204,18 +225,18 @@
         <div class="sec-header" style="border-top: none; margin-top: 5px;">Send a Message</div>
         <div class="chat-bottom-area">
             <div id="emoji-panel" class="emoji-panel hidden">
-                <a onclick="addEmoji('😊')">😊</a> <a onclick="addEmoji('😂')">😂</a> <a onclick="addEmoji('❤️')">❤️</a> 
-                <a onclick="addEmoji('👍')">👍</a> <a onclick="addEmoji('😢')">😢</a> <a onclick="addEmoji('😡')">😡</a>
-                <a onclick="toggleEmoji()" style="font-size: 11px; color: red;">[Close]</a>
+                <a href="javascript:void(0);" onclick="addEmoji('😊')">😊</a> <a href="javascript:void(0);" onclick="addEmoji('😂')">😂</a> <a href="javascript:void(0);" onclick="addEmoji('❤️')">❤️</a> 
+                <a href="javascript:void(0);" onclick="addEmoji('👍')">👍</a> <a href="javascript:void(0);" onclick="addEmoji('😢')">😢</a> <a href="javascript:void(0);" onclick="addEmoji('😡')">😡</a>
+                <a href="javascript:void(0);" onclick="toggleEmoji()" style="font-size: 11px; color: red;">[Close]</a>
             </div>
             <div id="image-panel" class="hidden" style="margin-bottom: 8px; text-align:center;">
                 <input type="file" id="attach-file" accept="image/*" style="width: 70%; font-size: 11px;" />
-                <a onclick="toggleImagePanel()" style="font-size: 11px; color: red;">[X]</a>
+                <a href="javascript:void(0);" onclick="toggleImagePanel()" style="font-size: 11px; color: red;">[X]</a>
             </div>
             <div style="display:flex; justify-content:center; gap:12px; margin-bottom:8px; font-size:12px; font-weight:bold;">
-                <a onclick="toggleEmoji()">[☻ Emoji]</a>
-                <a onclick="toggleImagePanel()">[📷 Photo]</a>
-                <a onclick="loadMessages()">[↻ Refresh]</a>
+                <a href="javascript:void(0);" onclick="toggleEmoji()">[☻ Emoji]</a>
+                <a href="javascript:void(0);" onclick="toggleImagePanel()">[📷 Photo]</a>
+                <a href="javascript:void(0);" onclick="loadMessages()">[↻ Refresh]</a>
             </div>
             <input type="text" id="chat-input" class="chat-input-modern" placeholder="Type a message..." />
             <button class="chat-send-btn" onclick="sendMessage()">Send Message</button>
@@ -246,6 +267,11 @@
         var oldestMessageDoc = null, MESSAGES_PER_PAGE = 15;
         var readMessagesState = {}; 
         var currentPage = 'login'; 
+
+        // Pagination variables for Find Friends
+        var allLoadedUsers = [];
+        var lastLoadedUserIndex = 0;
+        var USERS_PER_PAGE = 10;
 
         function notify(msg) {
             var box = document.getElementById('sys-notification');
@@ -311,14 +337,18 @@
 
         function showPage(pageId) {
             currentPage = pageId;
-            ['login', 'forget-password', 'home', 'profile', 'friends', 'find-friend', 'inbox', 'chat'].forEach(function(p) {
-                document.getElementById('page-' + p).className = 'hidden';
+            ['login', 'forget-password', 'home', 'profile', 'view-profile', 'friends', 'find-friend', 'inbox', 'chat'].forEach(function(p) {
+                var el = document.getElementById('page-' + p);
+                if (el) el.className = 'hidden';
             });
             
-            if (pageId === 'login' || pageId === 'forget-password') {
-                document.getElementById('page-' + pageId).className = 'content';
-            } else {
-                document.getElementById('page-' + pageId).className = '';
+            var currentEl = document.getElementById('page-' + pageId);
+            if (currentEl) {
+                if (pageId === 'login' || pageId === 'forget-password') {
+                    currentEl.className = 'content';
+                } else {
+                    currentEl.className = '';
+                }
             }
             
             if(currentUser) {
@@ -333,7 +363,11 @@
 
             if(pageId === 'profile') loadProfile();
             if(pageId === 'friends') loadFriends();
-            if(pageId === 'find-friend') loadAllUsersDB();
+            if(pageId === 'find-friend') {
+                // রিসেট সার্চ এবং প্রথম পেজ লোড
+                document.getElementById('search-ping-id').value = "";
+                loadAllUsersDB();
+            }
             if(pageId === 'inbox') loadInbox();
         }
 
@@ -372,12 +406,58 @@
             }
         });
 
-        function login() { auth.signInWithEmailAndPassword(document.getElementById('auth-email').value, document.getElementById('auth-pass').value).catch(e => notify(e.message)); }
-        function signup() { auth.createUserWithEmailAndPassword(document.getElementById('auth-email').value, document.getElementById('auth-pass').value).catch(e => notify(e.message)); }
+        // ব্রাউজার রিডিরেকশন ও স্ক্রিপ্ট এরর এড়াতে ইভেন্ট প্রিভেন্ট মেকানিজম সহ লগইন ফাংশন
+        function login() { 
+            var email = document.getElementById('auth-email').value.trim();
+            var pass = document.getElementById('auth-pass').value;
+            if(!email || !pass) {
+                notify("Please fill all fields.");
+                return;
+            }
+            notify("Logging in...");
+            auth.signInWithEmailAndPassword(email, pass)
+            .then(function(res) {
+                notify("Logged in successfully!");
+            })
+            .catch(function(e) { 
+                notify(e.message); 
+            }); 
+        }
+
+        function signup() { 
+            var email = document.getElementById('auth-email').value.trim();
+            var pass = document.getElementById('auth-pass').value;
+            if(!email || !pass) {
+                notify("Please fill all fields.");
+                return;
+            }
+            notify("Creating Account...");
+            auth.createUserWithEmailAndPassword(email, pass)
+            .then(function(res) {
+                notify("Signup Success!");
+            })
+            .catch(function(e) { 
+                notify(e.message); 
+            }); 
+        }
+
         function logout() { auth.signOut(); }
+
+        // পাসওয়ার্ড রিসেট লিঙ্কের কার্যকারিতা সমাধান
         function resetPassword() {
             var e = document.getElementById('reset-email').value.trim();
-            if(e) auth.sendPasswordResetEmail(e).then(() => { notify("Link sent!"); showPage('login'); }).catch(e => notify(e.message));
+            if(!e) {
+                notify("Please enter an email address.");
+                return;
+            }
+            notify("Sending Reset Link...");
+            auth.sendPasswordResetEmail(e).then(function() { 
+                notify("Reset link sent! Check your inbox."); 
+                document.getElementById('reset-email').value = "";
+                showPage('login'); 
+            }).catch(function(e) { 
+                notify(e.message); 
+            });
         }
 
         function loadProfile() {
@@ -387,6 +467,49 @@
             html += "<strong>Ping ID:</strong> <span style='color:#3b5998;'>" + (userData.pingId || "N/A") + "</span><br/><br/>";
             html += "<strong>Total Friends:</strong> " + (userData.friends ? userData.friends.length : 0);
             document.getElementById('profile-details').innerHTML = html;
+        }
+
+        // অন্য কোনো ইউজারের প্রোফাইল দেখার ফাংশন
+        function viewUserProfile(userIdToView) {
+            var detailsDiv = document.getElementById('view-profile-details');
+            var actionDiv = document.getElementById('view-profile-actions');
+            
+            detailsDiv.innerHTML = "Loading Profile Details...";
+            actionDiv.innerHTML = "";
+            showPage('view-profile');
+
+            db.collection(USERS_PATH).doc(userIdToView).get().then(function(doc) {
+                if(!doc.exists) {
+                    detailsDiv.innerHTML = "User details not found.";
+                    return;
+                }
+                var u = doc.data();
+                var html = "<strong>Name:</strong> " + (u.displayName || "N/A") + "<br/><br/>";
+                html += "<strong>Email:</strong> " + (u.email || "N/A") + "<br/><br/>";
+                html += "<strong>Ping ID:</strong> <span style='color:#3b5998;'>" + (u.pingId || "N/A") + "</span><br/><br/>";
+                html += "<strong>Total Friends:</strong> " + (u.friends ? u.friends.length : 0);
+                detailsDiv.innerHTML = html;
+
+                // কি অ্যাকশন নেওয়া যাবে তার বাটন
+                var actionHtml = "";
+                if(userData.friends && userData.friends.includes(u.uid)) {
+                    actionHtml += "<input type='button' class='btn' value='Message' onclick=\"openChat('" + u.uid + "', '" + u.displayName + "')\" />";
+                } else if(u.requests && u.requests.includes(currentUser.uid)) {
+                    actionHtml += "<span style='color:orange; font-weight:bold;'>[Friend Request Sent]</span>";
+                } else {
+                    actionHtml += "<input type='button' class='btn' value='Add Friend' onclick=\"sendRequestFromView('" + u.uid + "')\" />";
+                }
+                actionDiv.innerHTML = actionHtml;
+            }).catch(function(err) {
+                detailsDiv.innerHTML = "Error loading user profile.";
+            });
+        }
+
+        function sendRequestFromView(targetId) {
+            sendRequest(targetId, function() {
+                // সফলভাবে রিকোয়েস্ট পাঠানোর পর রিফ্রেশ প্রোফাইল
+                viewUserProfile(targetId);
+            });
         }
 
         function loadFriends() {
@@ -401,7 +524,7 @@
                     snap.forEach(function(doc) {
                         var u = doc.data();
                         if(userData.requests.includes(u.uid)) {
-                            rDiv.innerHTML += "<div class='msg-row'><b>" + u.displayName + "</b> wants to connect.<br/><a onclick=\"acceptRequest('" + u.uid + "')\">[Accept Request]</a></div>";
+                            rDiv.innerHTML += "<div class='msg-row'><a href='javascript:void(0);' onclick=\"viewUserProfile('" + u.uid + "')\"><b>" + u.displayName + "</b></a> wants to connect.<br/><a href='javascript:void(0);' onclick=\"acceptRequest('" + u.uid + "')\">[Accept Request]</a></div>";
                         }
                     });
                 });
@@ -416,33 +539,73 @@
                     snap.forEach(function(doc) {
                         var u = doc.data();
                         if(userData.friends.includes(u.uid)) {
-                            fDiv.innerHTML += "<div class='msg-row'><b>" + u.displayName + "</b> <br/><a onclick=\"openChat('" + u.uid + "', '" + u.displayName + "')\">[Message]</a></div>";
+                            fDiv.innerHTML += "<div class='msg-row'><a href='javascript:void(0);' onclick=\"viewUserProfile('" + u.uid + "')\"><b>" + u.displayName + "</b></a> <br/><a href='javascript:void(0);' onclick=\"openChat('" + u.uid + "', '" + u.displayName + "')\">[Message]</a></div>";
                         }
                     });
                 });
             }
         }
 
+        // পৃষ্ঠা অনুযায়ী (Pagination) লোড করার জন্য ডাটাবেজ হ্যান্ডলার
         function loadAllUsersDB() {
             var sDiv = document.getElementById('all-users-list');
-            sDiv.innerHTML = "Loading all users...";
+            var loadMoreBtn = document.getElementById('load-more-container');
+            sDiv.innerHTML = "Loading users...";
+            loadMoreBtn.className = 'more-btn hidden';
             
+            allLoadedUsers = [];
+            lastLoadedUserIndex = 0;
+
             db.collection(USERS_PATH).get().then(function(snap) {
-                sDiv.innerHTML = "";
-                var count = 0;
                 snap.forEach(function(doc) {
                     var u = doc.data();
                     if(u.uid !== currentUser.uid) {
-                        count++;
-                        var action = "";
-                        if(userData.friends && userData.friends.includes(u.uid)) action = "<a onclick=\"openChat('" + u.uid + "', '" + u.displayName + "')\">[Message]</a>";
-                        else if(u.requests && u.requests.includes(currentUser.uid)) action = "<span style='color:orange;'>[Request Sent]</span>";
-                        else action = "<a onclick=\"sendRequest('" + u.uid + "')\">[Add Friend]</a>";
-                        sDiv.innerHTML += "<div class='msg-row'><b>" + u.displayName + "</b> (@" + (u.pingId || "N/A") + ")<br/>" + action + "</div>";
+                        allLoadedUsers.push(u);
                     }
                 });
-                if(count === 0) sDiv.innerHTML = "<div class='content'>No other users in the database yet.</div>";
+                
+                sDiv.innerHTML = "";
+                if(allLoadedUsers.length === 0) {
+                    sDiv.innerHTML = "<div class='content'>No other users in the database yet.</div>";
+                } else {
+                    renderUserBatch();
+                }
+            }).catch(function(err) {
+                sDiv.innerHTML = "<div class='content'>Error loading users.</div>";
             });
+        }
+
+        function renderUserBatch() {
+            var sDiv = document.getElementById('all-users-list');
+            var loadMoreBtn = document.getElementById('load-more-container');
+            
+            var nextBatchLimit = lastLoadedUserIndex + USERS_PER_PAGE;
+            var currentBatch = allLoadedUsers.slice(lastLoadedUserIndex, nextBatchLimit);
+            
+            currentBatch.forEach(function(u) {
+                var action = "";
+                if(userData.friends && userData.friends.includes(u.uid)) {
+                    action = "<a href='javascript:void(0);' onclick=\"openChat('" + u.uid + "', '" + u.displayName + "')\">[Message]</a>";
+                } else if(u.requests && u.requests.includes(currentUser.uid)) {
+                    action = "<span style='color:orange;'>[Request Sent]</span>";
+                } else {
+                    action = "<a href='javascript:void(0);' onclick=\"sendRequest('" + u.uid + "')\">[Add Friend]</a>";
+                }
+                
+                sDiv.innerHTML += "<div class='msg-row'><a href='javascript:void(0);' onclick=\"viewUserProfile('" + u.uid + "')\" style='font-size: 14px; font-weight: bold; text-decoration: underline;'>" + u.displayName + "</a><br/>" + action + "</div>";
+            });
+
+            lastLoadedUserIndex = nextBatchLimit;
+
+            if (lastLoadedUserIndex < allLoadedUsers.length) {
+                loadMoreBtn.className = 'more-btn'; // 'More...' বাটন শো হবে
+            } else {
+                loadMoreBtn.className = 'more-btn hidden'; // সব শেষ হয়ে গেলে হাইড হবে
+            }
+        }
+
+        function loadMoreUsers() {
+            renderUserBatch();
         }
         
         function searchFriend() {
@@ -450,7 +613,9 @@
             if(!searchId) { loadAllUsersDB(); return; }
             
             var sDiv = document.getElementById('all-users-list');
+            var loadMoreBtn = document.getElementById('load-more-container');
             sDiv.innerHTML = "Searching...";
+            loadMoreBtn.className = 'more-btn hidden';
             
             db.collection(USERS_PATH).where("pingId", "==", searchId).get().then(function(snap) {
                 sDiv.innerHTML = "";
@@ -460,10 +625,15 @@
                     if(u.uid !== currentUser.uid) {
                         count++;
                         var action = "";
-                        if(userData.friends && userData.friends.includes(u.uid)) action = "<a onclick=\"openChat('" + u.uid + "', '" + u.displayName + "')\">[Message]</a>";
-                        else if(u.requests && u.requests.includes(currentUser.uid)) action = "<span style='color:orange;'>[Request Sent]</span>";
-                        else action = "<a onclick=\"sendRequest('" + u.uid + "')\">[Add Friend]</a>";
-                        sDiv.innerHTML += "<div class='msg-row'><b>" + u.displayName + "</b> (@" + (u.pingId || "N/A") + ")<br/>" + action + "</div>";
+                        if(userData.friends && userData.friends.includes(u.uid)) {
+                            action = "<a href='javascript:void(0);' onclick=\"openChat('" + u.uid + "', '" + u.displayName + "')\">[Message]</a>";
+                        } else if(u.requests && u.requests.includes(currentUser.uid)) {
+                            action = "<span style='color:orange;'>[Request Sent]</span>";
+                        } else {
+                            action = "<a href='javascript:void(0);' onclick=\"sendRequest('" + u.uid + "')\">[Add Friend]</a>";
+                        }
+                        
+                        sDiv.innerHTML += "<div class='msg-row'><a href='javascript:void(0);' onclick=\"viewUserProfile('" + u.uid + "')\" style='font-size: 14px; font-weight: bold; text-decoration: underline;'>" + u.displayName + "</a><br/>" + action + "</div>";
                     }
                 });
                 
@@ -474,12 +644,19 @@
             });
         }
 
-        function sendRequest(targetId) {
+        function sendRequest(targetId, callback) {
             db.collection(USERS_PATH).doc(targetId).get().then(function(doc) {
                 var reqs = doc.data().requests || [];
                 if(!reqs.includes(currentUser.uid)) {
                     reqs.push(currentUser.uid);
-                    db.collection(USERS_PATH).doc(targetId).update({ requests: reqs }).then(() => { notify("Request sent!"); loadAllUsersDB(); });
+                    db.collection(USERS_PATH).doc(targetId).update({ requests: reqs }).then(function() { 
+                        notify("Request sent!"); 
+                        if(callback) {
+                            callback();
+                        } else {
+                            loadAllUsersDB(); 
+                        }
+                    });
                 }
             });
         }
@@ -539,11 +716,11 @@
                       var nameFormat = isUnread ? ("<b>" + pInfo.displayName + " <span class='new-badge'>[New]</span></b>") : ("<b>" + pInfo.displayName + "</b>");
 
                       var html = "<div class='" + rowClass + "'>";
-                      html += "<div style='float:right;'><a onclick=\"toggleOptions('opt-" + data.docId + "')\" class='dot-btn'>[⋮]</a></div>";
-                      html += "<a onclick=\"openChat('" + pid + "', '" + pInfo.displayName + "', '" + data.docId + "')\">" + nameFormat + "</a><br/>";
+                      html += "<div style='float:right;'><a href='javascript:void(0);' onclick=\"toggleOptions('opt-" + data.docId + "')\" class='dot-btn'>[⋮]</a></div>";
+                      html += "<a href='javascript:void(0);' onclick=\"openChat('" + pid + "', '" + pInfo.displayName + "', '" + data.docId + "')\">" + nameFormat + "</a><br/>";
                       html += "<span class='msg-time'>" + lastMsg + "</span>";
                       html += "<div id='opt-" + data.docId + "' class='options-menu hidden'>";
-                      html += "<a onclick=\"deleteChatAny('" + data.docId + "')\">[Delete]</a> | <a onclick=\"blockUserAny('" + pid + "')\">[Block]</a></div>";
+                      html += "<a href='javascript:void(0);' onclick=\"deleteChatAny('" + data.docId + "')\">[Delete]</a> | <a href='javascript:void(0);' onclick=\"blockUserAny('" + pid + "')\">[Block]</a></div>";
                       html += "</div>";
                       
                       inboxDiv.innerHTML += html;
@@ -633,7 +810,7 @@
                     html += "<span class='" + nameClass + "'>" + (isMe ? "You" : currentPartnerName) + ":</span> " + m.text;
                     html += imgHtml + "<br/>";
                     html += "<span class='msg-time'>" + timeStr + "</span> ";
-                    html += "<a onclick=\"toggleLike('" + m.docId + "')\" style='font-size:11px; margin-left:5px;'>[" + likeActionText + "]</a>";
+                    html += "<a href='javascript:void(0);' onclick=\"toggleLike('" + m.docId + "')\" style='font-size:11px; margin-left:5px;'>[" + likeActionText + "]</a>";
                     html += likeDisplay;
                     html += "</div>";
                     
