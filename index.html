@@ -94,17 +94,18 @@
     <div id="page-login" class="content">
         <div class="login-wrapper">
             <div class="login-box">
-                <form id="login-form" onsubmit="login(); return false;" action="#">
+                <!-- অপেরা মিনির জন্য form ট্যাগ বাদ দিয়ে div ও সরাসরি onclick ইভেন্ট দেওয়া হলো -->
+                <div id="login-form">
                     <div style="margin-bottom: 15px; font-size: 16px; font-weight: bold; color: #3b5998;">Welcome to PingMe</div>
                     <div style="text-align: left; font-weight: bold; font-size: 12px;">Email:</div>
-                    <input type="text" id="auth-email" placeholder="example@email.com" required="required" />
+                    <input type="text" id="auth-email" placeholder="example@email.com" />
                     <div style="text-align: left; font-weight: bold; font-size: 12px;">Password:</div>
-                    <input type="password" id="auth-pass" placeholder="******" required="required" />
+                    <input type="password" id="auth-pass" placeholder="******" />
                     <div style="display: flex; justify-content: space-between;">
-                        <input type="submit" class="btn" value="Log In" />
+                        <input type="button" class="btn" value="Log In" onclick="login()" />
                         <input type="button" class="btn-sec" value="Sign Up" onclick="signup()" />
                     </div>
-                </form>
+                </div>
                 <div class="divider"></div>
                 <div style="font-size: 12px;"><a href="javascript:void(0);" onclick="showPage('forget-password')">Forgot Password?</a></div>
             </div>
@@ -115,11 +116,11 @@
     <div id="page-forget-password" class="content hidden">
         <div class="login-wrapper">
             <div class="login-box">
-                <form id="reset-form" onsubmit="resetPassword(); return false;" action="#">
+                <div id="reset-form">
                     <div style="margin-bottom: 10px; font-size: 14px; font-weight: bold; color: #3b5998;">Reset Password</div>
-                    <input type="email" id="reset-email" placeholder="Email address" style="width: 100%; box-sizing: border-box; padding: 6px; margin-bottom: 10px;" required="required" />
-                    <input type="submit" class="btn" value="Send Link" style="width: 100%;" />
-                </form>
+                    <input type="text" id="reset-email" placeholder="Email address" style="width: 100%; box-sizing: border-box; padding: 6px; margin-bottom: 10px;" />
+                    <input type="button" class="btn" value="Send Link" style="width: 100%;" onclick="resetPassword()" />
+                </div>
                 <div class="divider"></div>
                 <a href="javascript:void(0);" onclick="showPage('login')" style="font-size: 12px;">&laquo; Back to Login</a>
             </div>
