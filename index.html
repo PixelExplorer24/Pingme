@@ -3,7 +3,9 @@
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-    <meta http-equiv="Cache-Control" content="no-cache" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
     <title>PingMe - Classic WAP</title>
 
     <!-- ফায়ারবেজ লিগ্যাসি (v8) স্ক্রিপ্ট পুরানো ব্রাউজার সাপোর্টের জন্য -->
@@ -12,44 +14,39 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
     <style type="text/css">
-        /* একদম অরিজিনাল পুরাতন ফেসবুক অপেরা মিনি স্টাইল */
+        /* একদম অরিজিনাল পুরাতন ফেসবুক অপেরা মিনি স্টাইল (Static Layout) */
         body { font-family: "lucida grande", tahoma, verdana, arial, sans-serif; background-color: #ffffff; color: #1c1e21; margin: 0; padding: 0; font-size: 13px; }
         a { color: #3b5998; text-decoration: none; cursor: pointer; }
         a:hover { text-decoration: underline; }
         
-        /* হেডার আপডেট */
-        .top-header { background-color: #3b5998; color: #ffffff; padding: 12px 10px; font-weight: bold; font-size: 18px; text-align: left; }
+        .top-header { background-color: #3b5998; color: #ffffff; padding: 10px; font-weight: bold; font-size: 16px; text-align: left; }
         .top-header a { color: #ffffff; text-decoration: none; }
         
-        /* ন্যাভিগেশন বার */
-        .nav-bar { background-color: #f7f7f7; padding: 6px; border-bottom: 1px solid #cccccc; font-size: 13px; text-align: center; line-height: 1.8; }
-        .nav-bar a { font-weight: normal; margin: 0 5px; color: #3b5998; white-space: nowrap; }
+        .nav-bar { background-color: #f7f7f7; padding: 5px; border-bottom: 1px solid #cccccc; font-size: 12px; text-align: center; line-height: 2.0; }
+        .nav-bar a { font-weight: normal; margin: 0 4px; color: #3b5998; white-space: nowrap; }
         .nav-bar .active { font-weight: bold; color: #000000; border-bottom: 2px solid #3b5998; }
         
-        .sec-header { background-color: #d8dfea; color: #3b5998; padding: 4px 6px; font-weight: bold; border-top: 1px solid #3b5998; border-bottom: 1px solid #cccccc; font-size: 13px; text-align: left; }
-        .content { padding: 6px; text-align: left; } 
+        .sec-header { background-color: #d8dfea; color: #3b5998; padding: 5px; font-weight: bold; border-top: 1px solid #3b5998; border-bottom: 1px solid #cccccc; font-size: 13px; text-align: left; }
+        .content { padding: 8px; text-align: left; } 
         
-        input[type="text"], input[type="password"], input[type="email"] { width: 90%; max-width: 300px; padding: 6px; border: 1px solid #8496ba; margin-bottom: 4px; font-size: 13px; box-sizing: border-box; }
-        .btn { background-color: #3b5998; color: #ffffff; border: 1px solid #29447e; padding: 6px 10px; font-weight: bold; cursor: pointer; font-size: 12px; }
-        .btn-sec { background-color: #f8f8f8; color: #3b5998; border: 1px solid #cccccc; padding: 6px 10px; cursor: pointer; font-size: 12px; }
+        input[type="text"], input[type="password"], input[type="email"] { width: 95%; max-width: 300px; padding: 5px; border: 1px solid #8496ba; margin-bottom: 5px; font-size: 13px; }
+        .btn { background-color: #3b5998; color: #ffffff; border: 1px solid #29447e; padding: 5px 8px; font-weight: bold; cursor: pointer; font-size: 12px; }
+        .btn-sec { background-color: #f8f8f8; color: #3b5998; border: 1px solid #cccccc; padding: 5px 8px; cursor: pointer; font-size: 12px; }
         
-        .login-wrapper { display: flex; justify-content: center; align-items: center; min-height: calc(100vh - 100px); padding: 10px; }
-        .login-box { width: 100%; max-width: 280px; background-color: #f7f7f7; border: 1px solid #cccccc; padding: 15px; text-align: center; }
-        .login-box input[type="text"], .login-box input[type="password"], .login-box input[type="email"] { width: 100%; padding: 6px; margin-top: 3px; margin-bottom: 10px; }
-        .login-box .btn, .login-box .btn-sec { width: 48%; margin-top: 5px; }
-
-        .msg-row { padding: 5px 0; border-bottom: 1px dashed #cccccc; word-wrap: break-word; position: relative; }
-        .msg-row:last-child { border-bottom: none; }
+        /* Fixed Layout for J2ME */
+        .login-wrapper { padding: 20px 5px; text-align: center; }
+        .login-box { margin: 0 auto; width: 90%; max-width: 280px; background-color: #f7f7f7; border: 1px solid #cccccc; padding: 15px; text-align: center; }
+        
+        .msg-row { padding: 6px 0; border-bottom: 1px dashed #cccccc; word-wrap: break-word; }
         .msg-time { color: #808080; font-size: 11px; }
         .sender { font-weight: bold; color: #3b5998; }
         .me { font-weight: bold; color: #333333; }
         .unread { font-weight: bold; color: #000000; background-color: #fffbdd; }
         
         .new-badge { color: #d90000; font-size: 11px; font-weight: bold; }
-        .online-dot { color: #2bba00; font-size: 11px; font-weight: bold; }
         
         .footer { text-align: center; padding: 10px; font-size: 11px; color: #808080; border-top: 1px solid #cccccc; margin-top: 15px; }
-        .hidden { display: none !important; }
+        .hidden { display: none; }
         .divider { border-bottom: 1px solid #e5e5e5; margin: 10px 0; }
         
         .alert-box { background-color: #fffbdd; border: 1px solid #e2c822; padding: 5px; margin-bottom: 5px; font-size: 12px; color: #333333; text-align: center; }
@@ -60,14 +57,14 @@
         .dot-btn { font-size: 14px; font-weight: bold; color: #808080; text-decoration: none !important; margin-left: 5px;}
         
         .profile-info { background: #f7f7f7; border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; }
-        
-        .chat-input-modern { width: 100%; padding: 10px 15px; border: 1px solid #ccd0d5; border-radius: 20px; font-size: 14px; box-sizing: border-box; outline: none; background-color: #ffffff; }
-        .chat-send-btn { background-color: #0084ff; color: white; border: none; border-radius: 20px; padding: 10px 15px; font-weight: bold; font-size: 14px; width: 100%; margin-top: 6px; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .chat-send-btn:active { background-color: #006bce; }
         .chat-bottom-area { background-color: #f0f2f5; padding: 8px; border: 1px solid #ccc; border-top: none; text-align: center; }
         
         .more-btn { text-align: center; padding: 8px; background: #e9ebee; border: 1px solid #ccc; margin: 10px 0; font-weight: bold; }
         .more-btn a { display: block; color: #3b5998; }
+        
+        .clear { clear: both; }
+        .float-l { float: left; }
+        .float-r { float: right; }
     </style>
 </head>
 <body>
@@ -78,14 +75,14 @@
 
     <div id="sys-notification" class="alert-box hidden"></div>
 
-    <!-- ন্যাভিগেশন বার -->
+    <!-- ন্যাভিগেশন বার (Strict Static Refresh) -->
     <div id="nav-bar" class="nav-bar hidden">
         <a id="nav-home" href="javascript:void(0);" onclick="renderPage('home');">Home</a> | 
         <a id="nav-profile" href="javascript:void(0);" onclick="renderPage('profile');">Profile</a> | 
         <a id="nav-friends" href="javascript:void(0);" onclick="renderPage('friends');">Friends</a> | 
         <a id="nav-inbox" href="javascript:void(0);" onclick="renderPage('inbox');">Chat</a> | 
-        <a id="nav-find-friend" href="javascript:void(0);" onclick="renderPage('find-friend');">Find Friend</a> | 
-        <a href="javascript:void(0);" onclick="refreshCurrentPage();">Refresh</a> 
+        <a id="nav-find-friend" href="javascript:void(0);" onclick="renderPage('find-friend');">Find Friend</a><br/>
+        <a href="javascript:void(0);" onclick="refreshCurrentPage();" style="font-weight:bold; color:green;">[Refresh]</a> 
         <span id="nav-latest-sender" class="new-badge hidden" style="margin-left: 5px;"></span>
     </div>
 
@@ -96,13 +93,15 @@
                 <div id="login-form">
                     <div style="margin-bottom: 15px; font-size: 16px; font-weight: bold; color: #3b5998;">Welcome to PingMe</div>
                     <div style="text-align: left; font-weight: bold; font-size: 12px;">Email:</div>
-                    <input type="text" id="auth-email" placeholder="example@email.com" />
-                    <div style="text-align: left; font-weight: bold; font-size: 12px;">Password:</div>
-                    <input type="password" id="auth-pass" placeholder="******" />
-                    <div style="display: flex; justify-content: space-between;">
-                        <input type="button" class="btn" value="Log In" onclick="login()" />
-                        <input type="button" class="btn-sec" value="Sign Up" onclick="signup()" />
-                    </div>
+                    <input type="text" id="auth-email" placeholder="example@email.com" /><br/>
+                    <div style="text-align: left; font-weight: bold; font-size: 12px; margin-top:5px;">Password:</div>
+                    <input type="password" id="auth-pass" placeholder="******" /><br/><br/>
+                    <table width="100%" border="0" cellpadding="0" cellspacing="0">
+                        <tr>
+                            <td align="left"><input type="button" class="btn" value="Log In" onclick="login()" /></td>
+                            <td align="right"><input type="button" class="btn-sec" value="Sign Up" onclick="signup()" /></td>
+                        </tr>
+                    </table>
                 </div>
                 <div class="divider"></div>
                 <div style="font-size: 12px;"><a href="javascript:void(0);" onclick="renderPage('forget-password');">Forgot Password?</a></div>
@@ -116,8 +115,8 @@
             <div class="login-box">
                 <div id="reset-form">
                     <div style="margin-bottom: 10px; font-size: 14px; font-weight: bold; color: #3b5998;">Reset Password</div>
-                    <input type="text" id="reset-email" placeholder="Email address" style="width: 100%; box-sizing: border-box; padding: 6px; margin-bottom: 10px;" />
-                    <input type="button" class="btn" value="Send Link" style="width: 100%;" onclick="resetPassword()" />
+                    <input type="text" id="reset-email" placeholder="Email address" /><br/><br/>
+                    <input type="button" class="btn" value="Send Reset Link" onclick="resetPassword()" />
                 </div>
                 <div class="divider"></div>
                 <a href="javascript:void(0);" onclick="renderPage('login');" style="font-size: 12px;">&laquo; Back to Login</a>
@@ -129,9 +128,9 @@
     <div id="page-home" class="hidden">
         <div class="sec-header">Welcome to PingMe</div>
         <div class="content" style="padding: 15px 10px;">
-            <p>Connect with your friends quickly and easily.</p>
-            <input type="button" class="btn" value="Go to Chat" onclick="renderPage('inbox');" style="padding: 8px; margin-bottom: 10px;" /><br/>
-            <input type="button" class="btn-sec" value="Find New Friends" onclick="renderPage('find-friend');" style="padding: 8px;" />
+            <p>Connect with your friends statically. <b>Everything updates only when you click Refresh or change pages. No hidden background loading.</b></p>
+            <input type="button" class="btn" value="Go to Chat" onclick="renderPage('inbox');" /><br/><br/>
+            <input type="button" class="btn-sec" value="Find New Friends" onclick="renderPage('find-friend');" />
         </div>
     </div>
 
@@ -160,12 +159,12 @@
     <!-- Friends পেইজ -->
     <div id="page-friends" class="hidden">
         <div id="requests-section" class="hidden">
-            <div class="sec-header" style="background:#fffbdd;">Friend Requests</div>
+            <div class="sec-header" style="background:#fffbdd; border-color:#e2c822;">Friend Requests</div>
             <div id="requests-list" class="content"></div>
         </div>
         <div class="sec-header">My Friends</div>
         <div id="friends-list" class="content">
-            <span style="color:#808080;">Loading...</span>
+            <span style="color:#808080;">Click [Refresh] to load friends.</span>
         </div>
     </div>
 
@@ -173,15 +172,17 @@
     <div id="page-find-friend" class="hidden">
         <div class="content" style="background-color: #f7f7f7; border-bottom: 1px solid #ccc; padding-bottom: 10px;">
             <div style="font-weight: bold; margin-bottom: 5px;">Search by Ping ID:</div>
-            <div style="display: flex; gap: 5px;">
-                <input type="text" id="search-ping-id" placeholder="e.g. user123" style="width: 70%; margin: 0;" />
-                <input type="button" class="btn" value="Search" onclick="searchFriend()" style="width: 30%;" />
-            </div>
+            <table width="100%" border="0" cellpadding="0" cellspacing="0">
+                <tr>
+                    <td width="70%"><input type="text" id="search-ping-id" placeholder="e.g. user123" style="width: 90%; margin: 0;" /></td>
+                    <td width="30%" align="right"><input type="button" class="btn" value="Search" onclick="searchFriend()" /></td>
+                </tr>
+            </table>
         </div>
 
         <div class="sec-header">Find Friends (All Users)</div>
         <div id="all-users-list" class="content">
-            <span style="color:#808080;">Loading all users...</span>
+            <span style="color:#808080;">Data will load here.</span>
         </div>
         <div id="load-more-container" class="more-btn hidden">
             <a href="javascript:void(0);" onclick="loadMoreUsers()">[More...]</a>
@@ -192,19 +193,21 @@
     <div id="page-inbox" class="hidden">
         <div class="sec-header">Recent Chats</div>
         <div id="inbox-list" class="content">
-            <span style="color:#808080;">Loading messages...</span>
+            <span style="color:#808080;">Click [Refresh] to load messages.</span>
         </div>
     </div>
 
     <!-- চ্যাট রুম পেইজ -->
     <div id="page-chat" class="hidden">
-        <div class="sec-header" style="display: flex; justify-content: space-between; align-items: center;">
-            <div>
+        <div class="sec-header">
+            <div class="float-l">
                 <a href="javascript:void(0);" onclick="renderPage('inbox');">&laquo; Back</a> | 
                 <b id="chat-header-name" style="font-size:14px;">Partner</b> 
-                <span id="chat-online-status" class="online-dot hidden">[● Active]</span>
             </div>
-            <a href="javascript:void(0);" onclick="toggleOptions('chat-main-opt')" class="dot-btn">[⋮]</a>
+            <div class="float-r">
+                <a href="javascript:void(0);" onclick="toggleOptions('chat-main-opt')" class="dot-btn">[⋮] Options</a>
+            </div>
+            <div class="clear"></div>
         </div>
         
         <div id="chat-main-opt" class="options-menu hidden">
@@ -216,7 +219,8 @@
         <div style="text-align: center; padding: 5px; background-color: #d8dfea; border-left: 1px solid #ccc; border-right: 1px solid #ccc;">
             <a id="older-msg-btn" href="javascript:void(0);" onclick="loadMessages(true)" class="hidden" style="font-size: 11px; font-weight: bold;">[Older Messages]</a>
         </div>
-        <div id="chat-history" class="content" style="background-color: #f7f7f7; border: 1px solid #ccc; border-top: none; min-height: 150px; max-height: 50vh; overflow-y: auto;">
+        
+        <div id="chat-history" class="content" style="background-color: #f7f7f7; border: 1px solid #ccc; border-top: none;">
             <div style="text-align:center; color:#808080; padding: 10px;">Loading...</div>
         </div>
 
@@ -225,29 +229,32 @@
         <div class="chat-bottom-area">
             <div id="emoji-panel" class="emoji-panel hidden">
                 <a href="javascript:void(0);" onclick="addEmoji('😊')">😊</a> <a href="javascript:void(0);" onclick="addEmoji('😂')">😂</a> <a href="javascript:void(0);" onclick="addEmoji('❤️')">❤️</a> 
-                <a href="javascript:void(0);" onclick="addEmoji('👍')">👍</a> <a href="javascript:void(0);" onclick="addEmoji('😢')">😢</a> <a href="javascript:void(0);" onclick="addEmoji('😡')">😡</a>
-                <a href="javascript:void(0);" onclick="toggleEmoji()" style="font-size: 11px; color: red;">[Close]</a>
+                <a href="javascript:void(0);" onclick="addEmoji('👍')">👍</a> <a href="javascript:void(0);" onclick="addEmoji('😢')">😢</a> <a href="javascript:void(0);" onclick="addEmoji('😡')">😡</a><br/>
+                <a href="javascript:void(0);" onclick="toggleEmoji()" style="font-size: 11px; color: red; display:block; margin-top:5px;">[Close]</a>
             </div>
+            
             <div id="image-panel" class="hidden" style="margin-bottom: 8px; text-align:center;">
-                <input type="file" id="attach-file" accept="image/*" style="width: 70%; font-size: 11px;" />
-                <a href="javascript:void(0);" onclick="toggleImagePanel()" style="font-size: 11px; color: red;">[X]</a>
+                <input type="file" id="attach-file" accept="image/*" style="width: 80%; font-size: 11px;" /><br/>
+                <a href="javascript:void(0);" onclick="toggleImagePanel()" style="font-size: 11px; color: red;">[Close Image Panel]</a>
             </div>
-            <div style="display:flex; justify-content:center; gap:12px; margin-bottom:8px; font-size:12px; font-weight:bold;">
-                <a href="javascript:void(0);" onclick="toggleEmoji()">[☻ Emoji]</a>
-                <a href="javascript:void(0);" onclick="toggleImagePanel()">[📷 Photo]</a>
-                <a href="javascript:void(0);" onclick="loadMessages()">[↻ Refresh]</a>
+            
+            <div style="margin-bottom:8px; font-size:12px; font-weight:bold; text-align:center;">
+                <a href="javascript:void(0);" onclick="toggleEmoji()">[☻ Emoji]</a> | 
+                <a href="javascript:void(0);" onclick="toggleImagePanel()">[📷 Photo]</a> | 
+                <a href="javascript:void(0);" onclick="loadMessages()">[↻ Refresh Chat]</a>
             </div>
-            <input type="text" id="chat-input" class="chat-input-modern" placeholder="Type a message..." />
-            <button class="chat-send-btn" onclick="sendMessage()">Send Message</button>
+            
+            <input type="text" id="chat-input" placeholder="Type a message..." style="width:90%; padding:8px; border:1px solid #8496ba; margin-bottom:5px;" /><br/>
+            <input type="button" class="btn" value="Send Message" onclick="sendMessage()" style="width:95%; padding:8px;" />
         </div>
     </div>
 
     <div class="footer">
-        PingMe Classic V3.4 (WAP Edition) &copy; 2026<br/>
+        PingMe Classic V4.0 (Static WAP Edition) &copy; 2026<br/>
     </div>
 
     <script type="text/javascript">
-        // Helper Functions to replace modern JS methods (ES3/ES5 fallbacks)
+        // Helper Functions 
         function arrayContains(arr, item) {
             if(!arr) return false;
             for(var i=0; i<arr.length; i++) { if(arr[i] === item) return true; }
@@ -283,15 +290,8 @@
         function notify(msg) {
             var box = document.getElementById('sys-notification');
             box.innerHTML = msg; box.className = 'alert-box';
-            setTimeout(function() { box.className = 'alert-box hidden'; }, 3000);
+            setTimeout(function() { box.className = 'alert-box hidden'; }, 4000);
         }
-
-        setInterval(function() {
-            if(currentUser) {
-                db.collection(USERS_PATH).doc(currentUser.uid).update({ lastActive: new Date().getTime() });
-                checkUnreadMessages();
-            }
-        }, 30000); 
 
         function updateNavbarUnread(count, senderName) {
             var chatNav = document.getElementById('nav-inbox');
@@ -314,6 +314,7 @@
             }
         }
 
+        // Only runs explicitly when Refresh is clicked. NO auto sync.
         function checkUnreadMessages() {
             if(!currentUser) return;
             db.collection(CHATS_PATH).where("participants", "array-contains", currentUser.uid).get().then(function(snap) {
@@ -340,7 +341,7 @@
             });
         }
 
-        // URL hash navigation replaced with direct JS renders for Opera Mini compatibility
+        // Direct static transition logic - ONE CLICK = ONE ACTION
         function renderPage(pageId) {
             if (isAuthResolved && !currentUser && pageId !== 'login' && pageId !== 'forget-password') {
                 pageId = 'login';
@@ -373,33 +374,39 @@
                 document.getElementById('nav-bar').className = 'nav-bar hidden';
             }
 
+            // Explicit Data Fetch ONLY upon clicking the specific page link
             if(pageId === 'profile') loadProfile();
-            if(pageId === 'friends') loadFriends();
-            if(pageId === 'find-friend') {
+            else if(pageId === 'friends') loadFriends();
+            else if(pageId === 'find-friend') {
                 if(document.getElementById('search-ping-id').value === "") loadAllUsersDB();
             }
-            if(pageId === 'inbox') loadInbox();
-            if(pageId === 'view-profile') {
+            else if(pageId === 'inbox') loadInbox();
+            else if(pageId === 'view-profile') {
                 if(window.currentViewProfileId) executeViewProfile(window.currentViewProfileId);
                 else renderPage('friends');
             }
-            if(pageId === 'chat') {
+            else if(pageId === 'chat') {
                 if(currentPartnerId) executeOpenChat();
                 else renderPage('inbox');
             }
+            
+            window.scrollTo(0, 0); 
         }
 
+        // Global manual refresh - The ONLY way data is synced globally
         function refreshCurrentPage() {
-            notify("Refreshing...");
+            notify("Refreshing Data...");
+            if(currentUser) {
+                db.collection(USERS_PATH).doc(currentUser.uid).update({ lastActive: new Date().getTime() });
+                checkUnreadMessages();
+            }
+            
+            // Re-render current specific data statically
             if(currentPage === 'profile') loadProfile();
             else if(currentPage === 'friends') loadFriends();
-            else if(currentPage === 'find-friend') {
-                document.getElementById('search-ping-id').value = "";
-                loadAllUsersDB();
-            }
+            else if(currentPage === 'find-friend') loadAllUsersDB();
             else if(currentPage === 'inbox') loadInbox();
             else if(currentPage === 'chat') loadMessages();
-            else if(currentUser) checkUnreadMessages();
         }
 
         auth.onAuthStateChanged(function(user) {
@@ -418,11 +425,9 @@
                     }
                     
                     if (currentPage === 'login' || currentPage === 'forget-password') {
-                        renderPage('home');
-                    } else {
-                        renderPage(currentPage); 
+                        renderPage('home'); 
                     }
-                    checkUnreadMessages();
+                    // Auto-sync is REMOVED from here. User must click [Refresh].
                 });
             } else {
                 currentUser = null; userData = null;
@@ -434,26 +439,16 @@
             var email = document.getElementById('auth-email').value.replace(/^\s+|\s+$/g, '');
             var pass = document.getElementById('auth-pass').value;
             if(!email || !pass) { notify("Please fill all fields."); return; }
-            notify("Logging in...");
             auth.signInWithEmailAndPassword(email, pass)
-            .then(function(res) {
-                notify("Logged in successfully!");
-                renderPage('home');
-            })
-            .catch(function(e) { notify(e.message); }); 
+            .catch(function(e) { notify("Login Error: " + e.message); }); 
         }
 
         function signup() { 
             var email = document.getElementById('auth-email').value.replace(/^\s+|\s+$/g, '');
             var pass = document.getElementById('auth-pass').value;
             if(!email || !pass) { notify("Please fill all fields."); return; }
-            notify("Creating Account...");
             auth.createUserWithEmailAndPassword(email, pass)
-            .then(function(res) {
-                notify("Signup Success!");
-                renderPage('home');
-            })
-            .catch(function(e) { notify(e.message); }); 
+            .catch(function(e) { notify("Signup Error: " + e.message); }); 
         }
 
         function logout() { 
@@ -466,7 +461,6 @@
         function resetPassword() {
             var e = document.getElementById('reset-email').value.replace(/^\s+|\s+$/g, '');
             if(!e) { notify("Please enter an email address."); return; }
-            notify("Sending Reset Link...");
             auth.sendPasswordResetEmail(e).then(function() { 
                 notify("Reset link sent! Check your inbox."); 
                 document.getElementById('reset-email').value = "";
@@ -535,13 +529,13 @@
             var rDiv = document.getElementById('requests-list');
 
             if(userData.requests && userData.requests.length > 0) {
-                rSec.className = ''; rDiv.innerHTML = "Loading...";
+                rSec.className = ''; rDiv.innerHTML = "Loading requests...";
                 db.collection(USERS_PATH).get().then(function(snap) {
                     rDiv.innerHTML = "";
                     snap.forEach(function(doc) {
                         var u = doc.data();
                         if(arrayContains(userData.requests, u.uid)) {
-                            rDiv.innerHTML += "<div class='msg-row'><a href='javascript:void(0);' onclick=\"viewUserProfile('" + u.uid + "')\"><b>" + u.displayName + "</b></a> wants to connect.<br/><a href='javascript:void(0);' onclick=\"acceptRequest('" + u.uid + "')\">[Accept Request]</a></div>";
+                            rDiv.innerHTML += "<div class='msg-row'><a href='javascript:void(0);' onclick=\"viewUserProfile('" + u.uid + "')\"><b>" + u.displayName + "</b></a> wants to connect.<br/><br/><input type='button' class='btn' value='Accept Request' onclick=\"acceptRequest('" + u.uid + "')\" /></div>";
                         }
                     });
                 });
@@ -550,13 +544,13 @@
             if(!userData.friends || userData.friends.length === 0) {
                 fDiv.innerHTML = "<div class='content'>No friends yet. Go to 'Find Friend' to add some!</div>";
             } else {
-                fDiv.innerHTML = "Loading...";
+                fDiv.innerHTML = "Loading friends...";
                 db.collection(USERS_PATH).get().then(function(snap) {
                     fDiv.innerHTML = "";
                     snap.forEach(function(doc) {
                         var u = doc.data();
                         if(arrayContains(userData.friends, u.uid)) {
-                            fDiv.innerHTML += "<div class='msg-row'><a href='javascript:void(0);' onclick=\"viewUserProfile('" + u.uid + "')\"><b>" + u.displayName + "</b></a> <br/><a href='javascript:void(0);' onclick=\"openChat('" + u.uid + "', '" + u.displayName + "')\">[Message]</a></div>";
+                            fDiv.innerHTML += "<div class='msg-row'><a href='javascript:void(0);' onclick=\"viewUserProfile('" + u.uid + "')\"><b>" + u.displayName + "</b></a> <br/><a href='javascript:void(0);' onclick=\"openChat('" + u.uid + "', '" + u.displayName + "')\">[Send Message]</a></div>";
                         }
                     });
                 });
@@ -582,7 +576,7 @@
                 
                 sDiv.innerHTML = "";
                 if(allLoadedUsers.length === 0) {
-                    sDiv.innerHTML = "<div class='content'>No other users in the database yet.</div>";
+                    sDiv.innerHTML = "<div class='content'>No other users found.</div>";
                 } else {
                     renderUserBatch();
                 }
@@ -613,7 +607,6 @@
             }
 
             lastLoadedUserIndex = nextBatchLimit;
-
             if (lastLoadedUserIndex < allLoadedUsers.length) {
                 loadMoreBtn.className = 'more-btn'; 
             } else {
@@ -668,18 +661,16 @@
                     reqs.push(currentUser.uid);
                     db.collection(USERS_PATH).doc(targetId).update({ requests: reqs }).then(function() { 
                         notify("Request sent!"); 
-                        if(callback) {
-                            callback();
-                        } else {
-                            loadAllUsersDB(); 
-                        }
+                        if(callback) callback();
+                        else loadAllUsersDB(); 
                     });
                 }
             });
         }
 
         function acceptRequest(senderId) {
-            var myFriends = userData.friends || []; if(!arrayContains(myFriends, senderId)) myFriends.push(senderId);
+            var myFriends = userData.friends || []; 
+            if(!arrayContains(myFriends, senderId)) myFriends.push(senderId);
             
             var oldReqs = userData.requests || []; 
             var myReqs = [];
@@ -689,11 +680,13 @@
             
             db.collection(USERS_PATH).doc(currentUser.uid).update({ friends: myFriends, requests: myReqs }).then(function() {
                 db.collection(USERS_PATH).doc(senderId).get().then(function(doc) {
-                    var sFriends = doc.data().friends || []; if(!arrayContains(sFriends, currentUser.uid)) sFriends.push(currentUser.uid);
+                    var sFriends = doc.data().friends || []; 
+                    if(!arrayContains(sFriends, currentUser.uid)) sFriends.push(currentUser.uid);
                     db.collection(USERS_PATH).doc(senderId).update({ friends: sFriends });
                     
                     userData.friends = myFriends; userData.requests = myReqs;
-                    notify("Request accepted!"); loadFriends();
+                    notify("Friend Request Accepted!"); 
+                    loadFriends(); 
                 });
             });
         }
@@ -706,7 +699,6 @@
                   inboxDiv.innerHTML = ""; 
                   var unreadCount = 0;
                   var latestSenderName = "";
-                  var latestTime = 0;
 
                   if(snap.empty) { 
                       inboxDiv.innerHTML = "<div class='content'>No messages yet.</div>"; 
@@ -732,38 +724,31 @@
                       
                       if(isUnread) {
                           unreadCount++;
-                          var msgTime = data.updatedAt ? data.updatedAt.toMillis() : 0;
-                          if (msgTime >= latestTime) {
-                              latestTime = msgTime;
-                              latestSenderName = pInfo.displayName;
-                          }
+                          latestSenderName = pInfo.displayName;
                       }
                       
                       var rowClass = isUnread ? "msg-row unread" : "msg-row";
                       var nameFormat = isUnread ? ("<b>" + pInfo.displayName + " <span class='new-badge'>[New]</span></b>") : ("<b>" + pInfo.displayName + "</b>");
 
                       var html = "<div class='" + rowClass + "'>";
-                      html += "<div style='float:right;'><a href='javascript:void(0);' onclick=\"toggleOptions('opt-" + data.docId + "')\" class='dot-btn'>[⋮]</a></div>";
+                      html += "<div class='float-r'><a href='javascript:void(0);' onclick=\"toggleOptions('opt-" + data.docId + "')\" class='dot-btn'>[⋮]</a></div>";
                       html += "<a href='javascript:void(0);' onclick=\"openChat('" + pid + "', '" + pInfo.displayName + "', '" + data.docId + "')\">" + nameFormat + "</a><br/>";
                       html += "<span class='msg-time'>" + lastMsg + "</span>";
+                      html += "<div class='clear'></div>";
                       html += "<div id='opt-" + data.docId + "' class='options-menu hidden'>";
                       html += "<a href='javascript:void(0);' onclick=\"deleteChatAny('" + data.docId + "')\">[Delete]</a> | <a href='javascript:void(0);' onclick=\"blockUserAny('" + pid + "')\">[Block]</a></div>";
                       html += "</div>";
                       
                       inboxDiv.innerHTML += html;
                   }
-                  
                   updateNavbarUnread(unreadCount, latestSenderName);
               });
         }
 
         function toggleOptions(id) {
             var el = document.getElementById(id);
-            if(el.className.indexOf('hidden') !== -1) {
-                el.className = 'options-menu';
-            } else {
-                el.className = 'options-menu hidden';
-            }
+            if(el.className.indexOf('hidden') !== -1) el.className = 'options-menu';
+            else el.className = 'options-menu hidden';
         }
 
         function openChat(partnerId, partnerName, existingChatId) {
@@ -777,19 +762,10 @@
 
         function executeOpenChat() {
             readMessagesState[currentChatId] = true;
-            checkUnreadMessages(); 
+            checkUnreadMessages(); // Mark as read update navbar
             
             document.getElementById('chat-header-name').innerHTML = currentPartnerName; 
             document.getElementById('chat-main-opt').className = 'options-menu hidden';
-            
-            document.getElementById('chat-online-status').className = 'online-dot hidden';
-            db.collection(USERS_PATH).doc(currentPartnerId).get().then(function(doc) {
-                if(doc.exists && doc.data().lastActive) {
-                    if((new Date().getTime() - doc.data().lastActive) < 300000) {
-                        document.getElementById('chat-online-status').className = 'online-dot';
-                    }
-                }
-            });
             
             var chatRef = db.collection(CHATS_PATH).doc(currentChatId);
             chatRef.get().then(function(docSnap) {
@@ -846,7 +822,7 @@
                     var likeActionText = likedByMe ? "Unlike" : "Like";
                     var likeDisplay = likesCount > 0 ? (" • <span style='color:red; font-size:10px;'>❤️ " + likesCount + "</span>") : "";
 
-                    var imgHtml = m.imageUrl ? ("<div style='margin:4px 0;'><a href='" + m.imageUrl + "' target='_blank'><img src='" + m.imageUrl + "' style='max-width:120px; border:1px solid #ccc;'/></a></div>") : "";
+                    var imgHtml = m.imageUrl ? ("<br/><a href='" + m.imageUrl + "' target='_blank'><img src='" + m.imageUrl + "' style='max-width:120px; border:1px solid #ccc;'/></a>") : "";
                     
                     var html = "<div class='msg-row'>";
                     html += "<span class='" + nameClass + "'>" + (isMe ? "You" : currentPartnerName) + ":</span> " + m.text;
@@ -860,12 +836,9 @@
                 }
                 
                 if(isLoadOlder) {
-                    var curScroll = histDiv.scrollHeight;
                     histDiv.innerHTML = htmlContent + histDiv.innerHTML;
-                    histDiv.scrollTop = histDiv.scrollHeight - curScroll;
                 } else {
                     histDiv.innerHTML = htmlContent;
-                    histDiv.scrollTop = histDiv.scrollHeight;
                 }
             });
         }
@@ -892,7 +865,7 @@
                         likedBy.push(currentUser.uid);
                         likes += 1;
                     }
-                    msgDocRef.update({ likedBy: likedBy, likes: likes }).then(function() { loadMessages(); });
+                    msgDocRef.update({ likedBy: likedBy, likes: likes }).then(function() { loadMessages(); }); // Explicitly reloads after clicking Like
                 }
             });
         }
@@ -905,8 +878,7 @@
             
             document.getElementById('chat-input').value = ""; document.getElementById('image-panel').className = 'hidden';
             var histDiv = document.getElementById('chat-history'); var tempId = "tmp_" + new Date().getTime();
-            histDiv.innerHTML += "<div id='" + tempId + "' class='msg-row' style='opacity:0.6;'><span class='me'>You:</span> " + text + "<br/><span class='msg-time'>Sending...</span></div>";
-            histDiv.scrollTop = histDiv.scrollHeight;
+            histDiv.innerHTML += "<div id='" + tempId + "' class='msg-row' style='opacity:0.6;'><span class='me'>You:</span> " + text + "<br/><span class='msg-time'>Sending... (Refresh to sync)</span></div>";
             
             if (file) {
                 var fd = new FormData(); fd.append("image", file);
@@ -939,7 +911,7 @@
             var p = { senderId: currentUser.uid, text: text, imageUrl: imgUrl, likes: 0, likedBy: [], timestamp: firebase.firestore.FieldValue.serverTimestamp() };
             db.collection(CHATS_PATH).doc(currentChatId).collection('messages').add(p).then(function() {
                 db.collection(CHATS_PATH).doc(currentChatId).update({ lastMessage: p, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
-                loadMessages();
+                loadMessages(); // explicit load after successful send
             }).catch(function(e) { document.getElementById(tempId).style.display = 'none'; });
         }
 
@@ -949,23 +921,27 @@
             else p.className = 'emoji-panel hidden';
         }
         function addEmoji(e) { document.getElementById('chat-input').value += e; toggleEmoji(); }
+        
         function toggleImagePanel() { 
             var p = document.getElementById('image-panel'); 
             if(p.className.indexOf('hidden') !== -1) p.className = '';
             else p.className = 'hidden';
         }
 
+        // JS Native Confirmation Dialogues 
         function deleteChatAny(cid) {
-            if(confirm("Delete this chat?")) {
+            if(confirm("Are you sure you want to delete this chat history?")) {
                 db.collection(CHATS_PATH).doc(cid).delete().then(function(){ notify("Chat Deleted"); loadInbox(); });
             }
         }
+        
         function blockUserAny(uid) {
-            if(confirm("Block this user?")) {
+            if(confirm("Are you sure you want to block this user?")) {
                 var b = userData.blocked || []; if(!arrayContains(b, uid)) b.push(uid);
                 db.collection(USERS_PATH).doc(currentUser.uid).update({ blocked: b }).then(function(){ userData.blocked = b; notify("User Blocked"); loadInbox(); });
             }
         }
+        
         function deleteChatCurrent() { deleteChatAny(currentChatId); renderPage('inbox'); }
         function blockUserCurrent() { blockUserAny(currentPartnerId); renderPage('inbox'); }
 
