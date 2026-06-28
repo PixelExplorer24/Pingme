@@ -73,19 +73,18 @@
 <body>
 
     <div class="top-header">
-        <a href="javascript:void(0);" onclick="showPage('home')">PingMe</a>
+        <a href="#home">PingMe</a>
     </div>
 
     <div id="sys-notification" class="alert-box hidden"></div>
 
-    <!-- ন্যাভিগেশন বার -->
+    <!-- ন্যাভিগেশন বার (সাবলিংক যুক্ত) -->
     <div id="nav-bar" class="nav-bar hidden">
-        <a id="nav-home" href="javascript:void(0);" onclick="showPage('home')">Home</a> | 
-        <a id="nav-profile" href="javascript:void(0);" onclick="showPage('profile')">Profile</a> | 
-        <a id="nav-friends" href="javascript:void(0);" onclick="showPage('friends')">Friends</a> | 
-        <!-- Chat এবং Refresh বাটনের পাশে নোটিফিকেশন স্পেস -->
-        <a id="nav-inbox" href="javascript:void(0);" onclick="showPage('inbox')">Chat</a> | 
-        <a id="nav-find-friend" href="javascript:void(0);" onclick="showPage('find-friend')">Find Friend</a> | 
+        <a id="nav-home" href="#home">Home</a> | 
+        <a id="nav-profile" href="#profile">Profile</a> | 
+        <a id="nav-friends" href="#friends">Friends</a> | 
+        <a id="nav-inbox" href="#inbox">Chat</a> | 
+        <a id="nav-find-friend" href="#find-friend">Find Friend</a> | 
         <a href="javascript:void(0);" onclick="refreshCurrentPage()">Refresh</a> 
         <span id="nav-latest-sender" class="new-badge hidden" style="margin-left: 5px;"></span>
     </div>
@@ -94,7 +93,6 @@
     <div id="page-login" class="content">
         <div class="login-wrapper">
             <div class="login-box">
-                <!-- অপেরা মিনির জন্য form ট্যাগ বাদ দিয়ে div ও সরাসরি onclick ইভেন্ট দেওয়া হলো -->
                 <div id="login-form">
                     <div style="margin-bottom: 15px; font-size: 16px; font-weight: bold; color: #3b5998;">Welcome to PingMe</div>
                     <div style="text-align: left; font-weight: bold; font-size: 12px;">Email:</div>
@@ -107,7 +105,7 @@
                     </div>
                 </div>
                 <div class="divider"></div>
-                <div style="font-size: 12px;"><a href="javascript:void(0);" onclick="showPage('forget-password')">Forgot Password?</a></div>
+                <div style="font-size: 12px;"><a href="#forget-password">Forgot Password?</a></div>
             </div>
         </div>
     </div>
@@ -122,7 +120,7 @@
                     <input type="button" class="btn" value="Send Link" style="width: 100%;" onclick="resetPassword()" />
                 </div>
                 <div class="divider"></div>
-                <a href="javascript:void(0);" onclick="showPage('login')" style="font-size: 12px;">&laquo; Back to Login</a>
+                <a href="#login" style="font-size: 12px;">&laquo; Back to Login</a>
             </div>
         </div>
     </div>
@@ -132,8 +130,8 @@
         <div class="sec-header">Welcome to PingMe</div>
         <div class="content" style="padding: 15px 10px;">
             <p>Connect with your friends quickly and easily.</p>
-            <input type="button" class="btn" value="Go to Chat" onclick="showPage('inbox')" style="padding: 8px; margin-bottom: 10px;" /><br/>
-            <input type="button" class="btn-sec" value="Find New Friends" onclick="showPage('find-friend')" style="padding: 8px;" />
+            <input type="button" class="btn" value="Go to Chat" onclick="window.location.hash='inbox'" style="padding: 8px; margin-bottom: 10px;" /><br/>
+            <input type="button" class="btn-sec" value="Find New Friends" onclick="window.location.hash='find-friend'" style="padding: 8px;" />
         </div>
     </div>
 
@@ -151,7 +149,7 @@
     <!-- অন্য ইউজারের প্রোফাইল দেখার পেজ -->
     <div id="page-view-profile" class="hidden">
         <div class="sec-header">
-            <a href="javascript:void(0);" onclick="showPage('find-friend')">&laquo; Back</a> | User Profile
+            <a href="#find-friend">&laquo; Back</a> | User Profile
         </div>
         <div class="content">
             <div class="profile-info" id="view-profile-details">Loading User Details...</div>
@@ -202,7 +200,7 @@
     <div id="page-chat" class="hidden">
         <div class="sec-header" style="display: flex; justify-content: space-between; align-items: center;">
             <div>
-                <a href="javascript:void(0);" onclick="showPage('inbox')">&laquo; Back</a> | 
+                <a href="#inbox">&laquo; Back</a> | 
                 <b id="chat-header-name" style="font-size:14px;">Partner</b> 
                 <span id="chat-online-status" class="online-dot hidden">[● Active]</span>
             </div>
@@ -245,7 +243,7 @@
     </div>
 
     <div class="footer">
-        PingMe Classic V3.2 &copy; 2026<br/>
+        PingMe Classic V3.3 &copy; 2026<br/>
     </div>
 
     <script type="text/javascript">
@@ -268,8 +266,9 @@
         var oldestMessageDoc = null, MESSAGES_PER_PAGE = 15;
         var readMessagesState = {}; 
         var currentPage = 'login'; 
+        var isAuthResolved = false;
+        window.currentViewProfileId = null;
 
-        // Pagination variables for Find Friends
         var allLoadedUsers = [];
         var lastLoadedUserIndex = 0;
         var USERS_PER_PAGE = 10;
@@ -280,7 +279,6 @@
             setTimeout(function() { box.className = 'alert-box hidden'; }, 3000);
         }
 
-        // প্রতি 30 সেকেন্ডে ইউজার অ্যাক্টিভিটি আপডেট এবং নতুন মেসেজ চেক করবে
         setInterval(function() {
             if(currentUser) {
                 db.collection(USERS_PATH).doc(currentUser.uid).update({ lastActive: Date.now() });
@@ -288,14 +286,13 @@
             }
         }, 30000); 
 
-        // নতুন মেসেজ চেক করে মেনুবার আপডেট করার ফাংশন
         function updateNavbarUnread(count, senderName) {
             var chatNav = document.getElementById('nav-inbox');
             var senderNav = document.getElementById('nav-latest-sender');
 
             if(count > 0) {
                 chatNav.innerHTML = "<b>Chat (" + count + ")</b>";
-                chatNav.style.color = "#d90000"; // লাল এবং বোল্ড
+                chatNav.style.color = "#d90000";
                 if(senderNav) {
                     senderNav.innerHTML = "[New: " + senderName + "]";
                     senderNav.className = "new-badge";
@@ -336,7 +333,24 @@
             });
         }
 
-        function showPage(pageId) {
+        // URL হ্যাশ চেঞ্জ ম্যানেজমেন্ট (রাউটিং)
+        function handleHashChange() {
+            var hash = window.location.hash.substring(1);
+            if (!hash) hash = 'login';
+            
+            // যদি ইউজার লগইন না থাকে
+            if (isAuthResolved && !currentUser && hash !== 'login' && hash !== 'forget-password') {
+                window.location.hash = 'login';
+                return;
+            }
+
+            renderPage(hash);
+        }
+
+        window.addEventListener('hashchange', handleHashChange);
+        window.addEventListener('load', handleHashChange);
+
+        function renderPage(pageId) {
             currentPage = pageId;
             ['login', 'forget-password', 'home', 'profile', 'view-profile', 'friends', 'find-friend', 'inbox', 'chat'].forEach(function(p) {
                 var el = document.getElementById('page-' + p);
@@ -362,30 +376,47 @@
                 document.getElementById('nav-bar').className = 'nav-bar hidden';
             }
 
+            // পেইজ অনুযায়ী ফাংশন কল
             if(pageId === 'profile') loadProfile();
             if(pageId === 'friends') loadFriends();
             if(pageId === 'find-friend') {
-                // রিসেট সার্চ এবং প্রথম পেজ লোড
-                document.getElementById('search-ping-id').value = "";
-                loadAllUsersDB();
+                if(document.getElementById('search-ping-id').value === "") {
+                    loadAllUsersDB();
+                }
             }
             if(pageId === 'inbox') loadInbox();
+            if(pageId === 'view-profile') {
+                if(window.currentViewProfileId) {
+                    executeViewProfile(window.currentViewProfileId);
+                } else {
+                    window.location.hash = 'friends';
+                }
+            }
+            if(pageId === 'chat') {
+                if(currentPartnerId) {
+                    executeOpenChat();
+                } else {
+                    window.location.hash = 'inbox';
+                }
+            }
         }
 
         function refreshCurrentPage() {
             notify("Refreshing...");
-            if(currentPage === 'profile') loadProfile();
-            else if(currentPage === 'friends') loadFriends();
-            else if(currentPage === 'find-friend') {
+            var hash = window.location.hash.substring(1) || 'login';
+            if(hash === 'profile') loadProfile();
+            else if(hash === 'friends') loadFriends();
+            else if(hash === 'find-friend') {
                 document.getElementById('search-ping-id').value = "";
                 loadAllUsersDB();
             }
-            else if(currentPage === 'inbox') loadInbox();
-            else if(currentPage === 'chat') loadMessages();
+            else if(hash === 'inbox') loadInbox();
+            else if(hash === 'chat') loadMessages();
             else if(currentUser) checkUnreadMessages();
         }
 
         auth.onAuthStateChanged(function(user) {
+            isAuthResolved = true;
             if (user) {
                 currentUser = user;
                 var userRef = db.collection(USERS_PATH).doc(user.uid);
@@ -398,67 +429,63 @@
                         userData = doc.data();
                         userRef.update({ lastActive: Date.now() });
                     }
-                    showPage('home');
-                    checkUnreadMessages(); // লগিন করার সাথে সাথে আনরিড মেসেজ চেক করবে
+                    
+                    var currentHash = window.location.hash.substring(1);
+                    if (!currentHash || currentHash === 'login' || currentHash === 'forget-password') {
+                        window.location.hash = 'home';
+                    } else {
+                        handleHashChange(); 
+                    }
+                    checkUnreadMessages();
                 });
             } else {
                 currentUser = null; userData = null;
-                showPage('login');
+                window.location.hash = 'login';
             }
         });
 
-        // ব্রাউজার রিডিরেকশন ও স্ক্রিপ্ট এরর এড়াতে ইভেন্ট প্রিভেন্ট মেকানিজম সহ লগইন ফাংশন
         function login() { 
             var email = document.getElementById('auth-email').value.trim();
             var pass = document.getElementById('auth-pass').value;
-            if(!email || !pass) {
-                notify("Please fill all fields.");
-                return;
-            }
+            if(!email || !pass) { notify("Please fill all fields."); return; }
             notify("Logging in...");
             auth.signInWithEmailAndPassword(email, pass)
             .then(function(res) {
                 notify("Logged in successfully!");
+                window.location.hash = 'home';
             })
-            .catch(function(e) { 
-                notify(e.message); 
-            }); 
+            .catch(function(e) { notify(e.message); }); 
         }
 
         function signup() { 
             var email = document.getElementById('auth-email').value.trim();
             var pass = document.getElementById('auth-pass').value;
-            if(!email || !pass) {
-                notify("Please fill all fields.");
-                return;
-            }
+            if(!email || !pass) { notify("Please fill all fields."); return; }
             notify("Creating Account...");
             auth.createUserWithEmailAndPassword(email, pass)
             .then(function(res) {
                 notify("Signup Success!");
+                window.location.hash = 'home';
             })
-            .catch(function(e) { 
-                notify(e.message); 
-            }); 
+            .catch(function(e) { notify(e.message); }); 
         }
 
-        function logout() { auth.signOut(); }
+        function logout() { 
+            auth.signOut().then(function() {
+                window.location.hash = 'login';
+                window.location.reload(); 
+            });
+        }
 
-        // পাসওয়ার্ড রিসেট লিঙ্কের কার্যকারিতা সমাধান
         function resetPassword() {
             var e = document.getElementById('reset-email').value.trim();
-            if(!e) {
-                notify("Please enter an email address.");
-                return;
-            }
+            if(!e) { notify("Please enter an email address."); return; }
             notify("Sending Reset Link...");
             auth.sendPasswordResetEmail(e).then(function() { 
                 notify("Reset link sent! Check your inbox."); 
                 document.getElementById('reset-email').value = "";
-                showPage('login'); 
-            }).catch(function(e) { 
-                notify(e.message); 
-            });
+                window.location.hash = 'login'; 
+            }).catch(function(e) { notify(e.message); });
         }
 
         function loadProfile() {
@@ -470,14 +497,17 @@
             document.getElementById('profile-details').innerHTML = html;
         }
 
-        // অন্য কোনো ইউজারের প্রোফাইল দেখার ফাংশন
         function viewUserProfile(userIdToView) {
+            window.currentViewProfileId = userIdToView;
+            window.location.hash = 'view-profile';
+        }
+
+        function executeViewProfile(userIdToView) {
             var detailsDiv = document.getElementById('view-profile-details');
             var actionDiv = document.getElementById('view-profile-actions');
             
             detailsDiv.innerHTML = "Loading Profile Details...";
             actionDiv.innerHTML = "";
-            showPage('view-profile');
 
             db.collection(USERS_PATH).doc(userIdToView).get().then(function(doc) {
                 if(!doc.exists) {
@@ -491,7 +521,6 @@
                 html += "<strong>Total Friends:</strong> " + (u.friends ? u.friends.length : 0);
                 detailsDiv.innerHTML = html;
 
-                // কি অ্যাকশন নেওয়া যাবে তার বাটন
                 var actionHtml = "";
                 if(userData.friends && userData.friends.includes(u.uid)) {
                     actionHtml += "<input type='button' class='btn' value='Message' onclick=\"openChat('" + u.uid + "', '" + u.displayName + "')\" />";
@@ -508,8 +537,7 @@
 
         function sendRequestFromView(targetId) {
             sendRequest(targetId, function() {
-                // সফলভাবে রিকোয়েস্ট পাঠানোর পর রিফ্রেশ প্রোফাইল
-                viewUserProfile(targetId);
+                executeViewProfile(targetId);
             });
         }
 
@@ -547,7 +575,6 @@
             }
         }
 
-        // পৃষ্ঠা অনুযায়ী (Pagination) লোড করার জন্য ডাটাবেজ হ্যান্ডলার
         function loadAllUsersDB() {
             var sDiv = document.getElementById('all-users-list');
             var loadMoreBtn = document.getElementById('load-more-container');
@@ -599,9 +626,9 @@
             lastLoadedUserIndex = nextBatchLimit;
 
             if (lastLoadedUserIndex < allLoadedUsers.length) {
-                loadMoreBtn.className = 'more-btn'; // 'More...' বাটন শো হবে
+                loadMoreBtn.className = 'more-btn'; 
             } else {
-                loadMoreBtn.className = 'more-btn hidden'; // সব শেষ হয়ে গেলে হাইড হবে
+                loadMoreBtn.className = 'more-btn hidden'; 
             }
         }
 
@@ -727,7 +754,6 @@
                       inboxDiv.innerHTML += html;
                   });
                   
-                  // মেনুবারের ব্যাজ আপডেট
                   updateNavbarUnread(unreadCount, latestSenderName);
               });
         }
@@ -738,20 +764,23 @@
         }
 
         function openChat(partnerId, partnerName, existingChatId) {
-            currentPartnerId = partnerId; currentPartnerName = partnerName;
+            currentPartnerId = partnerId; 
+            currentPartnerName = partnerName;
             var ids = [currentUser.uid, currentPartnerId]; ids.sort();
             currentChatId = existingChatId || ids.join('_');
             
-            // মেসেজ পড়া হয়েছে চিহ্নিত করা এবং নোটিফিকেশন চেক করা
+            window.location.hash = 'chat';
+        }
+
+        function executeOpenChat() {
             readMessagesState[currentChatId] = true;
             checkUnreadMessages(); 
             
-            document.getElementById('chat-header-name').innerHTML = partnerName; 
+            document.getElementById('chat-header-name').innerHTML = currentPartnerName; 
             document.getElementById('chat-main-opt').className = 'options-menu hidden';
-            showPage('chat');
             
             document.getElementById('chat-online-status').className = 'online-dot hidden';
-            db.collection(USERS_PATH).doc(partnerId).get().then(function(doc) {
+            db.collection(USERS_PATH).doc(currentPartnerId).get().then(function(doc) {
                 if(doc.exists && doc.data().lastActive) {
                     if((Date.now() - doc.data().lastActive) < 300000) {
                         document.getElementById('chat-online-status').className = 'online-dot';
@@ -764,8 +793,8 @@
                 if(!docSnap.exists) {
                     var pInfo = {};
                     pInfo[currentUser.uid] = { displayName: userData.displayName };
-                    pInfo[currentPartnerId] = { displayName: partnerName };
-                    chatRef.set({ participants: ids, participantInfo: pInfo, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+                    pInfo[currentPartnerId] = { displayName: currentPartnerName };
+                    chatRef.set({ participants: [currentUser.uid, currentPartnerId].sort(), participantInfo: pInfo, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
                 }
             });
             loadMessages();
@@ -891,8 +920,8 @@
                 db.collection(USERS_PATH).doc(currentUser.uid).update({ blocked: b }).then(function(){ userData.blocked = b; notify("User Blocked"); loadInbox(); });
             }
         }
-        function deleteChatCurrent() { deleteChatAny(currentChatId); showPage('inbox'); }
-        function blockUserCurrent() { blockUserAny(currentPartnerId); showPage('inbox'); }
+        function deleteChatCurrent() { deleteChatAny(currentChatId); window.location.hash='inbox'; }
+        function blockUserCurrent() { blockUserAny(currentPartnerId); window.location.hash='inbox'; }
 
     </script>
 </body>
