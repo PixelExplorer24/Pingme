@@ -49,7 +49,7 @@
         .online-dot { color: #2bba00; font-size: 11px; font-weight: bold; }
         
         .footer { text-align: center; padding: 10px; font-size: 11px; color: #808080; border-top: 1px solid #cccccc; margin-top: 15px; }
-        .hidden { display: none; }
+        .hidden { display: none !important; }
         .divider { border-bottom: 1px solid #e5e5e5; margin: 10px 0; }
         
         .alert-box { background-color: #fffbdd; border: 1px solid #e2c822; padding: 5px; margin-bottom: 5px; font-size: 12px; color: #333333; text-align: center; }
@@ -73,19 +73,19 @@
 <body>
 
     <div class="top-header">
-        <a href="#home">PingMe</a>
+        <a href="javascript:void(0);" onclick="renderPage('home');">PingMe</a>
     </div>
 
     <div id="sys-notification" class="alert-box hidden"></div>
 
-    <!-- ন্যাভিগেশন বার (সাবলিংক যুক্ত) -->
+    <!-- ন্যাভিগেশন বার -->
     <div id="nav-bar" class="nav-bar hidden">
-        <a id="nav-home" href="#home">Home</a> | 
-        <a id="nav-profile" href="#profile">Profile</a> | 
-        <a id="nav-friends" href="#friends">Friends</a> | 
-        <a id="nav-inbox" href="#inbox">Chat</a> | 
-        <a id="nav-find-friend" href="#find-friend">Find Friend</a> | 
-        <a href="javascript:void(0);" onclick="refreshCurrentPage()">Refresh</a> 
+        <a id="nav-home" href="javascript:void(0);" onclick="renderPage('home');">Home</a> | 
+        <a id="nav-profile" href="javascript:void(0);" onclick="renderPage('profile');">Profile</a> | 
+        <a id="nav-friends" href="javascript:void(0);" onclick="renderPage('friends');">Friends</a> | 
+        <a id="nav-inbox" href="javascript:void(0);" onclick="renderPage('inbox');">Chat</a> | 
+        <a id="nav-find-friend" href="javascript:void(0);" onclick="renderPage('find-friend');">Find Friend</a> | 
+        <a href="javascript:void(0);" onclick="refreshCurrentPage();">Refresh</a> 
         <span id="nav-latest-sender" class="new-badge hidden" style="margin-left: 5px;"></span>
     </div>
 
@@ -105,7 +105,7 @@
                     </div>
                 </div>
                 <div class="divider"></div>
-                <div style="font-size: 12px;"><a href="#forget-password">Forgot Password?</a></div>
+                <div style="font-size: 12px;"><a href="javascript:void(0);" onclick="renderPage('forget-password');">Forgot Password?</a></div>
             </div>
         </div>
     </div>
@@ -120,7 +120,7 @@
                     <input type="button" class="btn" value="Send Link" style="width: 100%;" onclick="resetPassword()" />
                 </div>
                 <div class="divider"></div>
-                <a href="#login" style="font-size: 12px;">&laquo; Back to Login</a>
+                <a href="javascript:void(0);" onclick="renderPage('login');" style="font-size: 12px;">&laquo; Back to Login</a>
             </div>
         </div>
     </div>
@@ -130,8 +130,8 @@
         <div class="sec-header">Welcome to PingMe</div>
         <div class="content" style="padding: 15px 10px;">
             <p>Connect with your friends quickly and easily.</p>
-            <input type="button" class="btn" value="Go to Chat" onclick="window.location.hash='inbox'" style="padding: 8px; margin-bottom: 10px;" /><br/>
-            <input type="button" class="btn-sec" value="Find New Friends" onclick="window.location.hash='find-friend'" style="padding: 8px;" />
+            <input type="button" class="btn" value="Go to Chat" onclick="renderPage('inbox');" style="padding: 8px; margin-bottom: 10px;" /><br/>
+            <input type="button" class="btn-sec" value="Find New Friends" onclick="renderPage('find-friend');" style="padding: 8px;" />
         </div>
     </div>
 
@@ -149,7 +149,7 @@
     <!-- অন্য ইউজারের প্রোফাইল দেখার পেজ -->
     <div id="page-view-profile" class="hidden">
         <div class="sec-header">
-            <a href="#find-friend">&laquo; Back</a> | User Profile
+            <a href="javascript:void(0);" onclick="renderPage('find-friend');">&laquo; Back</a> | User Profile
         </div>
         <div class="content">
             <div class="profile-info" id="view-profile-details">Loading User Details...</div>
@@ -200,7 +200,7 @@
     <div id="page-chat" class="hidden">
         <div class="sec-header" style="display: flex; justify-content: space-between; align-items: center;">
             <div>
-                <a href="#inbox">&laquo; Back</a> | 
+                <a href="javascript:void(0);" onclick="renderPage('inbox');">&laquo; Back</a> | 
                 <b id="chat-header-name" style="font-size:14px;">Partner</b> 
                 <span id="chat-online-status" class="online-dot hidden">[● Active]</span>
             </div>
@@ -243,10 +243,17 @@
     </div>
 
     <div class="footer">
-        PingMe Classic V3.3 &copy; 2026<br/>
+        PingMe Classic V3.4 (WAP Edition) &copy; 2026<br/>
     </div>
 
     <script type="text/javascript">
+        // Helper Functions to replace modern JS methods (ES3/ES5 fallbacks)
+        function arrayContains(arr, item) {
+            if(!arr) return false;
+            for(var i=0; i<arr.length; i++) { if(arr[i] === item) return true; }
+            return false;
+        }
+
         var firebaseConfig = {
             apiKey: "AIzaSyAOEmgVj-OzfVaZsNOn47WTdaCrb5h8h_s",
             authDomain: "ping-me-app-475d1.firebaseapp.com",
@@ -281,7 +288,7 @@
 
         setInterval(function() {
             if(currentUser) {
-                db.collection(USERS_PATH).doc(currentUser.uid).update({ lastActive: Date.now() });
+                db.collection(USERS_PATH).doc(currentUser.uid).update({ lastActive: new Date().getTime() });
                 checkUnreadMessages();
             }
         }, 30000); 
@@ -333,29 +340,18 @@
             });
         }
 
-        // URL হ্যাশ চেঞ্জ ম্যানেজমেন্ট (রাউটিং)
-        function handleHashChange() {
-            var hash = window.location.hash.substring(1);
-            if (!hash) hash = 'login';
-            
-            // যদি ইউজার লগইন না থাকে
-            if (isAuthResolved && !currentUser && hash !== 'login' && hash !== 'forget-password') {
-                window.location.hash = 'login';
-                return;
+        // URL hash navigation replaced with direct JS renders for Opera Mini compatibility
+        function renderPage(pageId) {
+            if (isAuthResolved && !currentUser && pageId !== 'login' && pageId !== 'forget-password') {
+                pageId = 'login';
             }
 
-            renderPage(hash);
-        }
-
-        window.addEventListener('hashchange', handleHashChange);
-        window.addEventListener('load', handleHashChange);
-
-        function renderPage(pageId) {
             currentPage = pageId;
-            ['login', 'forget-password', 'home', 'profile', 'view-profile', 'friends', 'find-friend', 'inbox', 'chat'].forEach(function(p) {
-                var el = document.getElementById('page-' + p);
+            var pages = ['login', 'forget-password', 'home', 'profile', 'view-profile', 'friends', 'find-friend', 'inbox', 'chat'];
+            for(var i=0; i<pages.length; i++) {
+                var el = document.getElementById('page-' + pages[i]);
                 if (el) el.className = 'hidden';
-            });
+            }
             
             var currentEl = document.getElementById('page-' + pageId);
             if (currentEl) {
@@ -368,50 +364,41 @@
             
             if(currentUser) {
                 document.getElementById('nav-bar').className = 'nav-bar';
-                ['home', 'profile', 'friends', 'inbox', 'find-friend'].forEach(function(p) {
-                    var el = document.getElementById('nav-' + p);
-                    if(el) el.className = (pageId === p) ? 'active' : '';
-                });
+                var navs = ['home', 'profile', 'friends', 'inbox', 'find-friend'];
+                for(var j=0; j<navs.length; j++) {
+                    var navEl = document.getElementById('nav-' + navs[j]);
+                    if(navEl) navEl.className = (pageId === navs[j]) ? 'active' : '';
+                }
             } else {
                 document.getElementById('nav-bar').className = 'nav-bar hidden';
             }
 
-            // পেইজ অনুযায়ী ফাংশন কল
             if(pageId === 'profile') loadProfile();
             if(pageId === 'friends') loadFriends();
             if(pageId === 'find-friend') {
-                if(document.getElementById('search-ping-id').value === "") {
-                    loadAllUsersDB();
-                }
+                if(document.getElementById('search-ping-id').value === "") loadAllUsersDB();
             }
             if(pageId === 'inbox') loadInbox();
             if(pageId === 'view-profile') {
-                if(window.currentViewProfileId) {
-                    executeViewProfile(window.currentViewProfileId);
-                } else {
-                    window.location.hash = 'friends';
-                }
+                if(window.currentViewProfileId) executeViewProfile(window.currentViewProfileId);
+                else renderPage('friends');
             }
             if(pageId === 'chat') {
-                if(currentPartnerId) {
-                    executeOpenChat();
-                } else {
-                    window.location.hash = 'inbox';
-                }
+                if(currentPartnerId) executeOpenChat();
+                else renderPage('inbox');
             }
         }
 
         function refreshCurrentPage() {
             notify("Refreshing...");
-            var hash = window.location.hash.substring(1) || 'login';
-            if(hash === 'profile') loadProfile();
-            else if(hash === 'friends') loadFriends();
-            else if(hash === 'find-friend') {
+            if(currentPage === 'profile') loadProfile();
+            else if(currentPage === 'friends') loadFriends();
+            else if(currentPage === 'find-friend') {
                 document.getElementById('search-ping-id').value = "";
                 loadAllUsersDB();
             }
-            else if(hash === 'inbox') loadInbox();
-            else if(hash === 'chat') loadMessages();
+            else if(currentPage === 'inbox') loadInbox();
+            else if(currentPage === 'chat') loadMessages();
             else if(currentUser) checkUnreadMessages();
         }
 
@@ -423,83 +410,83 @@
                 userRef.get().then(function(doc) {
                     if (!doc.exists) {
                         var emailName = user.email.split('@')[0];
-                        userData = { uid: user.uid, displayName: emailName, email: user.email, pingId: emailName + Math.floor(Math.random()*1000), friends: [], requests: [], blocked: [], lastActive: Date.now() };
+                        userData = { uid: user.uid, displayName: emailName, email: user.email, pingId: emailName + Math.floor(Math.random()*1000), friends: [], requests: [], blocked: [], lastActive: new Date().getTime() };
                         userRef.set(userData);
                     } else {
                         userData = doc.data();
-                        userRef.update({ lastActive: Date.now() });
+                        userRef.update({ lastActive: new Date().getTime() });
                     }
                     
-                    var currentHash = window.location.hash.substring(1);
-                    if (!currentHash || currentHash === 'login' || currentHash === 'forget-password') {
-                        window.location.hash = 'home';
+                    if (currentPage === 'login' || currentPage === 'forget-password') {
+                        renderPage('home');
                     } else {
-                        handleHashChange(); 
+                        renderPage(currentPage); 
                     }
                     checkUnreadMessages();
                 });
             } else {
                 currentUser = null; userData = null;
-                window.location.hash = 'login';
+                renderPage('login');
             }
         });
 
         function login() { 
-            var email = document.getElementById('auth-email').value.trim();
+            var email = document.getElementById('auth-email').value.replace(/^\s+|\s+$/g, '');
             var pass = document.getElementById('auth-pass').value;
             if(!email || !pass) { notify("Please fill all fields."); return; }
             notify("Logging in...");
             auth.signInWithEmailAndPassword(email, pass)
             .then(function(res) {
                 notify("Logged in successfully!");
-                window.location.hash = 'home';
+                renderPage('home');
             })
             .catch(function(e) { notify(e.message); }); 
         }
 
         function signup() { 
-            var email = document.getElementById('auth-email').value.trim();
+            var email = document.getElementById('auth-email').value.replace(/^\s+|\s+$/g, '');
             var pass = document.getElementById('auth-pass').value;
             if(!email || !pass) { notify("Please fill all fields."); return; }
             notify("Creating Account...");
             auth.createUserWithEmailAndPassword(email, pass)
             .then(function(res) {
                 notify("Signup Success!");
-                window.location.hash = 'home';
+                renderPage('home');
             })
             .catch(function(e) { notify(e.message); }); 
         }
 
         function logout() { 
             auth.signOut().then(function() {
-                window.location.hash = 'login';
+                renderPage('login');
                 window.location.reload(); 
             });
         }
 
         function resetPassword() {
-            var e = document.getElementById('reset-email').value.trim();
+            var e = document.getElementById('reset-email').value.replace(/^\s+|\s+$/g, '');
             if(!e) { notify("Please enter an email address."); return; }
             notify("Sending Reset Link...");
             auth.sendPasswordResetEmail(e).then(function() { 
                 notify("Reset link sent! Check your inbox."); 
                 document.getElementById('reset-email').value = "";
-                window.location.hash = 'login'; 
+                renderPage('login'); 
             }).catch(function(e) { notify(e.message); });
         }
 
         function loadProfile() {
             if(!userData) return;
+            var fCount = userData.friends ? userData.friends.length : 0;
             var html = "<strong>Name:</strong> " + (userData.displayName || "N/A") + "<br/><br/>";
             html += "<strong>Email:</strong> " + (userData.email || "N/A") + "<br/><br/>";
             html += "<strong>Ping ID:</strong> <span style='color:#3b5998;'>" + (userData.pingId || "N/A") + "</span><br/><br/>";
-            html += "<strong>Total Friends:</strong> " + (userData.friends ? userData.friends.length : 0);
+            html += "<strong>Total Friends:</strong> " + fCount;
             document.getElementById('profile-details').innerHTML = html;
         }
 
         function viewUserProfile(userIdToView) {
             window.currentViewProfileId = userIdToView;
-            window.location.hash = 'view-profile';
+            renderPage('view-profile');
         }
 
         function executeViewProfile(userIdToView) {
@@ -515,16 +502,17 @@
                     return;
                 }
                 var u = doc.data();
+                var fCount = u.friends ? u.friends.length : 0;
                 var html = "<strong>Name:</strong> " + (u.displayName || "N/A") + "<br/><br/>";
                 html += "<strong>Email:</strong> " + (u.email || "N/A") + "<br/><br/>";
                 html += "<strong>Ping ID:</strong> <span style='color:#3b5998;'>" + (u.pingId || "N/A") + "</span><br/><br/>";
-                html += "<strong>Total Friends:</strong> " + (u.friends ? u.friends.length : 0);
+                html += "<strong>Total Friends:</strong> " + fCount;
                 detailsDiv.innerHTML = html;
 
                 var actionHtml = "";
-                if(userData.friends && userData.friends.includes(u.uid)) {
+                if(arrayContains(userData.friends, u.uid)) {
                     actionHtml += "<input type='button' class='btn' value='Message' onclick=\"openChat('" + u.uid + "', '" + u.displayName + "')\" />";
-                } else if(u.requests && u.requests.includes(currentUser.uid)) {
+                } else if(arrayContains(u.requests, currentUser.uid)) {
                     actionHtml += "<span style='color:orange; font-weight:bold;'>[Friend Request Sent]</span>";
                 } else {
                     actionHtml += "<input type='button' class='btn' value='Add Friend' onclick=\"sendRequestFromView('" + u.uid + "')\" />";
@@ -552,7 +540,7 @@
                     rDiv.innerHTML = "";
                     snap.forEach(function(doc) {
                         var u = doc.data();
-                        if(userData.requests.includes(u.uid)) {
+                        if(arrayContains(userData.requests, u.uid)) {
                             rDiv.innerHTML += "<div class='msg-row'><a href='javascript:void(0);' onclick=\"viewUserProfile('" + u.uid + "')\"><b>" + u.displayName + "</b></a> wants to connect.<br/><a href='javascript:void(0);' onclick=\"acceptRequest('" + u.uid + "')\">[Accept Request]</a></div>";
                         }
                     });
@@ -567,7 +555,7 @@
                     fDiv.innerHTML = "";
                     snap.forEach(function(doc) {
                         var u = doc.data();
-                        if(userData.friends.includes(u.uid)) {
+                        if(arrayContains(userData.friends, u.uid)) {
                             fDiv.innerHTML += "<div class='msg-row'><a href='javascript:void(0);' onclick=\"viewUserProfile('" + u.uid + "')\"><b>" + u.displayName + "</b></a> <br/><a href='javascript:void(0);' onclick=\"openChat('" + u.uid + "', '" + u.displayName + "')\">[Message]</a></div>";
                         }
                     });
@@ -610,18 +598,19 @@
             var nextBatchLimit = lastLoadedUserIndex + USERS_PER_PAGE;
             var currentBatch = allLoadedUsers.slice(lastLoadedUserIndex, nextBatchLimit);
             
-            currentBatch.forEach(function(u) {
+            for(var i=0; i<currentBatch.length; i++) {
+                var u = currentBatch[i];
                 var action = "";
-                if(userData.friends && userData.friends.includes(u.uid)) {
+                if(arrayContains(userData.friends, u.uid)) {
                     action = "<a href='javascript:void(0);' onclick=\"openChat('" + u.uid + "', '" + u.displayName + "')\">[Message]</a>";
-                } else if(u.requests && u.requests.includes(currentUser.uid)) {
+                } else if(arrayContains(u.requests, currentUser.uid)) {
                     action = "<span style='color:orange;'>[Request Sent]</span>";
                 } else {
                     action = "<a href='javascript:void(0);' onclick=\"sendRequest('" + u.uid + "')\">[Add Friend]</a>";
                 }
                 
                 sDiv.innerHTML += "<div class='msg-row'><a href='javascript:void(0);' onclick=\"viewUserProfile('" + u.uid + "')\" style='font-size: 14px; font-weight: bold; text-decoration: underline;'>" + u.displayName + "</a><br/>" + action + "</div>";
-            });
+            }
 
             lastLoadedUserIndex = nextBatchLimit;
 
@@ -637,7 +626,7 @@
         }
         
         function searchFriend() {
-            var searchId = document.getElementById('search-ping-id').value.trim();
+            var searchId = document.getElementById('search-ping-id').value.replace(/^\s+|\s+$/g, '');
             if(!searchId) { loadAllUsersDB(); return; }
             
             var sDiv = document.getElementById('all-users-list');
@@ -653,9 +642,9 @@
                     if(u.uid !== currentUser.uid) {
                         count++;
                         var action = "";
-                        if(userData.friends && userData.friends.includes(u.uid)) {
+                        if(arrayContains(userData.friends, u.uid)) {
                             action = "<a href='javascript:void(0);' onclick=\"openChat('" + u.uid + "', '" + u.displayName + "')\">[Message]</a>";
-                        } else if(u.requests && u.requests.includes(currentUser.uid)) {
+                        } else if(arrayContains(u.requests, currentUser.uid)) {
                             action = "<span style='color:orange;'>[Request Sent]</span>";
                         } else {
                             action = "<a href='javascript:void(0);' onclick=\"sendRequest('" + u.uid + "')\">[Add Friend]</a>";
@@ -675,7 +664,7 @@
         function sendRequest(targetId, callback) {
             db.collection(USERS_PATH).doc(targetId).get().then(function(doc) {
                 var reqs = doc.data().requests || [];
-                if(!reqs.includes(currentUser.uid)) {
+                if(!arrayContains(reqs, currentUser.uid)) {
                     reqs.push(currentUser.uid);
                     db.collection(USERS_PATH).doc(targetId).update({ requests: reqs }).then(function() { 
                         notify("Request sent!"); 
@@ -690,12 +679,17 @@
         }
 
         function acceptRequest(senderId) {
-            var myFriends = userData.friends || []; if(!myFriends.includes(senderId)) myFriends.push(senderId);
-            var myReqs = userData.requests || []; myReqs = myReqs.filter(id => id !== senderId);
+            var myFriends = userData.friends || []; if(!arrayContains(myFriends, senderId)) myFriends.push(senderId);
+            
+            var oldReqs = userData.requests || []; 
+            var myReqs = [];
+            for(var i=0; i<oldReqs.length; i++) {
+                if(oldReqs[i] !== senderId) myReqs.push(oldReqs[i]);
+            }
             
             db.collection(USERS_PATH).doc(currentUser.uid).update({ friends: myFriends, requests: myReqs }).then(function() {
                 db.collection(USERS_PATH).doc(senderId).get().then(function(doc) {
-                    var sFriends = doc.data().friends || []; if(!sFriends.includes(currentUser.uid)) sFriends.push(currentUser.uid);
+                    var sFriends = doc.data().friends || []; if(!arrayContains(sFriends, currentUser.uid)) sFriends.push(currentUser.uid);
                     db.collection(USERS_PATH).doc(senderId).update({ friends: sFriends });
                     
                     userData.friends = myFriends; userData.requests = myReqs;
@@ -722,9 +716,14 @@
                   
                   var chats = [];
                   snap.forEach(function(doc) { var d = doc.data(); d.docId = doc.id; chats.push(d); });
-                  chats.sort((a, b) => (b.updatedAt ? b.updatedAt.toMillis() : 0) - (a.updatedAt ? a.updatedAt.toMillis() : 0));
+                  chats.sort(function(a, b) {
+                      var aTime = a.updatedAt ? a.updatedAt.toMillis() : 0;
+                      var bTime = b.updatedAt ? b.updatedAt.toMillis() : 0;
+                      return bTime - aTime;
+                  });
                   
-                  chats.forEach(function(data) {
+                  for(var i=0; i<chats.length; i++) {
+                      var data = chats[i];
                       var pid = data.participants[0] === currentUser.uid ? data.participants[1] : data.participants[0];
                       var pInfo = data.participantInfo ? data.participantInfo[pid] : {displayName: "User"};
                       var lastMsg = data.lastMessage ? data.lastMessage.text : "No messages";
@@ -752,7 +751,7 @@
                       html += "</div>";
                       
                       inboxDiv.innerHTML += html;
-                  });
+                  }
                   
                   updateNavbarUnread(unreadCount, latestSenderName);
               });
@@ -760,7 +759,11 @@
 
         function toggleOptions(id) {
             var el = document.getElementById(id);
-            el.className = el.className.includes('hidden') ? 'options-menu' : 'options-menu hidden';
+            if(el.className.indexOf('hidden') !== -1) {
+                el.className = 'options-menu';
+            } else {
+                el.className = 'options-menu hidden';
+            }
         }
 
         function openChat(partnerId, partnerName, existingChatId) {
@@ -769,7 +772,7 @@
             var ids = [currentUser.uid, currentPartnerId]; ids.sort();
             currentChatId = existingChatId || ids.join('_');
             
-            window.location.hash = 'chat';
+            renderPage('chat');
         }
 
         function executeOpenChat() {
@@ -782,7 +785,7 @@
             document.getElementById('chat-online-status').className = 'online-dot hidden';
             db.collection(USERS_PATH).doc(currentPartnerId).get().then(function(doc) {
                 if(doc.exists && doc.data().lastActive) {
-                    if((Date.now() - doc.data().lastActive) < 300000) {
+                    if((new Date().getTime() - doc.data().lastActive) < 300000) {
                         document.getElementById('chat-online-status').className = 'online-dot';
                     }
                 }
@@ -794,13 +797,16 @@
                     var pInfo = {};
                     pInfo[currentUser.uid] = { displayName: userData.displayName };
                     pInfo[currentPartnerId] = { displayName: currentPartnerName };
-                    chatRef.set({ participants: [currentUser.uid, currentPartnerId].sort(), participantInfo: pInfo, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+                    var sortedIds = [currentUser.uid, currentPartnerId];
+                    sortedIds.sort();
+                    chatRef.set({ participants: sortedIds, participantInfo: pInfo, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
                 }
             });
             loadMessages();
         }
 
-        function loadMessages(isLoadOlder = false) {
+        function loadMessages(isLoadOlder) {
+            if(isLoadOlder === undefined) isLoadOlder = false;
             var histDiv = document.getElementById('chat-history');
             var olderBtn = document.getElementById('older-msg-btn');
             
@@ -824,13 +830,19 @@
                 }
                 
                 msgs.reverse(); var htmlContent = "";
-                msgs.forEach(function(m) {
+                for(var i=0; i<msgs.length; i++) {
+                    var m = msgs[i];
                     var isMe = m.senderId === currentUser.uid;
                     var nameClass = isMe ? "me" : "sender";
-                    var timeStr = m.timestamp ? (m.timestamp.toDate().getHours() + ":" + (m.timestamp.toDate().getMinutes()<10?'0':'') + m.timestamp.toDate().getMinutes()) : "";
+                    var timeStr = "";
+                    if(m.timestamp) {
+                        var d = m.timestamp.toDate();
+                        var min = d.getMinutes();
+                        timeStr = d.getHours() + ":" + (min < 10 ? '0' : '') + min;
+                    }
                     
                     var likesCount = m.likes || 0;
-                    var likedByMe = m.likedBy && m.likedBy.includes(currentUser.uid);
+                    var likedByMe = arrayContains(m.likedBy, currentUser.uid);
                     var likeActionText = likedByMe ? "Unlike" : "Like";
                     var likeDisplay = likesCount > 0 ? (" • <span style='color:red; font-size:10px;'>❤️ " + likesCount + "</span>") : "";
 
@@ -845,7 +857,7 @@
                     html += "</div>";
                     
                     htmlContent += html;
-                });
+                }
                 
                 if(isLoadOlder) {
                     var curScroll = histDiv.scrollHeight;
@@ -866,9 +878,16 @@
                     var likedBy = data.likedBy || [];
                     var likes = data.likes || 0;
                     
-                    if (likedBy.includes(currentUser.uid)) {
-                        likedBy.splice(likedBy.indexOf(currentUser.uid), 1);
+                    var newLikedBy = [];
+                    var found = false;
+                    for(var i=0; i<likedBy.length; i++) {
+                        if(likedBy[i] === currentUser.uid) { found = true; }
+                        else { newLikedBy.push(likedBy[i]); }
+                    }
+
+                    if (found) {
                         likes = Math.max(0, likes - 1);
+                        likedBy = newLikedBy;
                     } else {
                         likedBy.push(currentUser.uid);
                         likes += 1;
@@ -879,21 +898,40 @@
         }
 
         function sendMessage() {
-            if(userData.blocked && userData.blocked.includes(currentPartnerId)) { notify("You have blocked this user."); return; }
-            var text = document.getElementById('chat-input').value.trim();
+            if(arrayContains(userData.blocked, currentPartnerId)) { notify("You have blocked this user."); return; }
+            var text = document.getElementById('chat-input').value.replace(/^\s+|\s+$/g, '');
             var file = document.getElementById('attach-file').files[0];
             if(!text && !file) { notify("Empty message."); return; }
             
             document.getElementById('chat-input').value = ""; document.getElementById('image-panel').className = 'hidden';
-            var histDiv = document.getElementById('chat-history'); var tempId = "tmp_" + Date.now();
+            var histDiv = document.getElementById('chat-history'); var tempId = "tmp_" + new Date().getTime();
             histDiv.innerHTML += "<div id='" + tempId + "' class='msg-row' style='opacity:0.6;'><span class='me'>You:</span> " + text + "<br/><span class='msg-time'>Sending...</span></div>";
             histDiv.scrollTop = histDiv.scrollHeight;
             
             if (file) {
                 var fd = new FormData(); fd.append("image", file);
-                fetch("https://api.imgbb.com/1/upload?key=" + IMGBB_API_KEY, { method: "POST", body: fd })
-                .then(r => r.json()).then(d => { if(d.success) { saveMsgToDB(text, d.data.url, tempId); document.getElementById('attach-file').value=""; } else notify("Upload failed!"); })
-                .catch(e => { notify("Error!"); document.getElementById(tempId).style.display = 'none'; });
+                var xhr = new XMLHttpRequest();
+                xhr.open("POST", "https://api.imgbb.com/1/upload?key=" + IMGBB_API_KEY, true);
+                xhr.onload = function() {
+                    if(xhr.status === 200) {
+                        var response = JSON.parse(xhr.responseText);
+                        if(response.success) {
+                            saveMsgToDB(text, response.data.url, tempId);
+                            document.getElementById('attach-file').value = "";
+                        } else {
+                            notify("Upload failed!");
+                            document.getElementById(tempId).style.display = 'none';
+                        }
+                    } else {
+                        notify("Upload error!");
+                        document.getElementById(tempId).style.display = 'none';
+                    }
+                };
+                xhr.onerror = function() {
+                    notify("Upload error!");
+                    document.getElementById(tempId).style.display = 'none';
+                };
+                xhr.send(fd);
             } else { saveMsgToDB(text, null, tempId); }
         }
 
@@ -902,12 +940,20 @@
             db.collection(CHATS_PATH).doc(currentChatId).collection('messages').add(p).then(function() {
                 db.collection(CHATS_PATH).doc(currentChatId).update({ lastMessage: p, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
                 loadMessages();
-            }).catch(e => document.getElementById(tempId).style.display = 'none');
+            }).catch(function(e) { document.getElementById(tempId).style.display = 'none'; });
         }
 
-        function toggleEmoji() { var p = document.getElementById('emoji-panel'); p.className = p.className.includes('hidden') ? 'emoji-panel' : 'emoji-panel hidden'; }
+        function toggleEmoji() { 
+            var p = document.getElementById('emoji-panel'); 
+            if(p.className.indexOf('hidden') !== -1) p.className = 'emoji-panel';
+            else p.className = 'emoji-panel hidden';
+        }
         function addEmoji(e) { document.getElementById('chat-input').value += e; toggleEmoji(); }
-        function toggleImagePanel() { var p = document.getElementById('image-panel'); p.className = p.className.includes('hidden') ? 'hidden' : ''; }
+        function toggleImagePanel() { 
+            var p = document.getElementById('image-panel'); 
+            if(p.className.indexOf('hidden') !== -1) p.className = '';
+            else p.className = 'hidden';
+        }
 
         function deleteChatAny(cid) {
             if(confirm("Delete this chat?")) {
@@ -916,12 +962,12 @@
         }
         function blockUserAny(uid) {
             if(confirm("Block this user?")) {
-                var b = userData.blocked || []; if(!b.includes(uid)) b.push(uid);
+                var b = userData.blocked || []; if(!arrayContains(b, uid)) b.push(uid);
                 db.collection(USERS_PATH).doc(currentUser.uid).update({ blocked: b }).then(function(){ userData.blocked = b; notify("User Blocked"); loadInbox(); });
             }
         }
-        function deleteChatCurrent() { deleteChatAny(currentChatId); window.location.hash='inbox'; }
-        function blockUserCurrent() { blockUserAny(currentPartnerId); window.location.hash='inbox'; }
+        function deleteChatCurrent() { deleteChatAny(currentChatId); renderPage('inbox'); }
+        function blockUserCurrent() { blockUserAny(currentPartnerId); renderPage('inbox'); }
 
     </script>
 </body>
