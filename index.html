@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <meta http-equiv="Cache-Control" content="no-cache" />
     <title>PingMe - Classic WAP</title>
 
@@ -10,116 +10,186 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    
+    <!-- লাইটওয়েট কলিং ফিচারের জন্য এগোরা আরটিসি এসডিকে -->
+    <script src="https://download.agora.io/sdk/release/AgoraRTC_N-4.18.2.js"></script>
 
     <style type="text/css">
-        /* একদম অরিজিনাল পুরাতন ফেসবুক অপেরা মিনি স্টাইল (Basic Block Layout) */
+        /* একদম অরিজিনাল পুরাতন ফেসবুক অপেরা মিনি স্টাইল */
         body { font-family: "lucida grande", tahoma, verdana, arial, sans-serif; background-color: #ffffff; color: #1c1e21; margin: 0; padding: 0; font-size: 13px; }
         a { color: #3b5998; text-decoration: none; cursor: pointer; }
         a:hover { text-decoration: underline; }
         
-        .top-header { background-color: #3b5998; color: #ffffff; padding: 10px; font-weight: bold; font-size: 16px; text-align: left; }
+        /* হেডার আপডেট */
+        .top-header { background-color: #3b5998; color: #ffffff; padding: 12px 10px; font-weight: bold; font-size: 18px; text-align: left; }
         .top-header a { color: #ffffff; text-decoration: none; }
         
-        .nav-bar { background-color: #f7f7f7; padding: 5px; border-bottom: 1px solid #cccccc; font-size: 12px; text-align: center; line-height: 2.0; }
-        .nav-bar a { font-weight: normal; margin: 0 4px; color: #3b5998; white-space: nowrap; }
+        /* ন্যাভিগেশন বার */
+        .nav-bar { background-color: #f7f7f7; padding: 6px; border-bottom: 1px solid #cccccc; font-size: 13px; text-align: center; line-height: 1.8; }
+        .nav-bar a { font-weight: normal; margin: 0 5px; color: #3b5998; white-space: nowrap; }
         .nav-bar .active { font-weight: bold; color: #000000; border-bottom: 2px solid #3b5998; }
         
-        .sec-header { background-color: #d8dfea; color: #3b5998; padding: 5px; font-weight: bold; border-top: 1px solid #3b5998; border-bottom: 1px solid #cccccc; font-size: 13px; text-align: left; }
-        .content { padding: 8px; text-align: left; } 
+        .sec-header { background-color: #d8dfea; color: #3b5998; padding: 4px 6px; font-weight: bold; border-top: 1px solid #3b5998; border-bottom: 1px solid #cccccc; font-size: 13px; text-align: left; }
+        .content { padding: 6px; text-align: left; } 
         
-        input[type="text"], input[type="password"], input[type="email"] { width: 95%; max-width: 300px; padding: 5px; border: 1px solid #8496ba; margin-bottom: 5px; font-size: 13px; }
-        .btn { background-color: #3b5998; color: #ffffff; border: 1px solid #29447e; padding: 5px 8px; font-weight: bold; cursor: pointer; font-size: 12px; }
-        .btn-sec { background-color: #f8f8f8; color: #3b5998; border: 1px solid #cccccc; padding: 5px 8px; cursor: pointer; font-size: 12px; }
+        /* ইনপুট ফিল্ড ও বাটনে বর্ডার রেডিয়াস যুক্ত করা হয়েছে */
+        input[type="text"], input[type="password"], input[type="email"], textarea { width: 90%; max-width: 400px; padding: 6px; border: 1px solid #8496ba; border-radius: 6px; margin-bottom: 4px; font-size: 13px; box-sizing: border-box; font-family: sans-serif; }
+        .btn { background-color: #3b5998; color: #ffffff; border: 1px solid #29447e; border-radius: 6px; padding: 6px 12px; font-weight: bold; cursor: pointer; font-size: 12px; }
+        .btn-sec { background-color: #f8f8f8; color: #3b5998; border: 1px solid #cccccc; border-radius: 6px; padding: 6px 12px; cursor: pointer; font-size: 12px; }
         
-        /* Fixed Layout for J2ME */
-        .login-wrapper { padding: 20px 5px; text-align: center; }
-        .login-box { margin: 0 auto; width: 90%; max-width: 280px; background-color: #f7f7f7; border: 1px solid #cccccc; padding: 15px; text-align: center; }
-        
-        .msg-row { padding: 6px 0; border-bottom: 1px dashed #cccccc; word-wrap: break-word; }
-        .msg-time { color: #808080; font-size: 11px; }
-        .sender { font-weight: bold; color: #3b5998; }
-        .me { font-weight: bold; color: #333333; }
-        .unread { font-weight: bold; color: #000000; background-color: #fffbdd; }
+        .login-wrapper { display: flex; justify-content: center; align-items: center; min-height: calc(100vh - 100px); padding: 10px; }
+        .login-box { width: 100%; max-width: 280px; background-color: #f7f7f7; border: 1px solid #cccccc; border-radius: 8px; padding: 15px; text-align: center; }
+        .login-box input[type="text"], .login-box input[type="password"], .login-box input[type="email"] { width: 100%; padding: 8px; margin-top: 3px; margin-bottom: 10px; }
+        .login-box .btn, .login-box .btn-sec { width: 48%; margin-top: 5px; }
+
+        .list-row { padding: 8px 0; border-bottom: 1px dashed #cccccc; word-wrap: break-word; }
+        .list-row:last-child { border-bottom: none; }
         
         .new-badge { color: #d90000; font-size: 11px; font-weight: bold; }
         .online-dot { color: #2bba00; font-size: 11px; font-weight: bold; }
         
         .footer { text-align: center; padding: 10px; font-size: 11px; color: #808080; border-top: 1px solid #cccccc; margin-top: 15px; }
-        .hidden { display: none; }
+        .hidden { display: none !important; }
         .divider { border-bottom: 1px solid #e5e5e5; margin: 10px 0; }
         
-        .alert-box { background-color: #fffbdd; border: 1px solid #e2c822; padding: 5px; margin-bottom: 5px; font-size: 12px; color: #333333; text-align: center; }
-        .emoji-panel { background-color: #f2f2f2; border: 1px solid #ccc; padding: 4px; margin-bottom: 4px; font-size: 16px; text-align:center;}
-        .emoji-panel a { margin: 0 5px; text-decoration: none; cursor: pointer; }
+        .alert-box { background-color: #fffbdd; border: 1px solid #e2c822; border-radius: 4px; padding: 6px; margin-bottom: 5px; font-size: 12px; color: #333333; text-align: center; font-weight: bold; }
+        .options-menu { background: #f0f0f0; border: 1px solid #ccc; border-radius: 4px; padding: 5px; margin-top: 3px; font-size: 11px; text-align: right; }
+        .dot-btn { font-size: 16px; font-weight: bold; color: #808080; text-decoration: none !important; margin-left: 5px;}
         
-        .options-menu { background: #f0f0f0; border: 1px solid #ccc; padding: 5px; margin-top: 3px; font-size: 11px; text-align: right; }
-        .dot-btn { font-size: 14px; font-weight: bold; color: #808080; text-decoration: none !important; margin-left: 5px;}
+        .profile-info { background: #f7f7f7; border: 1px solid #ccc; border-radius: 6px; padding: 10px; margin-bottom: 10px; }
         
-        .profile-info { background: #f7f7f7; border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; }
+        /* ডানে-বামে চ্যাট মেসেজের স্টাইল (Left/Right Chat Bubbles) */
+        .msg-container { width: 100%; clear: both; overflow: hidden; margin-bottom: 6px; padding: 0 4px; box-sizing: border-box; }
+        .msg-me { float: right; background-color: #d8dfea; padding: 8px 10px; border: 1px solid #c3cadd; border-radius: 12px 12px 0 12px; max-width: 80%; word-wrap: break-word; }
+        .msg-you { float: left; background-color: #f2f2f2; padding: 8px 10px; border: 1px solid #cccccc; border-radius: 12px 12px 12px 0; max-width: 80%; word-wrap: break-word; }
+        .msg-time-me { display: block; font-size: 10px; color: #808080; text-align: right; margin-top: 2px; }
+        .msg-time-you { display: block; font-size: 10px; color: #808080; text-align: left; margin-top: 2px; }
         
-        .chat-bottom-area { background-color: #f0f2f5; padding: 8px; border: 1px solid #ccc; border-top: none; text-align: center; }
+        /* ক্লাসিক সেন্ডার বক্স */
+        .classic-sender-box { background-color: #f7f7f7; border-top: 1px solid #cccccc; padding: 8px; }
+
+        /* ওল্ড স্টাইল কলিং স্ক্রিন লেআউট */
+        .call-modal { position: fixed; inset: 0; background: #000000; color: #ffffff; z-index: 9999; display: flex; flex-direction: column; justify-content: space-between; padding: 20px; text-align: center; }
+        .call-user-name { font-size: 24px; font-weight: bold; margin-top: 50px; }
+        .call-status { font-size: 16px; color: #2bba00; margin-top: 10px; }
         
-        .more-btn { text-align: center; padding: 8px; background: #e9ebee; border: 1px solid #ccc; margin: 10px 0; font-weight: bold; }
-        .more-btn a { display: block; color: #3b5998; }
+        /* এগোরা ভিডিও কন্টেইনার */
+        .video-grid { flex: 1; display: flex; flex-direction: column; gap: 10px; margin: 20px 0; position: relative; background: #111; border-radius: 8px; overflow: hidden; }
+        .remote-video-box { width: 100%; height: 100%; background: #222; }
+        /* Local Video Box with Draggable properties */
+        .local-video-box { width: 100px; height: 140px; position: absolute; top: 10px; right: 10px; background: #444; border: 2px solid #fff; border-radius: 6px; z-index: 100; box-shadow: 0 4px 8px rgba(0,0,0,0.5); cursor: move; touch-action: none; overflow: hidden; }
         
-        .clear { clear: both; }
-        .float-l { float: left; }
-        .float-r { float: right; }
+        .call-actions { display: flex; justify-content: center; gap: 20px; margin-bottom: 40px; }
+        .btn-call-end { background-color: #d90000; border: 1px solid #a00000; border-radius: 6px; color: white; padding: 12px 24px; font-weight: bold; cursor: pointer; font-size: 14px; }
+        .btn-call-action { background-color: #333333; border: 1px solid #555555; border-radius: 6px; color: white; padding: 12px 20px; font-weight: bold; cursor: pointer; font-size: 14px; }
+
+        /* ইনকামিং কল ক্লাসিক পপআপ */
+        .incoming-call-box { position: fixed; top: 0; left: 0; width: 100%; background: #fffbdd; border-bottom: 2px solid #e2c822; padding: 12px; z-index: 10000; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1); box-sizing: border-box; }
+        .incoming-text { color: #333333; font-weight: bold; font-size: 13px; }
+
+        /* কাস্টম ফাইল আপলোড বাটন */
+        .file-upload-label {
+            display: inline-block;
+            background-color: #e9e9e9;
+            border: 1px solid #cccccc;
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            color: #333;
+        }
+        .file-upload-label:hover { background-color: #dcdcdc; }
     </style>
 </head>
 <body>
 
     <div class="top-header">
-        <a href="javascript:void(0);" onclick="renderPage('home');">PingMe</a>
+        <a href="#home">PingMe</a>
     </div>
 
-    <div id="sys-notification" class="alert-box hidden"></div>
+    <div id="sys-notification" class="alert-box hidden" style="position: sticky; top: 0; z-index: 9000;"></div>
+
+    <!-- ইনকামিং কল রিসিভার উইন্ডো -->
+    <div id="incoming-call-panel" class="incoming-call-box hidden">
+        <div class="incoming-text">
+            <span id="incoming-caller-name">কেউ</span> <span id="incoming-call-type-label">কল করছে...</span>
+        </div>
+        <div>
+            <button class="btn" style="background-color: #2bba00; border-color:#208a00;" id="btn-accept-call">ধরুন</button>
+            <button class="btn" style="background-color: #d90000; border-color:#a00000; margin-left:5px;" id="btn-reject-call">কাটুন</button>
+        </div>
+    </div>
+
+    <!-- অ্যাক্টিভ কল স্ক্রিন (Draggable PIP Mode) -->
+    <div id="view-call" class="call-modal hidden">
+        <div>
+            <div class="call-user-name" id="call-screen-user">User Name</div>
+            <div class="call-status" id="call-screen-status">Connecting...</div>
+        </div>
+
+        <!-- ভিডিও স্ট্রিম জোন -->
+        <div class="video-grid" id="call-video-grid" style="display: none;">
+            <div id="remote-video" class="remote-video-box"></div>
+            <!-- এটি টেনে স্ক্রিনের যেকোনো জায়গায় নেওয়া যাবে -->
+            <div id="local-video" class="local-video-box"></div>
+        </div>
+
+        <div class="call-actions">
+            <button class="btn-call-action" id="btn-toggle-mic">মাইক মিউট</button>
+            <button class="btn-call-action" id="btn-toggle-cam" style="display: none;">ক্যামেরা অফ</button>
+            <button class="btn-call-end" id="btn-hangup">কল কাটুন</button>
+        </div>
+    </div>
 
     <!-- ন্যাভিগেশন বার -->
     <div id="nav-bar" class="nav-bar hidden">
-        <a id="nav-home" href="javascript:void(0);" onclick="renderPage('home');">Home</a> | 
-        <a id="nav-profile" href="javascript:void(0);" onclick="renderPage('profile');">Profile</a> | 
-        <a id="nav-friends" href="javascript:void(0);" onclick="renderPage('friends');">Friends</a> | 
-        <a id="nav-inbox" href="javascript:void(0);" onclick="renderPage('inbox');">Chat</a> | 
-        <a id="nav-find-friend" href="javascript:void(0);" onclick="renderPage('find-friend');">Find Friend</a><br/>
-        <a href="javascript:void(0);" onclick="refreshCurrentPage();" style="font-weight:bold; color:green;">[Refresh / Sync]</a> 
+        <a id="nav-home" href="#home">Home</a> | 
+        <a id="nav-profile" href="#profile">Profile</a> | 
+        <a id="nav-friends" href="#friends">Friends</a> | 
+        <a id="nav-inbox" href="#inbox">Chat</a> | 
+        <a id="nav-find-friend" href="#find-friend">Find Friend</a> | 
+        <a href="javascript:void(0);" onclick="refreshCurrentPage()">Refresh</a> 
         <span id="nav-latest-sender" class="new-badge hidden" style="margin-left: 5px;"></span>
     </div>
 
-    <!-- লগইন পেইজ -->
+    <!-- লগইন / সাইনআপ পেইজ -->
     <div id="page-login" class="content">
         <div class="login-wrapper">
             <div class="login-box">
                 <div id="login-form">
                     <div style="margin-bottom: 15px; font-size: 16px; font-weight: bold; color: #3b5998;">Welcome to PingMe</div>
+                    
+                    <div id="signup-name-field" class="hidden">
+                        <div style="text-align: left; font-weight: bold; font-size: 12px;">Full Name:</div>
+                        <input type="text" id="auth-name" placeholder="Your Name" />
+                    </div>
+
                     <div style="text-align: left; font-weight: bold; font-size: 12px;">Email:</div>
-                    <input type="text" id="auth-email" placeholder="example@email.com" /><br/>
-                    <div style="text-align: left; font-weight: bold; font-size: 12px; margin-top:5px;">Password:</div>
-                    <input type="password" id="auth-pass" placeholder="******" /><br/><br/>
-                    <table width="100%" border="0" cellpadding="0" cellspacing="0">
-                        <tr>
-                            <td align="left"><input type="button" class="btn" value="Log In" onclick="login()" /></td>
-                            <td align="right"><input type="button" class="btn-sec" value="Sign Up" onclick="signup()" /></td>
-                        </tr>
-                    </table>
+                    <input type="text" id="auth-email" placeholder="example@email.com" />
+                    <div style="text-align: left; font-weight: bold; font-size: 12px;">Password:</div>
+                    <input type="password" id="auth-pass" placeholder="******" />
+                    
+                    <div style="display: flex; justify-content: space-between; margin-top: 10px;">
+                        <input type="button" class="btn" id="login-action-btn" value="Log In" onclick="login()" />
+                        <input type="button" class="btn-sec" id="toggle-auth-btn" value="Create Account" onclick="toggleSignupMode()" />
+                    </div>
                 </div>
                 <div class="divider"></div>
-                <div style="font-size: 12px;"><a href="javascript:void(0);" onclick="renderPage('forget-password');">Forgot Password?</a></div>
+                <div style="font-size: 12px;"><a href="#forget-password">Forgot Password?</a></div>
             </div>
         </div>
     </div>
 
-    <!-- ফরগেট পাসওয়ার্ড -->
     <div id="page-forget-password" class="content hidden">
         <div class="login-wrapper">
             <div class="login-box">
                 <div id="reset-form">
                     <div style="margin-bottom: 10px; font-size: 14px; font-weight: bold; color: #3b5998;">Reset Password</div>
-                    <input type="text" id="reset-email" placeholder="Email address" /><br/><br/>
-                    <input type="button" class="btn" value="Send Reset Link" onclick="resetPassword()" />
+                    <input type="text" id="reset-email" placeholder="Email address" style="width: 100%; box-sizing: border-box; padding: 6px; margin-bottom: 10px;" />
+                    <input type="button" class="btn" value="Send Link" style="width: 100%;" onclick="resetPassword()" />
                 </div>
                 <div class="divider"></div>
-                <a href="javascript:void(0);" onclick="renderPage('login');" style="font-size: 12px;">&laquo; Back to Login</a>
+                <a href="#login" style="font-size: 12px;">&laquo; Back to Login</a>
             </div>
         </div>
     </div>
@@ -128,9 +198,9 @@
     <div id="page-home" class="hidden">
         <div class="sec-header">Welcome to PingMe</div>
         <div class="content" style="padding: 15px 10px;">
-            <p>Connect with your friends statically. Everything updates when you click Refresh or change pages.</p>
-            <input type="button" class="btn" value="Go to Chat" onclick="renderPage('inbox');" /><br/><br/>
-            <input type="button" class="btn-sec" value="Find New Friends" onclick="renderPage('find-friend');" />
+            <p>Connect with your friends quickly and easily.</p>
+            <input type="button" class="btn" value="Go to Chat" onclick="window.location.hash='inbox'" style="padding: 8px; margin-bottom: 10px;" /><br/>
+            <input type="button" class="btn-sec" value="Find New Friends" onclick="window.location.hash='find-friend'" style="padding: 8px;" />
         </div>
     </div>
 
@@ -145,10 +215,9 @@
         </div>
     </div>
 
-    <!-- অন্য ইউজারের প্রোফাইল দেখার পেজ -->
     <div id="page-view-profile" class="hidden">
         <div class="sec-header">
-            <a href="javascript:void(0);" onclick="renderPage('find-friend');">&laquo; Back</a> | User Profile
+            <a href="#find-friend">&laquo; Back</a> | User Profile
         </div>
         <div class="content">
             <div class="profile-info" id="view-profile-details">Loading User Details...</div>
@@ -156,10 +225,9 @@
         </div>
     </div>
 
-    <!-- Friends পেইজ -->
     <div id="page-friends" class="hidden">
         <div id="requests-section" class="hidden">
-            <div class="sec-header" style="background:#fffbdd; border-color:#e2c822;">Friend Requests</div>
+            <div class="sec-header" style="background:#fffbdd;">Friend Requests</div>
             <div id="requests-list" class="content"></div>
         </div>
         <div class="sec-header">My Friends</div>
@@ -168,16 +236,13 @@
         </div>
     </div>
 
-    <!-- Find Friend পেইজ -->
     <div id="page-find-friend" class="hidden">
         <div class="content" style="background-color: #f7f7f7; border-bottom: 1px solid #ccc; padding-bottom: 10px;">
             <div style="font-weight: bold; margin-bottom: 5px;">Search by Ping ID:</div>
-            <table width="100%" border="0" cellpadding="0" cellspacing="0">
-                <tr>
-                    <td width="70%"><input type="text" id="search-ping-id" placeholder="e.g. user123" style="width: 90%; margin: 0;" /></td>
-                    <td width="30%" align="right"><input type="button" class="btn" value="Search" onclick="searchFriend()" /></td>
-                </tr>
-            </table>
+            <div style="display: flex; gap: 5px;">
+                <input type="text" id="search-ping-id" placeholder="e.g. user123" style="width: 70%; margin: 0;" />
+                <input type="button" class="btn" value="Search" onclick="searchFriend()" style="width: 30%;" />
+            </div>
         </div>
 
         <div class="sec-header">Find Friends (All Users)</div>
@@ -199,69 +264,64 @@
 
     <!-- চ্যাট রুম পেইজ -->
     <div id="page-chat" class="hidden">
-        <div class="sec-header">
-            <div class="float-l">
-                <a href="javascript:void(0);" onclick="renderPage('inbox');">&laquo; Back</a> | 
+        <div class="sec-header" style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <a href="#inbox">&laquo; Back</a> | 
                 <b id="chat-header-name" style="font-size:14px;">Partner</b> 
+                <span id="chat-online-status" class="online-dot hidden">[● Active]</span>
             </div>
-            <div class="float-r">
-                <a href="javascript:void(0);" onclick="toggleOptions('chat-main-opt')" class="dot-btn">[⋮] Options</a>
+            
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <!-- অডিও এবং ভিডিও কলের নতুন আইকন যুক্ত করা হয়েছে -->
+                <a href="javascript:void(0);" onclick="initiateCall('audio')" style="font-size: 16px; text-decoration: none;" title="Audio Call">📞</a>
+                <a href="javascript:void(0);" onclick="initiateCall('video')" style="font-size: 16px; text-decoration: none;" title="Video Call">📹</a>
+                <a href="javascript:void(0);" onclick="toggleOptions('chat-main-opt')" class="dot-btn" style="margin-left: 2px;">⋮</a>
             </div>
-            <div class="clear"></div>
         </div>
         
         <div id="chat-main-opt" class="options-menu hidden">
-            <a href="javascript:void(0);" onclick="deleteChatCurrent()">[Delete Chat]</a> &nbsp;|&nbsp; 
-            <a href="javascript:void(0);" onclick="blockUserCurrent()">[Block User]</a>
+            <a href="javascript:void(0);" onclick="deleteChatCurrent()">[চ্যাট মুছুন]</a> &nbsp;|&nbsp; 
+            <a href="javascript:void(0);" onclick="blockUserCurrent()">[ইউজার ব্লক]</a>
         </div>
 
         <!-- চ্যাট হিস্ট্রি -->
         <div style="text-align: center; padding: 5px; background-color: #d8dfea; border-left: 1px solid #ccc; border-right: 1px solid #ccc;">
-            <a id="older-msg-btn" href="javascript:void(0);" onclick="loadMessages(true)" class="hidden" style="font-size: 11px; font-weight: bold;">[Older Messages]</a>
+            <a id="older-msg-btn" href="javascript:void(0);" onclick="loadMessages(true)" class="hidden" style="font-size: 11px; font-weight: bold;">[পুরানো মেসেজ]</a>
         </div>
         
-        <!-- Fixed height removed for J2ME compatibility -->
-        <div id="chat-history" class="content" style="background-color: #f7f7f7; border: 1px solid #ccc; border-top: none;">
-            <div style="text-align:center; color:#808080; padding: 10px;">Loading...</div>
+        <!-- ডানে-বামে মেসেজ দেখার এরিয়া -->
+        <div id="chat-history" style="background-color: #ffffff; border-left: 1px solid #ccc; border-right: 1px solid #ccc; min-height: 150px; max-height: 50vh; overflow-y: auto; padding: 8px 6px;">
+            <div style="text-align:center; color:#808080; padding: 10px;">লোড হচ্ছে...</div>
         </div>
 
-        <!-- চ্যাট ইনপুট বক্স -->
-        <div class="sec-header" style="border-top: none; margin-top: 5px;">Send a Message</div>
-        <div class="chat-bottom-area">
-            <div id="emoji-panel" class="emoji-panel hidden">
-                <a href="javascript:void(0);" onclick="addEmoji('😊')">😊</a> <a href="javascript:void(0);" onclick="addEmoji('😂')">😂</a> <a href="javascript:void(0);" onclick="addEmoji('❤️')">❤️</a> 
-                <a href="javascript:void(0);" onclick="addEmoji('👍')">👍</a> <a href="javascript:void(0);" onclick="addEmoji('😢')">😢</a> <a href="javascript:void(0);" onclick="addEmoji('😡')">😡</a><br/>
-                <a href="javascript:void(0);" onclick="toggleEmoji()" style="font-size: 11px; color: red; display:block; margin-top:5px;">[Close]</a>
-            </div>
-            
-            <div id="image-panel" class="hidden" style="margin-bottom: 8px; text-align:center;">
-                <input type="file" id="attach-file" accept="image/*" style="width: 80%; font-size: 11px;" /><br/>
-                <a href="javascript:void(0);" onclick="toggleImagePanel()" style="font-size: 11px; color: red;">[Close Image Panel]</a>
-            </div>
-            
-            <div style="margin-bottom:8px; font-size:12px; font-weight:bold; text-align:center;">
-                <a href="javascript:void(0);" onclick="toggleEmoji()">[☻ Emoji]</a> | 
-                <a href="javascript:void(0);" onclick="toggleImagePanel()">[📷 Photo]</a> | 
-                <a href="javascript:void(0);" onclick="loadMessages()">[↻ Refresh]</a>
-            </div>
-            
-            <input type="text" id="chat-input" placeholder="Type a message..." style="width:90%; padding:8px; border:1px solid #8496ba; margin-bottom:5px;" /><br/>
-            <input type="button" class="btn" value="Send Message" onclick="sendMessage()" style="width:95%; padding:8px;" />
+        <!-- ক্লাসিক সেন্ডার বক্স -->
+        <div class="classic-sender-box">
+            <div style="font-weight: bold; margin-bottom: 4px; color: #333;">মেসেজ লিখুন:</div>
+            <form onsubmit="sendMessage(); return false;" style="margin: 0; padding: 0;">
+                <textarea id="chat-input" placeholder="Type here..." style="width: 100%; height: 50px; resize: none;"></textarea><br/>
+                <div style="margin-top: 6px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                    
+                    <!-- ইমেজ পাঠানোর সুন্দর আইকন বাটন -->
+                    <label for="attach-file" class="file-upload-label">
+                        🖼️ ছবি দিন
+                    </label>
+                    <input type="file" id="attach-file" accept="image/*" style="display: none;" onchange="document.getElementById('file-name').innerText = this.files[0] ? this.files[0].name : '';" />
+                    <span id="file-name" style="font-size: 11px; color: #666; max-width: 90px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></span>
+                    
+                    <div style="flex-grow: 1; text-align: right;">
+                        <input type="submit" class="btn" value="পাঠান" />
+                        <input type="button" class="btn-sec" value="রিফ্রেশ" onclick="loadMessages()" />
+                    </div>
+                </div>
+            </form>
         </div>
     </div>
 
     <div class="footer">
-        PingMe Classic V4.0 (Static WAP Edition) &copy; 2026<br/>
+        PingMe Classic V4.1 &copy; 2026<br/>
     </div>
 
     <script type="text/javascript">
-        // Helper Functions to replace modern JS methods
-        function arrayContains(arr, item) {
-            if(!arr) return false;
-            for(var i=0; i<arr.length; i++) { if(arr[i] === item) return true; }
-            return false;
-        }
-
         var firebaseConfig = {
             apiKey: "AIzaSyAOEmgVj-OzfVaZsNOn47WTdaCrb5h8h_s",
             authDomain: "ping-me-app-475d1.firebaseapp.com",
@@ -274,7 +334,8 @@
         
         var USERS_PATH = "artifacts/" + firebaseConfig.projectId + "/public/data/users";
         var CHATS_PATH = "artifacts/" + firebaseConfig.projectId + "/public/data/chat_rooms";
-        var IMGBB_API_KEY = "5d48f4f83edce3fcb9dac8223dc6d810";
+        
+        var IMGBB_API_KEY = "1abc9f66636c45ace1d0952e080d153d";
 
         var currentUser = null, userData = null;
         var currentChatId = null, currentPartnerId = null, currentPartnerName = "";
@@ -282,11 +343,33 @@
         var readMessagesState = {}; 
         var currentPage = 'login'; 
         var isAuthResolved = false;
+        var isSignupMode = false;
         window.currentViewProfileId = null;
 
         var allLoadedUsers = [];
         var lastLoadedUserIndex = 0;
         var USERS_PER_PAGE = 10;
+
+        var agoraClient = null;
+        var localTracks = { video: null, audio: null };
+        var isCallActive = false;
+        var currentCallType = 'audio';
+        var callTimerInterval = null;
+        var callSeconds = 0;
+        var AGORA_APP_ID = "83291c0f69f64ba5a63c86e266c0b1c9"; 
+        var activeCallListeners = null;
+
+        // নেটওয়ার্ক এরর হ্যান্ডলিং ইভেন্ট
+        window.addEventListener('offline', function() {
+            notify("⚠️ ইন্টারনেট সংযোগ বিচ্ছিন্ন হয়েছে!");
+            if(isCallActive) {
+                notify("ইন্টারনেট সংযোগ না থাকায় কলটি কেটে গেছে।");
+                hangupCall('network_error');
+            }
+        });
+        window.addEventListener('online', function() {
+            notify("✅ ইন্টারনেট সংযোগ ফিরে এসেছে।");
+        });
 
         function notify(msg) {
             var box = document.getElementById('sys-notification');
@@ -294,28 +377,24 @@
             setTimeout(function() { box.className = 'alert-box hidden'; }, 4000);
         }
 
+        setInterval(function() {
+            if(currentUser) {
+                db.collection(USERS_PATH).doc(currentUser.uid).update({ lastActive: Date.now() });
+                checkUnreadMessages();
+            }
+        }, 30000); 
+
         function updateNavbarUnread(count, senderName) {
             var chatNav = document.getElementById('nav-inbox');
-            var senderNav = document.getElementById('nav-latest-sender');
-
             if(count > 0) {
                 chatNav.innerHTML = "<b>Chat (" + count + ")</b>";
                 chatNav.style.color = "#d90000";
-                if(senderNav) {
-                    senderNav.innerHTML = "[New: " + senderName + "]";
-                    senderNav.className = "new-badge";
-                }
             } else {
                 chatNav.innerHTML = "Chat";
                 chatNav.style.color = "";
-                if(senderNav) {
-                    senderNav.className = "new-badge hidden";
-                    senderNav.innerHTML = "";
-                }
             }
         }
 
-        // Only runs when explicitly requested (No auto setInterval)
         function checkUnreadMessages() {
             if(!currentUser) return;
             db.collection(CHATS_PATH).where("participants", "array-contains", currentUser.uid).get().then(function(snap) {
@@ -342,72 +421,112 @@
             });
         }
 
-        // Direct static transition logic
-        function renderPage(pageId) {
-            if (isAuthResolved && !currentUser && pageId !== 'login' && pageId !== 'forget-password') {
-                pageId = 'login';
-            }
+        function listenForIncomingCalls() {
+            if (!currentUser) return;
+            if(activeCallListeners) activeCallListeners();
+            activeCallListeners = db.collection(CHATS_PATH).where("participants", "array-contains", currentUser.uid).onSnapshot(function(snap) {
+                snap.forEach(function(doc) {
+                    var data = doc.data();
+                    if (data.callStatus) {
+                        var status = data.callStatus;
+                        if (status.state === 'calling' && status.callerId !== currentUser.uid) {
+                            if (Date.now() - status.timestamp < 30000 && !isCallActive) {
+                                showIncomingCallPopup(doc.id, status);
+                            }
+                        }
+                        if ((status.state === 'ended' || status.state === 'rejected') && isCallActive) {
+                            document.getElementById('incoming-call-panel').className = 'incoming-call-box hidden';
+                            if (agoraClient) hangupCall();
+                        }
+                    }
+                });
+            });
+        }
 
-            currentPage = pageId;
-            var pages = ['login', 'forget-password', 'home', 'profile', 'view-profile', 'friends', 'find-friend', 'inbox', 'chat'];
-            for(var i=0; i<pages.length; i++) {
-                var el = document.getElementById('page-' + pages[i]);
-                if (el) el.className = 'hidden';
-            }
+        function showIncomingCallPopup(chatId, status) {
+            var incomingPanel = document.getElementById('incoming-call-panel');
+            var callerNameEl = document.getElementById('incoming-caller-name');
+            var callTypeEl = document.getElementById('incoming-call-type-label');
             
+            var callerId = status.callerId;
+            db.collection(USERS_PATH).doc(callerId).get().then(function(userDoc) {
+                var name = userDoc.exists ? userDoc.data().displayName : "Someone";
+                callerNameEl.innerHTML = "<b>" + name + "</b>";
+                callTypeEl.innerHTML = (status.type === 'video' ? "ভিডিও" : "অডিও") + " কল করছে...";
+                incomingPanel.className = 'incoming-call-box';
+                
+                document.getElementById('btn-accept-call').onclick = function() { acceptIncomingCall(chatId, status); };
+                document.getElementById('btn-reject-call').onclick = function() { rejectCall(chatId); };
+            });
+        }
+
+        function handleHashChange() {
+            var hash = window.location.hash.substring(1);
+            if (!hash) hash = 'login';
+            if (isAuthResolved && !currentUser && hash !== 'login' && hash !== 'forget-password') {
+                window.location.hash = 'login';
+                return;
+            }
+            renderPage(hash);
+        }
+
+        window.addEventListener('hashchange', handleHashChange);
+        window.addEventListener('load', handleHashChange);
+
+        function renderPage(pageId) {
+            currentPage = pageId;
+            ['login', 'forget-password', 'home', 'profile', 'view-profile', 'friends', 'find-friend', 'inbox', 'chat'].forEach(function(p) {
+                var el = document.getElementById('page-' + p);
+                if (el) el.className = 'hidden';
+            });
             var currentEl = document.getElementById('page-' + pageId);
             if (currentEl) {
-                if (pageId === 'login' || pageId === 'forget-password') {
-                    currentEl.className = 'content';
-                } else {
-                    currentEl.className = '';
-                }
+                if (pageId === 'login' || pageId === 'forget-password') currentEl.className = 'content';
+                else currentEl.className = '';
             }
             
             if(currentUser) {
                 document.getElementById('nav-bar').className = 'nav-bar';
-                var navs = ['home', 'profile', 'friends', 'inbox', 'find-friend'];
-                for(var j=0; j<navs.length; j++) {
-                    var navEl = document.getElementById('nav-' + navs[j]);
-                    if(navEl) navEl.className = (pageId === navs[j]) ? 'active' : '';
-                }
-            } else {
-                document.getElementById('nav-bar').className = 'nav-bar hidden';
-            }
+                ['home', 'profile', 'friends', 'inbox', 'find-friend'].forEach(function(p) {
+                    var el = document.getElementById('nav-' + p);
+                    if(el) el.className = (pageId === p) ? 'active' : '';
+                });
+            } else { document.getElementById('nav-bar').className = 'nav-bar hidden'; }
 
-            // Fetch data based on specific page explicitly
             if(pageId === 'profile') loadProfile();
-            else if(pageId === 'friends') loadFriends();
-            else if(pageId === 'find-friend') {
-                if(document.getElementById('search-ping-id').value === "") loadAllUsersDB();
-            }
-            else if(pageId === 'inbox') loadInbox();
-            else if(pageId === 'view-profile') {
-                if(window.currentViewProfileId) executeViewProfile(window.currentViewProfileId);
-                else renderPage('friends');
-            }
-            else if(pageId === 'chat') {
-                if(currentPartnerId) executeOpenChat();
-                else renderPage('inbox');
-            }
-            
-            window.scrollTo(0, 0); // Reset scroll on static navigation
+            if(pageId === 'friends') loadFriends();
+            if(pageId === 'find-friend' && document.getElementById('search-ping-id').value === "") loadAllUsersDB();
+            if(pageId === 'inbox') loadInbox();
+            if(pageId === 'view-profile') { window.currentViewProfileId ? executeViewProfile(window.currentViewProfileId) : window.location.hash = 'friends'; }
+            if(pageId === 'chat') { currentPartnerId ? executeOpenChat() : window.location.hash = 'inbox'; }
         }
 
-        // Global manual refresh
         function refreshCurrentPage() {
-            notify("Syncing data...");
-            if(currentUser) {
-                db.collection(USERS_PATH).doc(currentUser.uid).update({ lastActive: new Date().getTime() });
-                checkUnreadMessages();
-            }
+            notify("Refreshing...");
+            var hash = window.location.hash.substring(1) || 'login';
+            if(hash === 'profile') loadProfile();
+            else if(hash === 'friends') loadFriends();
+            else if(hash === 'find-friend') { document.getElementById('search-ping-id').value = ""; loadAllUsersDB(); }
+            else if(hash === 'inbox') loadInbox();
+            else if(hash === 'chat') loadMessages();
+            else if(currentUser) checkUnreadMessages();
+        }
+
+        function toggleSignupMode() {
+            isSignupMode = !isSignupMode;
+            var nameField = document.getElementById('signup-name-field');
+            var loginBtn = document.getElementById('login-action-btn');
+            var toggleBtn = document.getElementById('toggle-auth-btn');
             
-            // Re-render current specific data
-            if(currentPage === 'profile') loadProfile();
-            else if(currentPage === 'friends') loadFriends();
-            else if(currentPage === 'find-friend') loadAllUsersDB();
-            else if(currentPage === 'inbox') loadInbox();
-            else if(currentPage === 'chat') loadMessages();
+            if (isSignupMode) {
+                nameField.className = '';
+                loginBtn.value = "Sign Up";
+                toggleBtn.value = "Back to Login";
+            } else {
+                nameField.className = 'hidden';
+                loginBtn.value = "Log In";
+                toggleBtn.value = "Create Account";
+            }
         }
 
         auth.onAuthStateChanged(function(user) {
@@ -417,141 +536,113 @@
                 var userRef = db.collection(USERS_PATH).doc(user.uid);
                 userRef.get().then(function(doc) {
                     if (!doc.exists) {
-                        var emailName = user.email.split('@')[0];
-                        userData = { uid: user.uid, displayName: emailName, email: user.email, pingId: emailName + Math.floor(Math.random()*1000), friends: [], requests: [], blocked: [], lastActive: new Date().getTime() };
+                        var finalName = user.displayName || user.email.split('@')[0];
+                        userData = { uid: user.uid, displayName: finalName, email: user.email, pingId: finalName + Math.floor(Math.random()*1000), friends: [], requests: [], blocked: [], lastActive: Date.now() };
                         userRef.set(userData);
                     } else {
                         userData = doc.data();
-                        userRef.update({ lastActive: new Date().getTime() });
+                        userRef.update({ lastActive: Date.now() });
                     }
+                    var currentHash = window.location.hash.substring(1);
+                    if (!currentHash || currentHash === 'login' || currentHash === 'forget-password') window.location.hash = 'home';
+                    else handleHashChange(); 
                     
-                    if (currentPage === 'login' || currentPage === 'forget-password') {
-                        renderPage('home'); // Instant transition without loading overlay
-                    }
                     checkUnreadMessages();
+                    listenForIncomingCalls();
                 });
             } else {
                 currentUser = null; userData = null;
-                renderPage('login');
+                if(activeCallListeners) { activeCallListeners(); activeCallListeners = null; }
+                window.location.hash = 'login';
             }
         });
 
         function login() { 
-            var email = document.getElementById('auth-email').value.replace(/^\s+|\s+$/g, '');
+            if (isSignupMode) { signup(); return; }
+            var email = document.getElementById('auth-email').value.trim();
             var pass = document.getElementById('auth-pass').value;
             if(!email || !pass) { notify("Please fill all fields."); return; }
-            auth.signInWithEmailAndPassword(email, pass)
-            .catch(function(e) { notify("Login Error: " + e.message); }); 
+            notify("Logging in...");
+            auth.signInWithEmailAndPassword(email, pass).then(function() { notify("Logged in successfully!"); window.location.hash = 'home'; }).catch(function(e) { notify(e.message); }); 
         }
 
         function signup() { 
-            var email = document.getElementById('auth-email').value.replace(/^\s+|\s+$/g, '');
+            var name = document.getElementById('auth-name').value.trim();
+            var email = document.getElementById('auth-email').value.trim();
             var pass = document.getElementById('auth-pass').value;
-            if(!email || !pass) { notify("Please fill all fields."); return; }
+            if(!email || !pass || !name) { notify("Please fill Name, Email and Password."); return; }
+            notify("Creating Account...");
+            
             auth.createUserWithEmailAndPassword(email, pass)
-            .catch(function(e) { notify("Signup Error: " + e.message); }); 
+            .then(function(res) {
+                res.user.updateProfile({ displayName: name }).then(function() {
+                    var userRef = db.collection(USERS_PATH).doc(res.user.uid);
+                    userData = { uid: res.user.uid, displayName: name, email: email, pingId: name.replace(/\s+/g, '').toLowerCase() + Math.floor(1000 + Math.random()*9000), friends: [], requests: [], blocked: [], lastActive: Date.now() };
+                    userRef.set(userData).then(function() { notify("Signup Success!"); window.location.hash = 'home'; });
+                });
+            }).catch(function(e) { notify(e.message); }); 
         }
 
-        function logout() { 
-            auth.signOut().then(function() {
-                renderPage('login');
-                window.location.reload(); 
-            });
-        }
+        function logout() { auth.signOut().then(function() { window.location.hash = 'login'; window.location.reload(); }); }
 
         function resetPassword() {
-            var e = document.getElementById('reset-email').value.replace(/^\s+|\s+$/g, '');
+            var e = document.getElementById('reset-email').value.trim();
             if(!e) { notify("Please enter an email address."); return; }
-            auth.sendPasswordResetEmail(e).then(function() { 
-                notify("Reset link sent! Check your inbox."); 
-                document.getElementById('reset-email').value = "";
-                renderPage('login'); 
-            }).catch(function(e) { notify(e.message); });
+            notify("Sending Reset Link...");
+            auth.sendPasswordResetEmail(e).then(function() { notify("Reset link sent!"); document.getElementById('reset-email').value = ""; window.location.hash = 'login'; }).catch(function(e) { notify(e.message); });
         }
 
         function loadProfile() {
             if(!userData) return;
-            var fCount = userData.friends ? userData.friends.length : 0;
             var html = "<strong>Name:</strong> " + (userData.displayName || "N/A") + "<br/><br/>";
             html += "<strong>Email:</strong> " + (userData.email || "N/A") + "<br/><br/>";
             html += "<strong>Ping ID:</strong> <span style='color:#3b5998;'>" + (userData.pingId || "N/A") + "</span><br/><br/>";
-            html += "<strong>Total Friends:</strong> " + fCount;
+            html += "<strong>Total Friends:</strong> " + (userData.friends ? userData.friends.length : 0);
             document.getElementById('profile-details').innerHTML = html;
         }
 
-        function viewUserProfile(userIdToView) {
-            window.currentViewProfileId = userIdToView;
-            renderPage('view-profile');
-        }
-
+        function viewUserProfile(userIdToView) { window.currentViewProfileId = userIdToView; window.location.hash = 'view-profile'; }
         function executeViewProfile(userIdToView) {
-            var detailsDiv = document.getElementById('view-profile-details');
-            var actionDiv = document.getElementById('view-profile-actions');
-            
-            detailsDiv.innerHTML = "Loading Profile Details...";
-            actionDiv.innerHTML = "";
-
+            var detailsDiv = document.getElementById('view-profile-details'); var actionDiv = document.getElementById('view-profile-actions');
+            detailsDiv.innerHTML = "Loading Profile Details..."; actionDiv.innerHTML = "";
             db.collection(USERS_PATH).doc(userIdToView).get().then(function(doc) {
-                if(!doc.exists) {
-                    detailsDiv.innerHTML = "User details not found.";
-                    return;
-                }
+                if(!doc.exists) { detailsDiv.innerHTML = "User details not found."; return; }
                 var u = doc.data();
-                var fCount = u.friends ? u.friends.length : 0;
-                var html = "<strong>Name:</strong> " + (u.displayName || "N/A") + "<br/><br/>";
-                html += "<strong>Email:</strong> " + (u.email || "N/A") + "<br/><br/>";
-                html += "<strong>Ping ID:</strong> <span style='color:#3b5998;'>" + (u.pingId || "N/A") + "</span><br/><br/>";
-                html += "<strong>Total Friends:</strong> " + fCount;
+                var html = "<strong>Name:</strong> " + (u.displayName || "N/A") + "<br/><br/><strong>Email:</strong> " + (u.email || "N/A") + "<br/><br/><strong>Ping ID:</strong> <span style='color:#3b5998;'>" + (u.pingId || "N/A") + "</span><br/><br/><strong>Total Friends:</strong> " + (u.friends ? u.friends.length : 0);
                 detailsDiv.innerHTML = html;
-
                 var actionHtml = "";
-                if(arrayContains(userData.friends, u.uid)) {
-                    actionHtml += "<input type='button' class='btn' value='Message' onclick=\"openChat('" + u.uid + "', '" + u.displayName + "')\" />";
-                } else if(arrayContains(u.requests, currentUser.uid)) {
-                    actionHtml += "<span style='color:orange; font-weight:bold;'>[Friend Request Sent]</span>";
-                } else {
-                    actionHtml += "<input type='button' class='btn' value='Add Friend' onclick=\"sendRequestFromView('" + u.uid + "')\" />";
-                }
+                if(userData.friends && userData.friends.includes(u.uid)) actionHtml += "<input type='button' class='btn' value='Message' onclick=\"openChat('" + u.uid + "', '" + u.displayName + "')\" />";
+                else if(u.requests && u.requests.includes(currentUser.uid)) actionHtml += "<span style='color:orange; font-weight:bold;'>[Friend Request Sent]</span>";
+                else actionHtml += "<input type='button' class='btn' value='Add Friend' onclick=\"sendRequestFromView('" + u.uid + "')\" />";
                 actionDiv.innerHTML = actionHtml;
-            }).catch(function(err) {
-                detailsDiv.innerHTML = "Error loading user profile.";
             });
         }
-
-        function sendRequestFromView(targetId) {
-            sendRequest(targetId, function() {
-                executeViewProfile(targetId);
-            });
-        }
+        function sendRequestFromView(targetId) { sendRequest(targetId, function() { executeViewProfile(targetId); }); }
 
         function loadFriends() {
-            var fDiv = document.getElementById('friends-list');
-            var rSec = document.getElementById('requests-section');
-            var rDiv = document.getElementById('requests-list');
-
+            var fDiv = document.getElementById('friends-list'); var rSec = document.getElementById('requests-section'); var rDiv = document.getElementById('requests-list');
             if(userData.requests && userData.requests.length > 0) {
-                rSec.className = ''; rDiv.innerHTML = "Loading requests...";
+                rSec.className = ''; rDiv.innerHTML = "Loading...";
                 db.collection(USERS_PATH).get().then(function(snap) {
                     rDiv.innerHTML = "";
                     snap.forEach(function(doc) {
                         var u = doc.data();
-                        if(arrayContains(userData.requests, u.uid)) {
-                            rDiv.innerHTML += "<div class='msg-row'><a href='javascript:void(0);' onclick=\"viewUserProfile('" + u.uid + "')\"><b>" + u.displayName + "</b></a> wants to connect.<br/><br/><input type='button' class='btn' value='Accept Request' onclick=\"acceptRequest('" + u.uid + "')\" /></div>";
+                        if(userData.requests.includes(u.uid)) {
+                            rDiv.innerHTML += "<div class='list-row'><a href='javascript:void(0);' onclick=\"viewUserProfile('" + u.uid + "')\"><b>" + u.displayName + "</b></a> wants to connect.<br/><a href='javascript:void(0);' onclick=\"acceptRequest('" + u.uid + "')\">[Accept]</a></div>";
                         }
                     });
                 });
             } else { rSec.className = 'hidden'; }
 
-            if(!userData.friends || userData.friends.length === 0) {
-                fDiv.innerHTML = "<div class='content'>No friends yet. Go to 'Find Friend' to add some!</div>";
-            } else {
-                fDiv.innerHTML = "Loading friends...";
+            if(!userData.friends || userData.friends.length === 0) fDiv.innerHTML = "<div class='content'>No friends yet. Go to 'Find Friend' to add some!</div>";
+            else {
+                fDiv.innerHTML = "Loading...";
                 db.collection(USERS_PATH).get().then(function(snap) {
                     fDiv.innerHTML = "";
                     snap.forEach(function(doc) {
                         var u = doc.data();
-                        if(arrayContains(userData.friends, u.uid)) {
-                            fDiv.innerHTML += "<div class='msg-row'><a href='javascript:void(0);' onclick=\"viewUserProfile('" + u.uid + "')\"><b>" + u.displayName + "</b></a> <br/><a href='javascript:void(0);' onclick=\"openChat('" + u.uid + "', '" + u.displayName + "')\">[Send Message]</a></div>";
+                        if(userData.friends.includes(u.uid)) {
+                            fDiv.innerHTML += "<div class='list-row'><a href='javascript:void(0);' onclick=\"viewUserProfile('" + u.uid + "')\"><b>" + u.displayName + "</b></a> <br/><a href='javascript:void(0);' onclick=\"openChat('" + u.uid + "', '" + u.displayName + "')\">[Message]</a></div>";
                         }
                     });
                 });
@@ -559,164 +650,74 @@
         }
 
         function loadAllUsersDB() {
-            var sDiv = document.getElementById('all-users-list');
-            var loadMoreBtn = document.getElementById('load-more-container');
-            sDiv.innerHTML = "Loading users...";
-            loadMoreBtn.className = 'more-btn hidden';
-            
-            allLoadedUsers = [];
-            lastLoadedUserIndex = 0;
-
+            var sDiv = document.getElementById('all-users-list'); var loadMoreBtn = document.getElementById('load-more-container');
+            sDiv.innerHTML = "Loading users..."; loadMoreBtn.className = 'more-btn hidden'; allLoadedUsers = []; lastLoadedUserIndex = 0;
             db.collection(USERS_PATH).get().then(function(snap) {
-                snap.forEach(function(doc) {
-                    var u = doc.data();
-                    if(u.uid !== currentUser.uid) {
-                        allLoadedUsers.push(u);
-                    }
-                });
-                
-                sDiv.innerHTML = "";
-                if(allLoadedUsers.length === 0) {
-                    sDiv.innerHTML = "<div class='content'>No other users found.</div>";
-                } else {
-                    renderUserBatch();
-                }
-            }).catch(function(err) {
-                sDiv.innerHTML = "<div class='content'>Error loading users.</div>";
+                snap.forEach(function(doc) { var u = doc.data(); if(u.uid !== currentUser.uid) allLoadedUsers.push(u); });
+                sDiv.innerHTML = ""; if(allLoadedUsers.length === 0) sDiv.innerHTML = "<div class='content'>No other users.</div>"; else renderUserBatch();
             });
         }
-
         function renderUserBatch() {
-            var sDiv = document.getElementById('all-users-list');
-            var loadMoreBtn = document.getElementById('load-more-container');
-            
-            var nextBatchLimit = lastLoadedUserIndex + USERS_PER_PAGE;
-            var currentBatch = allLoadedUsers.slice(lastLoadedUserIndex, nextBatchLimit);
-            
-            for(var i=0; i<currentBatch.length; i++) {
-                var u = currentBatch[i];
+            var sDiv = document.getElementById('all-users-list'); var loadMoreBtn = document.getElementById('load-more-container');
+            var nextBatchLimit = lastLoadedUserIndex + USERS_PER_PAGE; var currentBatch = allLoadedUsers.slice(lastLoadedUserIndex, nextBatchLimit);
+            currentBatch.forEach(function(u) {
                 var action = "";
-                if(arrayContains(userData.friends, u.uid)) {
-                    action = "<a href='javascript:void(0);' onclick=\"openChat('" + u.uid + "', '" + u.displayName + "')\">[Message]</a>";
-                } else if(arrayContains(u.requests, currentUser.uid)) {
-                    action = "<span style='color:orange;'>[Request Sent]</span>";
-                } else {
-                    action = "<a href='javascript:void(0);' onclick=\"sendRequest('" + u.uid + "')\">[Add Friend]</a>";
-                }
-                
-                sDiv.innerHTML += "<div class='msg-row'><a href='javascript:void(0);' onclick=\"viewUserProfile('" + u.uid + "')\" style='font-size: 14px; font-weight: bold; text-decoration: underline;'>" + u.displayName + "</a><br/>" + action + "</div>";
-            }
-
-            lastLoadedUserIndex = nextBatchLimit;
-            if (lastLoadedUserIndex < allLoadedUsers.length) {
-                loadMoreBtn.className = 'more-btn'; 
-            } else {
-                loadMoreBtn.className = 'more-btn hidden'; 
-            }
+                if(userData.friends && userData.friends.includes(u.uid)) action = "<a href='javascript:void(0);' onclick=\"openChat('" + u.uid + "', '" + u.displayName + "')\">[Message]</a>";
+                else if(u.requests && u.requests.includes(currentUser.uid)) action = "<span style='color:orange;'>[Sent]</span>";
+                else action = "<a href='javascript:void(0);' onclick=\"sendRequest('" + u.uid + "')\">[Add]</a>";
+                sDiv.innerHTML += "<div class='list-row'><a href='javascript:void(0);' onclick=\"viewUserProfile('" + u.uid + "')\"><b>" + u.displayName + "</b></a><br/>" + action + "</div>";
+            });
+            lastLoadedUserIndex = nextBatchLimit; loadMoreBtn.className = (lastLoadedUserIndex < allLoadedUsers.length) ? 'more-btn' : 'more-btn hidden';
         }
-
-        function loadMoreUsers() {
-            renderUserBatch();
-        }
+        function loadMoreUsers() { renderUserBatch(); }
         
         function searchFriend() {
-            var searchId = document.getElementById('search-ping-id').value.replace(/^\s+|\s+$/g, '');
-            if(!searchId) { loadAllUsersDB(); return; }
-            
-            var sDiv = document.getElementById('all-users-list');
-            var loadMoreBtn = document.getElementById('load-more-container');
-            sDiv.innerHTML = "Searching...";
-            loadMoreBtn.className = 'more-btn hidden';
-            
+            var searchId = document.getElementById('search-ping-id').value.trim(); if(!searchId) { loadAllUsersDB(); return; }
+            var sDiv = document.getElementById('all-users-list'); var loadMoreBtn = document.getElementById('load-more-container');
+            sDiv.innerHTML = "Searching..."; loadMoreBtn.className = 'more-btn hidden';
             db.collection(USERS_PATH).where("pingId", "==", searchId).get().then(function(snap) {
-                sDiv.innerHTML = "";
-                var count = 0;
+                sDiv.innerHTML = ""; var count = 0;
                 snap.forEach(function(doc) {
                     var u = doc.data();
                     if(u.uid !== currentUser.uid) {
-                        count++;
-                        var action = "";
-                        if(arrayContains(userData.friends, u.uid)) {
-                            action = "<a href='javascript:void(0);' onclick=\"openChat('" + u.uid + "', '" + u.displayName + "')\">[Message]</a>";
-                        } else if(arrayContains(u.requests, currentUser.uid)) {
-                            action = "<span style='color:orange;'>[Request Sent]</span>";
-                        } else {
-                            action = "<a href='javascript:void(0);' onclick=\"sendRequest('" + u.uid + "')\">[Add Friend]</a>";
-                        }
-                        
-                        sDiv.innerHTML += "<div class='msg-row'><a href='javascript:void(0);' onclick=\"viewUserProfile('" + u.uid + "')\" style='font-size: 14px; font-weight: bold; text-decoration: underline;'>" + u.displayName + "</a><br/>" + action + "</div>";
+                        count++; var action = "";
+                        if(userData.friends && userData.friends.includes(u.uid)) action = "<a href='javascript:void(0);' onclick=\"openChat('" + u.uid + "', '" + u.displayName + "')\">[Message]</a>";
+                        else if(u.requests && u.requests.includes(currentUser.uid)) action = "<span style='color:orange;'>[Sent]</span>";
+                        else action = "<a href='javascript:void(0);' onclick=\"sendRequest('" + u.uid + "')\">[Add]</a>";
+                        sDiv.innerHTML += "<div class='list-row'><a href='javascript:void(0);' onclick=\"viewUserProfile('" + u.uid + "')\"><b>" + u.displayName + "</b></a><br/>" + action + "</div>";
                     }
                 });
-                
-                if(count === 0) sDiv.innerHTML = "<div class='content' style='color:red;'>No user found with this Ping ID.</div>";
-                else sDiv.innerHTML = "<div class='msg-row' style='background:#fffbdd;'><b>Search Result:</b></div>" + sDiv.innerHTML;
-            }).catch(function(error) {
-                sDiv.innerHTML = "<div class='content'>Error searching user.</div>";
+                if(count === 0) sDiv.innerHTML = "<div class='content' style='color:red;'>No user found.</div>";
             });
         }
 
         function sendRequest(targetId, callback) {
             db.collection(USERS_PATH).doc(targetId).get().then(function(doc) {
                 var reqs = doc.data().requests || [];
-                if(!arrayContains(reqs, currentUser.uid)) {
-                    reqs.push(currentUser.uid);
-                    db.collection(USERS_PATH).doc(targetId).update({ requests: reqs }).then(function() { 
-                        notify("Request sent!"); 
-                        if(callback) callback();
-                        else loadAllUsersDB(); 
-                    });
-                }
+                if(!reqs.includes(currentUser.uid)) { reqs.push(currentUser.uid); db.collection(USERS_PATH).doc(targetId).update({ requests: reqs }).then(function() { notify("Request sent!"); if(callback) callback(); else loadAllUsersDB(); }); }
             });
         }
-
         function acceptRequest(senderId) {
-            var myFriends = userData.friends || []; 
-            if(!arrayContains(myFriends, senderId)) myFriends.push(senderId);
-            
-            var oldReqs = userData.requests || []; 
-            var myReqs = [];
-            for(var i=0; i<oldReqs.length; i++) {
-                if(oldReqs[i] !== senderId) myReqs.push(oldReqs[i]);
-            }
-            
+            var myFriends = userData.friends || []; if(!myFriends.includes(senderId)) myFriends.push(senderId);
+            var myReqs = userData.requests || []; myReqs = myReqs.filter(id => id !== senderId);
             db.collection(USERS_PATH).doc(currentUser.uid).update({ friends: myFriends, requests: myReqs }).then(function() {
                 db.collection(USERS_PATH).doc(senderId).get().then(function(doc) {
-                    var sFriends = doc.data().friends || []; 
-                    if(!arrayContains(sFriends, currentUser.uid)) sFriends.push(currentUser.uid);
+                    var sFriends = doc.data().friends || []; if(!sFriends.includes(currentUser.uid)) sFriends.push(currentUser.uid);
                     db.collection(USERS_PATH).doc(senderId).update({ friends: sFriends });
-                    
-                    userData.friends = myFriends; userData.requests = myReqs;
-                    notify("Friend Request Accepted!"); 
-                    loadFriends(); // Instantly update view
+                    userData.friends = myFriends; userData.requests = myReqs; notify("Accepted!"); loadFriends();
                 });
             });
         }
 
         function loadInbox() {
-            var inboxDiv = document.getElementById('inbox-list');
-            inboxDiv.innerHTML = "<span style='color:#808080;'>Loading chats...</span>";
-            
+            var inboxDiv = document.getElementById('inbox-list'); inboxDiv.innerHTML = "<span style='color:#808080;'>Loading chats...</span>";
             db.collection(CHATS_PATH).where("participants", "array-contains", currentUser.uid).get().then(function(snap) {
-                  inboxDiv.innerHTML = ""; 
-                  var unreadCount = 0;
-                  var latestSenderName = "";
-
-                  if(snap.empty) { 
-                      inboxDiv.innerHTML = "<div class='content'>No messages yet.</div>"; 
-                      updateNavbarUnread(0, "");
-                      return; 
-                  }
+                  inboxDiv.innerHTML = ""; var unreadCount = 0; var latestSenderName = ""; var latestTime = 0;
+                  if(snap.empty) { inboxDiv.innerHTML = "<div class='content'>No messages yet.</div>"; updateNavbarUnread(0, ""); return; }
+                  var chats = []; snap.forEach(function(doc) { var d = doc.data(); d.docId = doc.id; chats.push(d); });
+                  chats.sort((a, b) => (b.updatedAt ? b.updatedAt.toMillis() : 0) - (a.updatedAt ? a.updatedAt.toMillis() : 0));
                   
-                  var chats = [];
-                  snap.forEach(function(doc) { var d = doc.data(); d.docId = doc.id; chats.push(d); });
-                  chats.sort(function(a, b) {
-                      var aTime = a.updatedAt ? a.updatedAt.toMillis() : 0;
-                      var bTime = b.updatedAt ? b.updatedAt.toMillis() : 0;
-                      return bTime - aTime;
-                  });
-                  
-                  for(var i=0; i<chats.length; i++) {
-                      var data = chats[i];
+                  chats.forEach(function(data) {
                       var pid = data.participants[0] === currentUser.uid ? data.participants[1] : data.participants[0];
                       var pInfo = data.participantInfo ? data.participantInfo[pid] : {displayName: "User"};
                       var lastMsg = data.lastMessage ? data.lastMessage.text : "No messages";
@@ -724,187 +725,154 @@
                       var isUnread = (lastSender !== currentUser.uid && lastSender !== "") && (!readMessagesState[data.docId]);
                       
                       if(isUnread) {
-                          unreadCount++;
-                          latestSenderName = pInfo.displayName;
+                          unreadCount++; var msgTime = data.updatedAt ? data.updatedAt.toMillis() : 0;
+                          if (msgTime >= latestTime) { latestTime = msgTime; latestSenderName = pInfo.displayName; }
                       }
                       
-                      var rowClass = isUnread ? "msg-row unread" : "msg-row";
+                      var rowClass = isUnread ? "list-row unread" : "list-row";
                       var nameFormat = isUnread ? ("<b>" + pInfo.displayName + " <span class='new-badge'>[New]</span></b>") : ("<b>" + pInfo.displayName + "</b>");
 
                       var html = "<div class='" + rowClass + "'>";
-                      html += "<div class='float-r'><a href='javascript:void(0);' onclick=\"toggleOptions('opt-" + data.docId + "')\" class='dot-btn'>[⋮]</a></div>";
+                      html += "<div style='float:right;'><a href='javascript:void(0);' onclick=\"toggleOptions('opt-" + data.docId + "')\" class='dot-btn'>⋮</a></div>";
                       html += "<a href='javascript:void(0);' onclick=\"openChat('" + pid + "', '" + pInfo.displayName + "', '" + data.docId + "')\">" + nameFormat + "</a><br/>";
-                      html += "<span class='msg-time'>" + lastMsg + "</span>";
-                      html += "<div class='clear'></div>";
+                      html += "<span style='color:#808080; font-size:11px;'>" + lastMsg + "</span>";
                       html += "<div id='opt-" + data.docId + "' class='options-menu hidden'>";
-                      html += "<a href='javascript:void(0);' onclick=\"deleteChatAny('" + data.docId + "')\">[Delete]</a> | <a href='javascript:void(0);' onclick=\"blockUserAny('" + pid + "')\">[Block]</a></div>";
+                      html += "<a href='javascript:void(0);' onclick=\"deleteChatAny('" + data.docId + "')\">[মুছুন]</a> | <a href='javascript:void(0);' onclick=\"blockUserAny('" + pid + "')\">[ব্লক]</a></div>";
                       html += "</div>";
-                      
                       inboxDiv.innerHTML += html;
-                  }
+                  });
                   updateNavbarUnread(unreadCount, latestSenderName);
               });
         }
 
-        function toggleOptions(id) {
-            var el = document.getElementById(id);
-            if(el.className.indexOf('hidden') !== -1) el.className = 'options-menu';
-            else el.className = 'options-menu hidden';
-        }
+        function toggleOptions(id) { var el = document.getElementById(id); el.className = el.className.includes('hidden') ? 'options-menu' : 'options-menu hidden'; }
 
         function openChat(partnerId, partnerName, existingChatId) {
-            currentPartnerId = partnerId; 
-            currentPartnerName = partnerName;
+            currentPartnerId = partnerId; currentPartnerName = partnerName;
             var ids = [currentUser.uid, currentPartnerId]; ids.sort();
             currentChatId = existingChatId || ids.join('_');
-            
-            renderPage('chat');
+            window.location.hash = 'chat';
         }
 
         function executeOpenChat() {
-            readMessagesState[currentChatId] = true;
-            checkUnreadMessages(); 
-            
+            readMessagesState[currentChatId] = true; checkUnreadMessages(); 
             document.getElementById('chat-header-name').innerHTML = currentPartnerName; 
             document.getElementById('chat-main-opt').className = 'options-menu hidden';
+            document.getElementById('chat-online-status').className = 'online-dot hidden';
+            
+            db.collection(USERS_PATH).doc(currentPartnerId).get().then(function(doc) {
+                if(doc.exists && doc.data().lastActive) {
+                    if((Date.now() - doc.data().lastActive) < 300000) document.getElementById('chat-online-status').className = 'online-dot';
+                }
+            });
             
             var chatRef = db.collection(CHATS_PATH).doc(currentChatId);
             chatRef.get().then(function(docSnap) {
                 if(!docSnap.exists) {
-                    var pInfo = {};
-                    pInfo[currentUser.uid] = { displayName: userData.displayName };
-                    pInfo[currentPartnerId] = { displayName: currentPartnerName };
-                    var sortedIds = [currentUser.uid, currentPartnerId];
-                    sortedIds.sort();
-                    chatRef.set({ participants: sortedIds, participantInfo: pInfo, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+                    var pInfo = {}; pInfo[currentUser.uid] = { displayName: userData.displayName }; pInfo[currentPartnerId] = { displayName: currentPartnerName };
+                    chatRef.set({ participants: [currentUser.uid, currentPartnerId].sort(), participantInfo: pInfo, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
                 }
             });
             loadMessages();
         }
 
-        function loadMessages(isLoadOlder) {
-            if(isLoadOlder === undefined) isLoadOlder = false;
+        // চ্যাট মেসেজ লেফট-রাইট রেন্ডারিং লজিক 
+        function loadMessages(isLoadOlder = false) {
             var histDiv = document.getElementById('chat-history');
             var olderBtn = document.getElementById('older-msg-btn');
             
-            if(!isLoadOlder) { histDiv.innerHTML = "<div style='text-align:center; padding:10px;'>Loading...</div>"; oldestMessageDoc = null; if(olderBtn) olderBtn.className = 'hidden'; } 
-            else { if(olderBtn) olderBtn.innerHTML = "[Loading...]"; }
+            if(!isLoadOlder) { 
+                // ব্লিংক বা লাফ দেওয়া বন্ধ করতে শুধুমাত্র খালি থাকলে লোডিং দেখাবে
+                if (histDiv.innerHTML.trim() === "" || histDiv.innerHTML.includes("লোড হচ্ছে...")) {
+                    histDiv.innerHTML = "<div style='text-align:center; padding:10px;'>লোড হচ্ছে...</div>"; 
+                }
+                oldestMessageDoc = null; 
+                if(olderBtn) olderBtn.className = 'hidden'; 
+            } 
+            else { if(olderBtn) olderBtn.innerHTML = "[লোড হচ্ছে...]"; }
             
             var query = db.collection(CHATS_PATH).doc(currentChatId).collection('messages').orderBy('timestamp', 'desc').limit(MESSAGES_PER_PAGE);
             if(isLoadOlder && oldestMessageDoc) query = query.startAfter(oldestMessageDoc);
             
             query.get().then(function(snap) {
-                if(!isLoadOlder) histDiv.innerHTML = "";
                 var msgs = []; snap.forEach(function(doc) { var d = doc.data(); d.docId = doc.id; d.docSnap = doc; msgs.push(d); });
                 
                 if(msgs.length > 0) {
                     oldestMessageDoc = msgs[msgs.length - 1].docSnap;
                     if(olderBtn) olderBtn.className = (msgs.length === MESSAGES_PER_PAGE) ? '' : 'hidden';
-                    if(olderBtn && msgs.length === MESSAGES_PER_PAGE) olderBtn.innerHTML = "[Older Messages]";
+                    if(olderBtn && msgs.length === MESSAGES_PER_PAGE) olderBtn.innerHTML = "[পুরানো মেসেজ]";
                 } else {
-                    if(!isLoadOlder) histDiv.innerHTML = "<div style='padding:10px; color:#808080;'>No messages yet. Say Hi!</div>";
+                    if(!isLoadOlder) histDiv.innerHTML = "<div style='text-align:center; color:#808080; padding: 10px;'>কোনো মেসেজ নেই। শুরু করুন!</div>";
                     if(olderBtn) olderBtn.className = 'hidden';
                 }
                 
                 msgs.reverse(); var htmlContent = "";
-                for(var i=0; i<msgs.length; i++) {
-                    var m = msgs[i];
+                msgs.forEach(function(m) {
                     var isMe = m.senderId === currentUser.uid;
-                    var nameClass = isMe ? "me" : "sender";
-                    var timeStr = "";
-                    if(m.timestamp) {
-                        var d = m.timestamp.toDate();
-                        var min = d.getMinutes();
-                        timeStr = d.getHours() + ":" + (min < 10 ? '0' : '') + min;
+                    var boxClass = isMe ? "msg-me" : "msg-you";
+                    var timeClass = isMe ? "msg-time-me" : "msg-time-you";
+                    
+                    var timeStr = m.timestamp ? (m.timestamp.toDate().getHours() + ":" + (m.timestamp.toDate().getMinutes()<10?'0':'') + m.timestamp.toDate().getMinutes()) : "";
+                    var imgHtml = m.imageUrl ? ("<div style='margin-top:4px;'><a href='" + m.imageUrl + "' target='_blank'><img src='" + m.imageUrl + "' style='max-width:140px; border-radius:4px; border:1px solid #ccc;'/></a></div>") : "";
+                    
+                    var html = "<div class='msg-container'>";
+                    html += "<div class='" + boxClass + "'>";
+                    
+                    if(!isMe) {
+                        html += "<div style='font-weight:bold; color:#3b5998; font-size:11px; margin-bottom:3px;'>" + currentPartnerName + "</div>";
                     }
                     
-                    var likesCount = m.likes || 0;
-                    var likedByMe = arrayContains(m.likedBy, currentUser.uid);
-                    var likeActionText = likedByMe ? "Unlike" : "Like";
-                    var likeDisplay = likesCount > 0 ? (" • <span style='color:red; font-size:10px;'>❤️ " + likesCount + "</span>") : "";
-
-                    var imgHtml = m.imageUrl ? ("<br/><a href='" + m.imageUrl + "' target='_blank'><img src='" + m.imageUrl + "' style='max-width:120px; border:1px solid #ccc;'/></a>") : "";
-                    
-                    var html = "<div class='msg-row'>";
-                    html += "<span class='" + nameClass + "'>" + (isMe ? "You" : currentPartnerName) + ":</span> " + m.text;
-                    html += imgHtml + "<br/>";
-                    html += "<span class='msg-time'>" + timeStr + "</span> ";
-                    html += "<a href='javascript:void(0);' onclick=\"toggleLike('" + m.docId + "')\" style='font-size:11px; margin-left:5px;'>[" + likeActionText + "]</a>";
-                    html += likeDisplay;
-                    html += "</div>";
+                    html += "<div>" + m.text + "</div>";
+                    html += imgHtml;
+                    html += "<span class='" + timeClass + "'>" + timeStr + "</span>";
+                    html += "</div></div>";
                     
                     htmlContent += html;
-                }
+                });
                 
                 if(isLoadOlder) {
+                    var curScroll = histDiv.scrollHeight;
                     histDiv.innerHTML = htmlContent + histDiv.innerHTML;
+                    histDiv.scrollTop = histDiv.scrollHeight - curScroll;
                 } else {
                     histDiv.innerHTML = htmlContent;
+                    histDiv.scrollTop = histDiv.scrollHeight;
                 }
             });
         }
 
-        function toggleLike(msgId) {
-            var msgDocRef = db.collection(CHATS_PATH).doc(currentChatId).collection('messages').doc(msgId);
-            msgDocRef.get().then(function(docSnap) {
-                if (docSnap.exists) {
-                    var data = docSnap.data();
-                    var likedBy = data.likedBy || [];
-                    var likes = data.likes || 0;
-                    
-                    var newLikedBy = [];
-                    var found = false;
-                    for(var i=0; i<likedBy.length; i++) {
-                        if(likedBy[i] === currentUser.uid) { found = true; }
-                        else { newLikedBy.push(likedBy[i]); }
-                    }
-
-                    if (found) {
-                        likes = Math.max(0, likes - 1);
-                        likedBy = newLikedBy;
-                    } else {
-                        likedBy.push(currentUser.uid);
-                        likes += 1;
-                    }
-                    msgDocRef.update({ likedBy: likedBy, likes: likes }).then(function() { loadMessages(); });
-                }
-            });
-        }
-
+        // ক্লাসিক চ্যাট সেন্ডার (স্ট্যাবল সেন্ডিং)
         function sendMessage() {
-            if(arrayContains(userData.blocked, currentPartnerId)) { notify("You have blocked this user."); return; }
-            var text = document.getElementById('chat-input').value.replace(/^\s+|\s+$/g, '');
+            if(userData.blocked && userData.blocked.includes(currentPartnerId)) { notify("You have blocked this user."); return; }
+            var text = document.getElementById('chat-input').value.trim();
             var file = document.getElementById('attach-file').files[0];
             if(!text && !file) { notify("Empty message."); return; }
             
-            document.getElementById('chat-input').value = ""; document.getElementById('image-panel').className = 'hidden';
-            var histDiv = document.getElementById('chat-history'); var tempId = "tmp_" + new Date().getTime();
-            histDiv.innerHTML += "<div id='" + tempId + "' class='msg-row' style='opacity:0.6;'><span class='me'>You:</span> " + text + "<br/><span class='msg-time'>Sending... (Refresh to sync)</span></div>";
+            document.getElementById('chat-input').value = ""; 
+            
+            var histDiv = document.getElementById('chat-history'); 
+            var tempId = "tmp_" + Date.now();
+            
+            // লাফ দেওয়া রোধ করতে insertAdjacentHTML ব্যবহার
+            var tempHtml = "<div id='" + tempId + "' class='msg-container'><div class='msg-me' style='opacity:0.6;'><div>" + (text || "Uploading image...") + "</div><span class='msg-time-me'>Sending...</span></div></div>";
+            if(histDiv.innerHTML.includes("কোনো মেসেজ নেই")) histDiv.innerHTML = "";
+            histDiv.insertAdjacentHTML('beforeend', tempHtml);
+            histDiv.scrollTop = histDiv.scrollHeight;
             
             if (file) {
                 var fd = new FormData(); fd.append("image", file);
-                var xhr = new XMLHttpRequest();
-                xhr.open("POST", "https://api.imgbb.com/1/upload?key=" + IMGBB_API_KEY, true);
-                xhr.onload = function() {
-                    if(xhr.status === 200) {
-                        var response = JSON.parse(xhr.responseText);
-                        if(response.success) {
-                            saveMsgToDB(text, response.data.url, tempId);
-                            document.getElementById('attach-file').value = "";
-                        } else {
-                            notify("Upload failed!");
-                            document.getElementById(tempId).style.display = 'none';
-                        }
-                    } else {
-                        notify("Upload error!");
-                        document.getElementById(tempId).style.display = 'none';
-                    }
-                };
-                xhr.onerror = function() {
-                    notify("Upload error!");
-                    document.getElementById(tempId).style.display = 'none';
-                };
-                xhr.send(fd);
+                fetch("https://api.imgbb.com/1/upload?key=" + IMGBB_API_KEY, { method: "POST", body: fd })
+                .then(r => r.json()).then(d => { 
+                    if(d.success) { 
+                        saveMsgToDB(text, d.data.url, tempId); 
+                        document.getElementById('attach-file').value=""; 
+                        document.getElementById('file-name').innerText = "";
+                    } else { 
+                        notify("Upload failed!"); 
+                        document.getElementById(tempId).style.display = 'none'; 
+                    } 
+                })
+                .catch(e => { notify("Error!"); document.getElementById(tempId).style.display = 'none'; });
             } else { saveMsgToDB(text, null, tempId); }
         }
 
@@ -912,36 +880,251 @@
             var p = { senderId: currentUser.uid, text: text, imageUrl: imgUrl, likes: 0, likedBy: [], timestamp: firebase.firestore.FieldValue.serverTimestamp() };
             db.collection(CHATS_PATH).doc(currentChatId).collection('messages').add(p).then(function() {
                 db.collection(CHATS_PATH).doc(currentChatId).update({ lastMessage: p, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
-                loadMessages(); // reload explicitly
-            }).catch(function(e) { document.getElementById(tempId).style.display = 'none'; });
+                loadMessages();
+            }).catch(e => {
+                if(document.getElementById(tempId)) document.getElementById(tempId).style.display = 'none';
+            });
         }
 
-        function toggleEmoji() { 
-            var p = document.getElementById('emoji-panel'); 
-            if(p.className.indexOf('hidden') !== -1) p.className = 'emoji-panel';
-            else p.className = 'emoji-panel hidden';
-        }
-        function addEmoji(e) { document.getElementById('chat-input').value += e; toggleEmoji(); }
-        
-        function toggleImagePanel() { 
-            var p = document.getElementById('image-panel'); 
-            if(p.className.indexOf('hidden') !== -1) p.className = '';
-            else p.className = 'hidden';
-        }
-
-        function deleteChatAny(cid) {
-            if(confirm("Delete this chat?")) {
-                db.collection(CHATS_PATH).doc(cid).delete().then(function(){ notify("Chat Deleted"); loadInbox(); });
-            }
-        }
+        function deleteChatAny(cid) { if(confirm("Delete this chat?")) { db.collection(CHATS_PATH).doc(cid).delete().then(function(){ notify("Chat Deleted"); loadInbox(); }); } }
         function blockUserAny(uid) {
             if(confirm("Block this user?")) {
-                var b = userData.blocked || []; if(!arrayContains(b, uid)) b.push(uid);
+                var b = userData.blocked || []; if(!b.includes(uid)) b.push(uid);
                 db.collection(USERS_PATH).doc(currentUser.uid).update({ blocked: b }).then(function(){ userData.blocked = b; notify("User Blocked"); loadInbox(); });
             }
         }
-        function deleteChatCurrent() { deleteChatAny(currentChatId); renderPage('inbox'); }
-        function blockUserCurrent() { blockUserAny(currentPartnerId); renderPage('inbox'); }
+        function deleteChatCurrent() { deleteChatAny(currentChatId); window.location.hash='inbox'; }
+        function blockUserCurrent() { blockUserAny(currentPartnerId); window.location.hash='inbox'; }
+
+
+        // --- অডিও ও ভিডিও কলিং ফাংশনস ---
+        function checkMediaPermissions() {
+            return navigator.mediaDevices.getUserMedia({ audio: true, video: true })
+            .then(function(stream) { stream.getTracks().forEach(function(track) { track.stop(); }); return true; })
+            .catch(function(e) { notify("Please allow Microphone and Camera access for calls."); return false; });
+        }
+
+        function initAgoraClient() {
+            if (agoraClient) return;
+            agoraClient = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
+            
+            // নেটওয়ার্ক এরর হ্যান্ডেল
+            agoraClient.on("connection-state-change", function(curState, revState, reason) {
+                if (curState === "DISCONNECTED") {
+                    notify("⚠️ কলের সংযোগ বিচ্ছিন্ন হয়েছে।");
+                    if(isCallActive) hangupCall('network_error');
+                }
+            });
+
+            agoraClient.on("user-published", function(user, mediaType) {
+                agoraClient.subscribe(user, mediaType).then(function() {
+                    if (mediaType === "video") user.videoTrack.play("remote-video");
+                    if (mediaType === "audio") user.audioTrack.play();
+                });
+            });
+
+            agoraClient.on("user-left", function() {
+                notify("Partner left the call");
+                hangupCall('ended_remote');
+            });
+        }
+
+        function startCallTimer() {
+            callSeconds = 0; clearInterval(callTimerInterval);
+            var statusEl = document.getElementById('call-screen-status');
+            callTimerInterval = setInterval(function() {
+                callSeconds++;
+                var m = Math.floor(callSeconds / 60); var s = callSeconds % 60;
+                statusEl.innerHTML = (m < 10 ? "0" + m : m) + ":" + (s < 10 ? "0" + s : s);
+            }, 1000);
+        }
+
+        function stopCallTimer() { clearInterval(callTimerInterval); return callSeconds; }
+
+        function initiateCall(type) {
+            checkMediaPermissions().then(function(hasPermission) {
+                if (!hasPermission) return;
+                
+                currentCallType = type; isCallActive = true;
+                
+                var callScreen = document.getElementById('view-call');
+                callScreen.className = 'call-modal';
+                document.getElementById('call-screen-user').innerText = currentPartnerName;
+                document.getElementById('call-screen-status').innerText = "Calling...";
+                
+                var videoGrid = document.getElementById('call-video-grid');
+                var camBtn = document.getElementById('btn-toggle-cam');
+                
+                if (type === 'video') { videoGrid.style.display = 'block'; camBtn.style.display = 'inline-block'; } 
+                else { videoGrid.style.display = 'none'; camBtn.style.display = 'none'; }
+
+                initAgoraClient();
+
+                agoraClient.join(AGORA_APP_ID, currentChatId, null, currentUser.uid).then(function() {
+                    return AgoraRTC.createMicrophoneAudioTrack();
+                }).then(function(audioTrack) {
+                    localTracks.audio = audioTrack;
+                    if (type === 'video') {
+                        return AgoraRTC.createCameraVideoTrack().then(function(videoTrack) {
+                            localTracks.video = videoTrack;
+                            localTracks.video.play("local-video");
+                            return agoraClient.publish([localTracks.audio, localTracks.video]);
+                        });
+                    } else { return agoraClient.publish([localTracks.audio]); }
+                }).then(function() {
+                    return db.collection(CHATS_PATH).doc(currentChatId).update({ callStatus: { state: 'calling', type: type, callerId: currentUser.uid, timestamp: Date.now() } });
+                }).catch(function(err) { hangupCall('error'); });
+
+                setTimeout(function() {
+                    var status = document.getElementById('call-screen-status').innerText;
+                    if (isCallActive && status === "Calling...") { notify("No answer"); hangupCall('missed'); }
+                }, 45000);
+            });
+        }
+
+        function acceptIncomingCall(chatId, callStatus) {
+            checkMediaPermissions().then(function(hasPermission) {
+                if(!hasPermission) { rejectCall(chatId); return; }
+                
+                document.getElementById('incoming-call-panel').className = 'incoming-call-box hidden';
+                currentChatId = chatId; currentPartnerId = callStatus.callerId; currentCallType = callStatus.type; isCallActive = true;
+                
+                db.collection(USERS_PATH).doc(currentPartnerId).get().then(function(uDoc) {
+                    currentPartnerName = uDoc.exists ? uDoc.data().displayName : "Partner";
+                    
+                    var callScreen = document.getElementById('view-call');
+                    callScreen.className = 'call-modal';
+                    document.getElementById('call-screen-user').innerText = currentPartnerName;
+                    document.getElementById('call-screen-status').innerText = "Connecting...";
+
+                    var videoGrid = document.getElementById('call-video-grid');
+                    var camBtn = document.getElementById('btn-toggle-cam');
+                    
+                    if (currentCallType === 'video') { videoGrid.style.display = 'block'; camBtn.style.display = 'inline-block'; } 
+                    else { videoGrid.style.display = 'none'; camBtn.style.display = 'none'; }
+
+                    initAgoraClient();
+
+                    agoraClient.join(AGORA_APP_ID, chatId, null, currentUser.uid).then(function() {
+                        return AgoraRTC.createMicrophoneAudioTrack();
+                    }).then(function(audioTrack) {
+                        localTracks.audio = audioTrack;
+                        if (currentCallType === 'video') {
+                            return AgoraRTC.createCameraVideoTrack().then(function(videoTrack) {
+                                localTracks.video = videoTrack;
+                                localTracks.video.play("local-video");
+                                return agoraClient.publish([localTracks.audio, localTracks.video]);
+                            });
+                        } else { return agoraClient.publish([localTracks.audio]); }
+                    }).then(function() {
+                        startCallTimer();
+                        return db.collection(CHATS_PATH).doc(chatId).update({ 'callStatus.state': 'ongoing' });
+                    }).catch(function(err) { hangupCall('error'); });
+                });
+            });
+        }
+
+        function rejectCall(chatId) {
+            document.getElementById('incoming-call-panel').className = 'incoming-call-box hidden';
+            db.collection(CHATS_PATH).doc(chatId).update({ callStatus: { state: 'rejected', timestamp: Date.now() } }).then(function() {
+                return db.collection(CHATS_PATH).doc(chatId).collection('messages').add({
+                    text: "📞 Call Rejected", type: 'text', senderId: currentUser.uid, timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            });
+        }
+
+        function hangupCall(reason) {
+            var duration = stopCallTimer(); isCallActive = false;
+            if (localTracks.audio) { localTracks.audio.close(); localTracks.audio = null; }
+            if (localTracks.video) { localTracks.video.close(); localTracks.video = null; }
+            
+            var leavePromise = agoraClient ? agoraClient.leave() : Promise.resolve();
+            leavePromise.then(function() {
+                document.getElementById('view-call').className = 'call-modal hidden';
+                document.getElementById('local-video').innerHTML = '';
+                document.getElementById('remote-video').innerHTML = '';
+                
+                if (!currentChatId) return;
+
+                var callSummary = "📞 Call ended";
+                if (reason === 'missed') callSummary = "📞 Missed Call";
+                else if (reason === 'rejected') callSummary = "📞 Call Rejected";
+                else if (reason === 'network_error') callSummary = "⚠️ Network Error - Call Dropped";
+                else if (duration > 0) {
+                    var m = Math.floor(duration / 60); var s = duration % 60;
+                    callSummary = "📞 Call ended • " + (m < 10 ? "0" + m : m) + ":" + (s < 10 ? "0" + s : s);
+                }
+
+                db.collection(CHATS_PATH).doc(currentChatId).update({ callStatus: { state: 'ended', timestamp: Date.now() } });
+
+                if (reason === 'missed' || reason === 'rejected' || reason === 'network_error' || !reason) {
+                    db.collection(CHATS_PATH).doc(currentChatId).collection('messages').add({
+                        text: callSummary, type: 'text', senderId: currentUser.uid, timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                    }).then(function() {
+                        db.collection(CHATS_PATH).doc(currentChatId).update({
+                            lastMessage: { text: callSummary, senderId: currentUser.uid, timestamp: firebase.firestore.FieldValue.serverTimestamp() },
+                            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                        loadMessages();
+                    });
+                }
+            });
+        }
+
+        document.getElementById('btn-hangup').onclick = function() { hangupCall(); };
+        document.getElementById('btn-toggle-mic').onclick = function() {
+            if (localTracks.audio) {
+                var isMuted = localTracks.audio.muted;
+                localTracks.audio.setMuted(!isMuted);
+                document.getElementById('btn-toggle-mic').innerText = !isMuted ? "মাইক অন করুন" : "মাইক মিউট";
+            }
+        };
+        document.getElementById('btn-toggle-cam').onclick = function() {
+            if (localTracks.video) {
+                var isMuted = localTracks.video.muted;
+                localTracks.video.setMuted(!isMuted);
+                document.getElementById('btn-toggle-cam').innerText = !isMuted ? "ক্যামেরা অন" : "ক্যামেরা অফ";
+            }
+        };
+
+        // --- লোকাল ক্যামেরা ড্রেগ করার লজিক ---
+        var localVidBox = document.getElementById('local-video');
+        var isDragging = false;
+        var startX, startY, initialX, initialY;
+
+        function startDrag(e) {
+            isDragging = true;
+            if (e.type === "touchstart") { startX = e.touches[0].clientX; startY = e.touches[0].clientY; } 
+            else { startX = e.clientX; startY = e.clientY; }
+            initialX = localVidBox.offsetLeft;
+            initialY = localVidBox.offsetTop;
+        }
+
+        function doDrag(e) {
+            if (isDragging) {
+                e.preventDefault();
+                var currentX, currentY;
+                if (e.type === "touchmove") { currentX = e.touches[0].clientX; currentY = e.touches[0].clientY; } 
+                else { currentX = e.clientX; currentY = e.clientY; }
+                
+                var dx = currentX - startX;
+                var dy = currentY - startY;
+                
+                localVidBox.style.left = (initialX + dx) + "px";
+                localVidBox.style.top = (initialY + dy) + "px";
+                localVidBox.style.right = "auto";
+            }
+        }
+
+        function endDrag(e) { isDragging = false; }
+
+        localVidBox.addEventListener('mousedown', startDrag, false);
+        document.addEventListener('mousemove', doDrag, false);
+        document.addEventListener('mouseup', endDrag, false);
+        
+        localVidBox.addEventListener('touchstart', startDrag, {passive: false});
+        document.addEventListener('touchmove', doDrag, {passive: false});
+        document.addEventListener('touchend', endDrag, false);
 
     </script>
 </body>
